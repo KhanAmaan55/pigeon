@@ -11,7 +11,7 @@ Every story leaves the repo green: `pnpm verify` passes and the apps build. Test
 | Web E2E | **Playwright** — Chromium, Firefox, WebKit |
 | Desktop E2E | **WebdriverIO + tauri-driver** on Windows and Linux (tauri-driver has no macOS support); macOS: build + launch smoke test + manual checklist |
 | Rust | `cargo test` (http command against the test server) |
-| Lint / types | ESLint (flat config, boundary rules), Prettier, `tsc --noEmit` per package, `cargo clippy` |
+| Lint / types | ESLint (flat config, boundary rules), Prettier, `tsc -b` over all packages and their test projects, `cargo clippy` |
 
 ## 2. Commands
 

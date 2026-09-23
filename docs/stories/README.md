@@ -29,7 +29,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 
 | ID | Title | Phase | Tier | Depends on | Status |
 |---|---|---|---|---|---|
-| [PIGN-001](PIGN-001-monorepo-scaffold.md) | Monorepo scaffold & tooling | 0 Foundation | MVP | — | Todo |
+| [PIGN-001](PIGN-001-monorepo-scaffold.md) | Monorepo scaffold & tooling | 0 Foundation | MVP | — | In review |
 | [PIGN-002](PIGN-002-web-app-shell.md) | Web app shell & layout | 0 Foundation | MVP | 001 | Todo |
 | [PIGN-003](PIGN-003-desktop-shell.md) | Desktop shell (Tauri) on macOS/Windows/Linux | 0 Foundation | MVP | 002 | Todo |
 | [PIGN-004](PIGN-004-platform-interfaces.md) | Platform interfaces, capabilities & memory adapters | 0 Foundation | MVP | 002 | Todo |

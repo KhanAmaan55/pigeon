@@ -1,0 +1,13 @@
+{
+  "name": "@pigeon/platform",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Platform interfaces (filesystem, transport, app state, secrets, dialogs, capabilities) and memory implementations.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

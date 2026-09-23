@@ -1,0 +1,16 @@
+{
+  "name": "@pigeon/platform-web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Browser implementations of the platform interfaces.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@pigeon/platform": "workspace:*"
+  }
+}

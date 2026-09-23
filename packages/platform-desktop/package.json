@@ -1,0 +1,16 @@
+{
+  "name": "@pigeon/platform-desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Tauri desktop implementations of the platform interfaces.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@pigeon/platform": "workspace:*"
+  }
+}
