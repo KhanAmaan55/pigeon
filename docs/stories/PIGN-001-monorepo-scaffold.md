@@ -17,13 +17,13 @@ As a Pigeon contributor, I want one command that lints, type-checks, tests, and 
 
 ## Scope
 **In scope**
-- Root `package.json` (private, `packageManager: pnpm@<latest 9/10>`, `engines.node >= 22`), `pnpm-workspace.yaml`, `tsconfig.base.json` (strict, `moduleResolution: bundler`, `verbatimModuleSyntax`), `.editorconfig`, `.gitignore`, `.nvmrc`, `.gitattributes` (LF).
+- Root `package.json` (private, `packageManager: pnpm@11.5.2`, `engines.node >= 22.12`), `pnpm-workspace.yaml`, `tsconfig.base.json` (strict, `moduleResolution: bundler`, `verbatimModuleSyntax`), `.editorconfig`, `.gitignore`, `.nvmrc`, `.gitattributes` (LF).
 - Packages with `package.json`, `tsconfig.json`, `src/index.ts` (placeholder export), and one trivial test each: `core`, `formats`, `compare`, `platform`, `platform-web`, `platform-desktop`, `ui`, `fixtures`. (`test-server` in PIGN-005; `platform-node` in PIGN-019; `apps/*` in PIGN-002/003.)
 - Pure packages (`core`, `formats`, `compare`, `platform`) use `"lib": ["ES2022"]` (no DOM) in tsconfig.
 - ESLint flat config + Prettier; `no-restricted-imports` rules enforcing the dependency table (e.g. `core` cannot import `react`, `@tauri-apps/*`, `node:*`, `@pigeon/ui`).
 - Vitest workspace config.
 - Root scripts: `lint`, `format`, `typecheck`, `test`, `build`, `verify` (= lint + typecheck + test + build).
-- GitHub Actions workflow `ci.yml` with the `verify` job (ubuntu) and a `cross-os` job (macOS/Windows/Linux running `pnpm test`).
+- GitHub Actions workflow `ci.yml` with a `verify` job running `pnpm verify` on a macOS/Windows/Linux matrix.
 - Root `README.md` (short: what Pigeon is, link to `docs/README.md`, how to run `pnpm verify`).
 
 **Out of scope**
@@ -67,5 +67,6 @@ Standard DoD ([stories/README.md](README.md#standard-definition-of-done-applies-
   - Rejected as expected: `react`, `@pigeon/ui` and `node:fs/promises`/`path` in core; `@pigeon/core` in formats; `@pigeon/platform` in compare; `@tauri-apps/*` and `@pigeon/platform-web` in ui; `@pigeon/core` in platform-web.
   - Allowed as expected: `@pigeon/platform` in core, `@pigeon/core` in ui, `@tauri-apps/*` in platform-desktop, and `node:*` in tests.
   - Type-check: `document.title` in core and `document`/`process` in formats fail with TS2584/TS2591, while TextEncoder/URL/crypto compile.
-- **Follow-up:** after the first CI run is green on all three OS runners, tick the first criterion and set Status to Done.
+- **CI coverage:** the `verify` job runs the full `pnpm verify` (lint, typecheck, test, build) on all three OS runners, matching the first acceptance criterion. An earlier draft ran only `pnpm test` off Ubuntu, which would not have covered it.
+- **Follow-up:** after the first CI run shows `verify` green on macOS, Windows, and Linux, tick the first criterion and set Status to Done.
 
