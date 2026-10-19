@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-001 | 0 — Foundation | MVP | In review (CI pending) | — |
+| PIGN-001 | 0 — Foundation | MVP | Done | — |
 
 ## Goal
 Create the pnpm/TypeScript monorepo with all packages as empty-but-buildable shells, shared tooling, boundary rules, and CI, so every later story plugs into a working pipeline.
@@ -30,7 +30,7 @@ As a Pigeon contributor, I want one command that lints, type-checks, tests, and 
 - Any app, UI, or domain code. Tauri/Rust (PIGN-003). Playwright (PIGN-002).
 
 ## Acceptance criteria
-- [ ] `pnpm install && pnpm verify` succeeds on a clean clone on macOS, Windows, and Linux. *(Verified on a clean copy on macOS; Windows/Linux pending first CI run.)*
+- [x] `pnpm install && pnpm verify` succeeds on a clean clone on macOS, Windows, and Linux. *(Clean local copy on macOS; CI run 38576999953 on `965b17f`: `verify` green on ubuntu, macOS, Windows.)*
 - [x] Each package builds (`tsc -b` or `tsup`/Vite library mode — pick one and document it) and exports a placeholder.
 - [x] Adding `import React from 'react'` in `packages/core/src` fails `pnpm lint`; adding `document.title` in `packages/core/src` fails `pnpm typecheck`.
 - [x] CI runs `verify` on pull requests and pushes to `main`.
@@ -68,5 +68,5 @@ Standard DoD ([stories/README.md](README.md#standard-definition-of-done-applies-
   - Allowed as expected: `@pigeon/platform` in core, `@pigeon/core` in ui, `@tauri-apps/*` in platform-desktop, and `node:*` in tests.
   - Type-check: `document.title` in core and `document`/`process` in formats fail with TS2584/TS2591, while TextEncoder/URL/crypto compile.
 - **CI coverage:** the `verify` job runs the full `pnpm verify` (lint, typecheck, test, build) on all three OS runners, matching the first acceptance criterion. An earlier draft ran only `pnpm test` off Ubuntu, which would not have covered it.
-- **Follow-up:** after the first CI run shows `verify` green on macOS, Windows, and Linux, tick the first criterion and set Status to Done.
+- **CI:** run 38576999953 (commit `965b17f`) passed `pnpm verify` on all three OS runners, so the story is Done.
 
