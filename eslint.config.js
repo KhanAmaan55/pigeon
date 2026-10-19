@@ -3,23 +3,25 @@ import { builtinModules } from 'node:module';
 
 import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
+import reactHooks from 'eslint-plugin-react-hooks';
 import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 /**
- * Package dependency rules — see docs/architecture.md §2 ("Allowed dependencies").
- * Each entry lists the internal packages a package may import and which external
- * platform families are forbidden.
+ * Workspace dependency rules — see docs/architecture.md §2 ("Allowed dependencies").
+ * Keyed by workspace directory; each entry lists the internal packages it may import and
+ * which external platform families are forbidden in its sources.
  */
-const packages = {
-  platform: { pigeon: [], pure: true },
-  formats: { pigeon: ['platform'], pure: true },
-  compare: { pigeon: [], pure: true },
-  core: { pigeon: ['platform', 'formats', 'compare'], pure: true },
-  fixtures: { pigeon: [], pure: true },
-  'platform-web': { pigeon: ['platform'], forbid: ['react', 'tauri', 'node'] },
-  'platform-desktop': { pigeon: ['platform'], forbid: ['react', 'node'] },
-  ui: { pigeon: ['core', 'formats', 'compare', 'platform'], forbid: ['tauri', 'node'] },
+const workspaces = {
+  'packages/platform': { pigeon: [], pure: true },
+  'packages/formats': { pigeon: ['platform'], pure: true },
+  'packages/compare': { pigeon: [], pure: true },
+  'packages/core': { pigeon: ['platform', 'formats', 'compare'], pure: true },
+  'packages/fixtures': { pigeon: [], pure: true },
+  'packages/platform-web': { pigeon: ['platform'], forbid: ['react', 'tauri', 'node'] },
+  'packages/platform-desktop': { pigeon: ['platform'], forbid: ['react', 'node'] },
+  'packages/ui': { pigeon: ['core', 'formats', 'compare', 'platform'], forbid: ['tauri', 'node'] },
+  'apps/web': { pigeon: ['ui', 'platform', 'platform-web'], forbid: ['tauri', 'node'] },
 };
 
 const forbiddenGroups = {
@@ -39,16 +41,16 @@ const forbiddenGroups = {
 };
 
 /**
- * @param {string} name
+ * @param {string} dir workspace directory, e.g. `packages/core`
  * @param {{ pigeon: string[], pure?: boolean, forbid?: string[] }} rule
  * @returns {import('eslint').Linter.Config[]}
  */
-function restrictedImportsFor(name, rule) {
+function restrictedImportsFor(dir, rule) {
   const forbid = rule.pure ? ['react', 'tauri', 'node'] : (rule.forbid ?? []);
   const allowed = rule.pigeon.map((dep) => `!@pigeon/${dep}`);
   const pigeonGroup = {
     group: ['@pigeon/*', ...allowed],
-    message: `@pigeon/${name} may only import: ${
+    message: `${dir} may only import: ${
       rule.pigeon.length
         ? rule.pigeon.map((d) => `@pigeon/${d}`).join(', ')
         : 'no internal packages'
@@ -61,12 +63,12 @@ function restrictedImportsFor(name, rule) {
   ];
   return [
     {
-      files: [`packages/${name}/**/*.{ts,tsx,js,mjs}`],
+      files: [`${dir}/src/**/*.{ts,tsx}`, `${dir}/test/**/*.{ts,tsx}`],
       rules: { 'no-restricted-imports': ['error', { patterns: patterns(forbid) }] },
     },
     {
       // Tests run in Node under Vitest: Node built-ins are fine there, package boundaries still apply.
-      files: [`packages/${name}/test/**/*.{ts,tsx}`],
+      files: [`${dir}/test/**/*.{ts,tsx}`],
       rules: {
         'no-restricted-imports': [
           'error',
@@ -79,7 +81,15 @@ function restrictedImportsFor(name, rule) {
 
 export default defineConfig(
   {
-    ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**', 'docs/**'],
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      'docs/**',
+      'test-results/**',
+      'playwright-report/**',
+      'blob-report/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -97,6 +107,10 @@ export default defineConfig(
     files: ['**/*.d.ts'],
     rules: { 'no-var': 'off' },
   },
-  ...Object.entries(packages).flatMap(([name, rule]) => restrictedImportsFor(name, rule)),
+  {
+    files: ['packages/ui/**/*.{ts,tsx}', 'apps/web/src/**/*.{ts,tsx}'],
+    ...reactHooks.configs.flat['recommended-latest'],
+  },
+  ...Object.entries(workspaces).flatMap(([dir, rule]) => restrictedImportsFor(dir, rule)),
   prettier,
 );

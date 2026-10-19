@@ -166,7 +166,7 @@ Desktop works fully offline: no sign-in, no remote config, fonts and assets bund
 
 ### 6.1 Deployment
 - `pnpm --filter @pigeon/web build` → static files (`index.html`, hashed assets). Host on any static host. No server, no account.
-- Strict CSP: `default-src 'self'; connect-src *; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'` (`wasm-unsafe-eval` needed for QuickJS later). `connect-src *` is required because users call arbitrary APIs.
+- Strict CSP: `default-src 'self'; connect-src *; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'` (`wasm-unsafe-eval` needed for QuickJS later). `connect-src *` is required because users call arbitrary APIs. The CSP `<meta>` is injected into the **built** `index.html` only (`apps/web/vite.config.ts`). The Vite dev server needs an inline React Fast Refresh script, so it runs without the CSP; the E2E suite tests the production build with it.
 - Also runnable locally (`pnpm --filter @pigeon/web preview`), which avoids mixed-content issues for `http://` APIs.
 
 ### 6.2 Making API requests (CORS and friends)

@@ -1,0 +1,163 @@
+@import 'tailwindcss';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/600.css';
+
+/* Scan @pigeon/ui sources for class names (the CSS is compiled from the app's Vite build). */
+@source '../';
+
+/* `dark:` follows the resolved theme set by ThemeProvider, not the OS media query directly. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * Design tokens. Components use the Tailwind names mapped in `@theme inline` below
+ * (e.g. `bg-surface`, `text-fg-muted`, `border-border`, `text-method-get`), never raw colours.
+ */
+:root {
+  color-scheme: light;
+
+  --pg-bg: #ffffff;
+  --pg-surface: #f7f7f8;
+  --pg-surface-raised: #efeff2;
+  --pg-hover: #e8e8ec;
+  --pg-border: #e1e1e6;
+  --pg-fg: #1b1b1f;
+  --pg-fg-muted: #6b6b76;
+  --pg-accent: #4f46e5;
+  --pg-accent-fg: #ffffff;
+  --pg-focus: #6366f1;
+
+  --pg-pass: #15803d;
+  --pg-warn: #b45309;
+  --pg-fail: #dc2626;
+  --pg-info: #2563eb;
+
+  --pg-method-get: #15803d;
+  --pg-method-post: #b45309;
+  --pg-method-put: #2563eb;
+  --pg-method-patch: #7c3aed;
+  --pg-method-delete: #dc2626;
+  --pg-method-head: #0f766e;
+  --pg-method-options: #be185d;
+  --pg-method-gql: #db2777;
+
+  --pg-font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
+  --pg-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --pg-bg: #16161a;
+  --pg-surface: #1c1c21;
+  --pg-surface-raised: #232329;
+  --pg-hover: #2b2b33;
+  --pg-border: #2f2f38;
+  --pg-fg: #e6e6eb;
+  --pg-fg-muted: #9a9aa6;
+  --pg-accent: #818cf8;
+  --pg-accent-fg: #0b0b0f;
+  --pg-focus: #a5b4fc;
+
+  --pg-pass: #4ade80;
+  --pg-warn: #fbbf24;
+  --pg-fail: #f87171;
+  --pg-info: #60a5fa;
+
+  --pg-method-get: #4ade80;
+  --pg-method-post: #fbbf24;
+  --pg-method-put: #60a5fa;
+  --pg-method-patch: #a78bfa;
+  --pg-method-delete: #f87171;
+  --pg-method-head: #2dd4bf;
+  --pg-method-options: #f472b6;
+  --pg-method-gql: #f472b6;
+}
+
+/* Before the app mounts (no data-theme yet), avoid a white flash for dark-mode users. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --pg-bg: #16161a;
+    --pg-fg: #e6e6eb;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--pg-bg);
+  --color-surface: var(--pg-surface);
+  --color-surface-raised: var(--pg-surface-raised);
+  --color-hover: var(--pg-hover);
+  --color-border: var(--pg-border);
+  --color-fg: var(--pg-fg);
+  --color-fg-muted: var(--pg-fg-muted);
+  --color-accent: var(--pg-accent);
+  --color-accent-fg: var(--pg-accent-fg);
+  --color-focus: var(--pg-focus);
+
+  --color-pass: var(--pg-pass);
+  --color-warn: var(--pg-warn);
+  --color-fail: var(--pg-fail);
+  --color-info: var(--pg-info);
+
+  --color-method-get: var(--pg-method-get);
+  --color-method-post: var(--pg-method-post);
+  --color-method-put: var(--pg-method-put);
+  --color-method-patch: var(--pg-method-patch);
+  --color-method-delete: var(--pg-method-delete);
+  --color-method-head: var(--pg-method-head);
+  --color-method-options: var(--pg-method-options);
+  --color-method-gql: var(--pg-method-gql);
+
+  --font-sans: var(--pg-font-sans);
+  --font-mono: var(--pg-font-mono);
+}
+
+@theme {
+  /* Developer-tool density: 13px UI text, 12px monospace (docs/ui-ux.md §1). */
+  --text-xs: 11px;
+  --text-xs--line-height: 16px;
+  --text-sm: 12px;
+  --text-sm--line-height: 18px;
+  --text-base: 13px;
+  --text-base--line-height: 20px;
+
+  /* Fixed chrome sizes, usable as h-topbar, w-activitybar, ... */
+  --spacing-topbar: 36px;
+  --spacing-tabbar: 34px;
+  --spacing-statusbar: 22px;
+  --spacing-activitybar: 44px;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--pg-bg);
+    color: var(--pg-fg);
+    font-family: var(--pg-font-sans);
+    font-size: 13px;
+    line-height: 20px;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--pg-focus);
+    outline-offset: -2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0s !important;
+      animation-duration: 0s !important;
+    }
+  }
+}

@@ -48,6 +48,15 @@
     },
     {
       "path": "packages/fixtures/test"
+    },
+    {
+      "path": "apps/web"
+    },
+    {
+      "path": "apps/web/tsconfig.node.json"
+    },
+    {
+      "path": "e2e"
     }
   ]
 }
