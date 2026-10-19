@@ -4,3 +4,6 @@ pnpm-lock.yaml
 dist/
 coverage/
 *.tsbuildinfo
+test-results/
+playwright-report/
+blob-report/

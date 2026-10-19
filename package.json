@@ -13,13 +13,16 @@
     "test": "vitest run",
     "build": "pnpm -r --if-present run build",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "clean": "tsc -b --clean"
+    "clean": "tsc -b --clean",
+    "test:e2e": "pnpm --filter @pigeon/web build && playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^24.13.6",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.9.8",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.70.1",

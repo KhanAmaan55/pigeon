@@ -11,7 +11,10 @@ Requirements: Node.js ≥ 22.12 (see `.nvmrc`) and pnpm (version pinned in `pack
 ```bash
 pnpm install
 pnpm verify      # lint + typecheck + test + build — must pass after every change
+pnpm --filter @pigeon/web dev    # web app at http://localhost:5173
 ```
+
+E2E tests need Playwright's browsers once: `pnpm exec playwright install chromium firefox webkit`.
 
 | Script           | What it does                                           |
 | ---------------- | ------------------------------------------------------ |
@@ -20,5 +23,6 @@ pnpm verify      # lint + typecheck + test + build — must pass after every cha
 | `pnpm typecheck` | `tsc -b` over all packages and their tests             |
 | `pnpm test`      | Vitest across all packages                             |
 | `pnpm build`     | Build every package / app                              |
+| `pnpm test:e2e`  | Build the web app and run Playwright in 3 browsers     |
 
-Packages live in `packages/*` (`@pigeon/core`, `formats`, `compare`, `platform`, `platform-web`, `platform-desktop`, `ui`, `fixtures`); apps will live in `apps/*`. Dependency rules between them are described in [docs/architecture.md §2](docs/architecture.md#2-repository-layout).
+Packages live in `packages/*` (`@pigeon/core`, `formats`, `compare`, `platform`, `platform-web`, `platform-desktop`, `ui`, `fixtures`); apps live in `apps/*` (`@pigeon/web` today). Dependency rules between them are described in [docs/architecture.md §2](docs/architecture.md#2-repository-layout).
