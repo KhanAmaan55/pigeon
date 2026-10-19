@@ -113,6 +113,16 @@ Allowed dependencies (enforced by ESLint `no-restricted-imports` + per-package `
 | apps/web, apps/desktop | ui, platform-* |
 | apps/cli (later) | core, formats, compare, platform, platform-node |
 
+The rules live in `eslint.config.js` (the `packages` table at the top). Tests (`packages/*/test`) follow the same package rules but may import Node built-ins, because they run in Node under Vitest.
+
+### 2.1 Build & type-check setup (PIGN-001)
+
+- **Source exports.** Internal packages are private and never published. Each `package.json` has `"exports": { ".": "./src/index.ts" }`, so Vite, Vitest, and later the apps consume TypeScript source directly — no pre-build step in dev or tests.
+- **Project references.** Every package has a composite `tsconfig.json` (`rootDir: src`, `outDir: dist`) with `references` matching its `@pigeon/*` dependencies. `packages/<pkg>/test/tsconfig.json` is a composite `noEmit` project that type-checks tests against the package. The root `tsconfig.json` is a solution file referencing all of them. A missing reference shows up as a `rootDir` error, which keeps `references` and the dependency table in sync.
+- **`pnpm typecheck`** = `tsc -b` (incremental; emits `dist/` + `*.tsbuildinfo`, both git-ignored). **`pnpm build`** = each package's `build` script (`tsc -b` for libraries; apps will use `vite build`).
+- **Pure packages** (`core`, `formats`, `compare`, `platform`, `fixtures`) compile with `lib: ["ES2022"]`, `types: []` and the shared `types/web-globals.d.ts` (TextEncoder/Decoder, URL, URLSearchParams, AbortSignal/Controller, structuredClone, crypto.randomUUID/subtle.digest). DOM and Node globals are type errors there. Extend `web-globals.d.ts` only with APIs available in browsers, Tauri webviews **and** Node. DOM packages (`platform-web`, `platform-desktop`, `ui`) add `DOM` and `DOM.Iterable`. Test projects use `types: ["node"]`.
+- **Vitest** runs every package as a project via `test.projects: ['packages/*']` in the root `vitest.config.ts`. A package that needs another environment (jsdom for `ui`) adds its own `vitest.config.ts`.
+
 ## 3. Shared / core layer
 
 ### 3.1 Domain model (`core/model`)
@@ -249,7 +259,7 @@ Status: **Proposed** = recommended, confirm before the dependent story starts. *
 | ID | Decision | Recommendation | Status | Needed by |
 |---|---|---|---|---|
 | D-01 | Desktop shell | **Tauri 2** (small binaries, low memory → "lightweight"; native HTTP in Rust bypasses CORS). Alternative: Electron (single language, Node HTTP, larger footprint). The adapter boundary keeps this swappable. | Proposed | PIGN-003 |
-| D-02 | Language & tooling | TypeScript (strict), pnpm workspaces, Vite, Vitest, Playwright, ESLint (flat) + Prettier, Node 22 LTS, Rust stable | Proposed | PIGN-001 |
+| D-02 | Language & tooling | TypeScript 6.0 (strict), pnpm 11 workspaces, Vite, Vitest 5, Playwright, ESLint 10 (flat) + typescript-eslint + Prettier, Node 24 LTS (`.nvmrc`; engines ≥ 22.12), Rust stable. TypeScript 7 is not used yet: typescript-eslint 8 supports TS < 6.1. | **Accepted** (PIGN-001) | PIGN-001 |
 | D-03 | Desktop HTTP | Custom Rust commands `http_send`/`http_cancel` using `reqwest` (full control of redirects, raw multi-value headers, timings, TLS options, cancellation). `tauri-plugin-http` acceptable as a spike only. | Proposed | PIGN-007 |
 | D-04 | UI stack | React 19, Zustand, CodeMirror 6, Tailwind, Radix, cmdk, @tanstack/react-virtual | Proposed | PIGN-002 |
 | D-05 | On-disk format | Exploded **Postman v2.1 fragments** as JSON: one file per collection root, folder, request, environment, example. Pigeon-only data under `_pigeon` or in Pigeon-only files. Alternatives rejected: single v2.1 file per collection (huge diffs, merge conflicts); YAML (diverges from Postman, harder determinism). | Proposed | PIGN-012 |

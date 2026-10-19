@@ -1,0 +1,6 @@
+# Docs are hand-formatted (wide tables, ASCII diagrams); don't reflow them.
+docs/
+pnpm-lock.yaml
+dist/
+coverage/
+*.tsbuildinfo

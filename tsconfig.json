@@ -1,0 +1,53 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/platform"
+    },
+    {
+      "path": "packages/platform/test"
+    },
+    {
+      "path": "packages/formats"
+    },
+    {
+      "path": "packages/formats/test"
+    },
+    {
+      "path": "packages/compare"
+    },
+    {
+      "path": "packages/compare/test"
+    },
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/core/test"
+    },
+    {
+      "path": "packages/platform-web"
+    },
+    {
+      "path": "packages/platform-web/test"
+    },
+    {
+      "path": "packages/platform-desktop"
+    },
+    {
+      "path": "packages/platform-desktop/test"
+    },
+    {
+      "path": "packages/ui"
+    },
+    {
+      "path": "packages/ui/test"
+    },
+    {
+      "path": "packages/fixtures"
+    },
+    {
+      "path": "packages/fixtures/test"
+    }
+  ]
+}

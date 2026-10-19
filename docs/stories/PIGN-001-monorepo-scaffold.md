@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-001 | 0 — Foundation | MVP | Todo | — |
+| PIGN-001 | 0 — Foundation | MVP | Done | — |
 
 ## Goal
 Create the pnpm/TypeScript monorepo with all packages as empty-but-buildable shells, shared tooling, boundary rules, and CI, so every later story plugs into a working pipeline.
@@ -17,24 +17,24 @@ As a Pigeon contributor, I want one command that lints, type-checks, tests, and 
 
 ## Scope
 **In scope**
-- Root `package.json` (private, `packageManager: pnpm@<latest 9/10>`, `engines.node >= 22`), `pnpm-workspace.yaml`, `tsconfig.base.json` (strict, `moduleResolution: bundler`, `verbatimModuleSyntax`), `.editorconfig`, `.gitignore`, `.nvmrc`, `.gitattributes` (LF).
+- Root `package.json` (private, `packageManager: pnpm@11.5.2`, `engines.node >= 22.12`), `pnpm-workspace.yaml`, `tsconfig.base.json` (strict, `moduleResolution: bundler`, `verbatimModuleSyntax`), `.editorconfig`, `.gitignore`, `.nvmrc`, `.gitattributes` (LF).
 - Packages with `package.json`, `tsconfig.json`, `src/index.ts` (placeholder export), and one trivial test each: `core`, `formats`, `compare`, `platform`, `platform-web`, `platform-desktop`, `ui`, `fixtures`. (`test-server` in PIGN-005; `platform-node` in PIGN-019; `apps/*` in PIGN-002/003.)
 - Pure packages (`core`, `formats`, `compare`, `platform`) use `"lib": ["ES2022"]` (no DOM) in tsconfig.
 - ESLint flat config + Prettier; `no-restricted-imports` rules enforcing the dependency table (e.g. `core` cannot import `react`, `@tauri-apps/*`, `node:*`, `@pigeon/ui`).
 - Vitest workspace config.
 - Root scripts: `lint`, `format`, `typecheck`, `test`, `build`, `verify` (= lint + typecheck + test + build).
-- GitHub Actions workflow `ci.yml` with the `verify` job (ubuntu) and a `cross-os` job (macOS/Windows/Linux running `pnpm test`).
+- GitHub Actions workflow `ci.yml` with a `verify` job running `pnpm verify` on a macOS/Windows/Linux matrix.
 - Root `README.md` (short: what Pigeon is, link to `docs/README.md`, how to run `pnpm verify`).
 
 **Out of scope**
 - Any app, UI, or domain code. Tauri/Rust (PIGN-003). Playwright (PIGN-002).
 
 ## Acceptance criteria
-- [ ] `pnpm install && pnpm verify` succeeds on a clean clone on macOS, Windows, and Linux.
-- [ ] Each package builds (`tsc -b` or `tsup`/Vite library mode — pick one and document it) and exports a placeholder.
-- [ ] Adding `import React from 'react'` in `packages/core/src` fails `pnpm lint`; adding `document.title` in `packages/core/src` fails `pnpm typecheck`.
-- [ ] CI runs `verify` on pull requests and pushes to `main`.
-- [ ] Prettier and ESLint configs agree (no conflicting rules).
+- [x] `pnpm install && pnpm verify` succeeds on a clean clone on macOS, Windows, and Linux. *(Clean local copy on macOS; CI run 38576999953 on `965b17f`: `verify` green on ubuntu, macOS, Windows.)*
+- [x] Each package builds (`tsc -b` or `tsup`/Vite library mode — pick one and document it) and exports a placeholder.
+- [x] Adding `import React from 'react'` in `packages/core/src` fails `pnpm lint`; adding `document.title` in `packages/core/src` fails `pnpm typecheck`.
+- [x] CI runs `verify` on pull requests and pushes to `main`.
+- [x] Prettier and ESLint configs agree (no conflicting rules).
 
 ## Technical notes
 - Prefer TypeScript project references (`tsc -b`) for type-checking and simple `tsc` emit for libraries; apps use Vite. Internal packages can point `exports` at `src/*.ts` for dev with a `build` that emits `dist/` — pick the simplest setup that keeps Vitest and Vite fast, and document it in `docs/architecture.md` §2.
@@ -51,3 +51,22 @@ As a Pigeon contributor, I want one command that lints, type-checks, tests, and 
 
 ## Definition of done
 Standard DoD ([stories/README.md](README.md#standard-definition-of-done-applies-to-every-story)) plus: CI green on all three OS runners.
+
+## Implementation notes
+
+- **Versions** (D-02 updated to Accepted): TypeScript 6.0, pnpm 11.5.2 (`packageManager`), Node 24 in `.nvmrc` with `engines.node >= 22.12` (Vitest 5's floor), Vitest 5, ESLint 10 + typescript-eslint 8 + eslint-config-prettier, Prettier 3.9. TypeScript 7 is out because typescript-eslint 8 requires TS < 6.1.
+- **Build choice:** `tsc -b` with project references; packages export `./src/index.ts`, and `dist/` is emitted only by `typecheck`/`build`. See [architecture.md §2.1](../architecture.md#21-build--type-check-setup-pign-001).
+- **Deviations from "Files likely affected":**
+  - `vitest.workspace.ts` → root `vitest.config.ts` with `test.projects`, because Vitest 5 uses projects instead of workspace files.
+  - `.prettierrc` → `.prettierrc.json`.
+  - The shared ambient file lives at `types/web-globals.d.ts`, not `packages/platform/src/globals.d.ts`, because every pure package includes it, not only `platform`.
+  - Tests get their own composite `noEmit` tsconfig (`packages/*/test/tsconfig.json`) so they are type-checked without being emitted.
+- **Prettier ignores `docs/`**, so the hand-formatted tables and diagrams aren't reflowed.
+- **pnpm's minimum-release-age gate stays on.** When pnpm refused a just-published Prettier patch, the previous patch was pinned instead of adding an exclusion.
+- **Boundary rules verified manually with probe files (not committed):** 14 cases.
+  - Rejected as expected: `react`, `@pigeon/ui` and `node:fs/promises`/`path` in core; `@pigeon/core` in formats; `@pigeon/platform` in compare; `@tauri-apps/*` and `@pigeon/platform-web` in ui; `@pigeon/core` in platform-web.
+  - Allowed as expected: `@pigeon/platform` in core, `@pigeon/core` in ui, `@tauri-apps/*` in platform-desktop, and `node:*` in tests.
+  - Type-check: `document.title` in core and `document`/`process` in formats fail with TS2584/TS2591, while TextEncoder/URL/crypto compile.
+- **CI coverage:** the `verify` job runs the full `pnpm verify` (lint, typecheck, test, build) on all three OS runners, matching the first acceptance criterion. An earlier draft ran only `pnpm test` off Ubuntu, which would not have covered it.
+- **CI:** run 38576999953 (commit `965b17f`) passed `pnpm verify` on all three OS runners, so the story is Done.
+

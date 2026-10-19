@@ -11,7 +11,7 @@ Every story leaves the repo green: `pnpm verify` passes and the apps build. Test
 | Web E2E | **Playwright** — Chromium, Firefox, WebKit |
 | Desktop E2E | **WebdriverIO + tauri-driver** on Windows and Linux (tauri-driver has no macOS support); macOS: build + launch smoke test + manual checklist |
 | Rust | `cargo test` (http command against the test server) |
-| Lint / types | ESLint (flat config, boundary rules), Prettier, `tsc --noEmit` per package, `cargo clippy` |
+| Lint / types | ESLint (flat config, boundary rules), Prettier, `tsc -b` over all packages and their test projects, `cargo clippy` |
 
 ## 2. Commands
 
@@ -80,11 +80,10 @@ Fixtures in `packages/fixtures/postman/`:
 - Keep E2E to critical journeys (~1–3 per story that adds UI); detailed logic belongs in unit tests.
 
 ## 5. CI pipeline (GitHub Actions)
-1. `verify` (ubuntu): install, lint, typecheck, unit/integration, web build.
-2. `cross-os` (matrix macOS/Windows/Linux): unit tests + NodeFs conformance + `cargo test`.
-3. `e2e-web` (ubuntu): Playwright 3 browsers.
-4. `desktop-build` (matrix): `tauri build`, upload artifacts; desktop E2E on Linux/Windows.
-5. `release` (tags only, PIGN-041).
+1. `verify` (matrix macOS/Windows/Linux): install, then `pnpm verify` (lint, typecheck, unit/integration, build). Later stories add NodeFs conformance and `cargo test` to this matrix.
+2. `e2e-web` (ubuntu): Playwright 3 browsers.
+3. `desktop-build` (matrix): `tauri build`, upload artifacts; desktop E2E on Linux/Windows.
+4. `release` (tags only, PIGN-041).
 
 ## 6. Definition of "tested" for a story
 - New logic has unit tests; new cross-layer flows have an integration test; new user-visible workflow has at least one E2E path (web; desktop too when it touches desktop adapters).
