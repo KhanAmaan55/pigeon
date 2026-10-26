@@ -1,0 +1,15 @@
+[package]
+name = "pigeon"
+version = "0.1.0"
+description = "Pigeon desktop app"
+edition = "2021"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+tauri = { version = "2.12", features = [] }
+
+[dev-dependencies]
+serde_json = "1"

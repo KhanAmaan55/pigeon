@@ -82,7 +82,7 @@ Fixtures in `packages/fixtures/postman/`:
 ## 5. CI pipeline (GitHub Actions)
 1. `verify` (matrix macOS/Windows/Linux): install, then `pnpm verify` (lint, typecheck, unit/integration, build). Later stories add NodeFs conformance and `cargo test` to this matrix.
 2. `e2e-web` (ubuntu): Playwright 3 browsers.
-3. `desktop-build` (matrix): `tauri build`, upload artifacts; desktop E2E on Linux/Windows.
+3. `desktop-build` (matrix macOS/Windows/Ubuntu 22.04): `cargo test`, `tauri build` (unsigned), `--smoke` launch (under `xvfb-run` on Linux), upload bundles; desktop E2E on Linux/Windows (later).
 4. `release` (tags only, PIGN-041).
 
 ## 6. Definition of "tested" for a story
