@@ -94,3 +94,19 @@ test('sidebar and response panel are resizable', async ({ page }) => {
   await drag(page, page.getByTestId('response-resize-handle'), 0, -100);
   await expect.poll(async () => (await size(response)).height).toBeGreaterThan(responseBefore + 60);
 });
+
+test('diagnostics panel shows web capabilities for this browser', async ({ page, browserName }) => {
+  await page.goto('/');
+  await page.getByTestId('activity-settings').click();
+
+  const panel = page.getByTestId('diagnostics-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByTestId('diagnostics-kind')).toHaveText('Web');
+  await expect(panel.getByTestId('capability-transport')).toHaveText('fetch');
+  await expect(panel.getByTestId('capability-bypassesCors')).toHaveText('false');
+  // File System Access API: Chromium only.
+  await expect(panel.getByTestId('capability-projectFolders')).toHaveText(
+    browserName === 'chromium' ? 'fs-access' : 'none',
+  );
+  await expect(page.getByTestId('status-platform')).toContainText('Web');
+});

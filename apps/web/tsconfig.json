@@ -11,6 +11,9 @@
   "references": [
     {
       "path": "../../packages/ui"
+    },
+    {
+      "path": "../../packages/platform-web"
     }
   ]
 }

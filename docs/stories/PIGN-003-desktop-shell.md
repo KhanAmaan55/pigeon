@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-003 | 0 — Foundation | MVP | In review (CI pending) | PIGN-002 |
+| PIGN-003 | 0 — Foundation | MVP | Done | PIGN-002 |
 
 ## Goal
 A Tauri 2 desktop app (`apps/desktop`) that hosts the same `@pigeon/ui` bundle and builds on all three desktop OSes in CI.
@@ -29,8 +29,8 @@ As a developer on macOS, Windows, or Linux, I want to launch Pigeon as a native 
 
 ## Acceptance criteria
 - [x] `pnpm --filter @pigeon/desktop dev` opens a window showing the same shell as the web app. *(Verified on macOS with `pnpm tauri dev -- -- --smoke`.)*
-- [ ] CI builds unsigned artifacts on macOS, Windows, Linux. *(Built `.app` + `.dmg` locally on macOS arm64; CI `desktop-build` pending.)*
-- [ ] The smoke run succeeds on all three CI runners. *(Passes locally on macOS; failure paths checked too: a thrown error, a missing font and a CSP-blocked `fetch` each exit 1 with the reason.)*
+- [x] CI builds unsigned artifacts on macOS, Windows, Linux.
+- [x] The smoke run succeeds on all three CI runners. *(Green on `main`; failure paths checked too: a thrown error, a missing font and a CSP-blocked `fetch` each exit 1 with the reason.)*
 - [ ] Copy/paste/select-all work in a text input on macOS (menu wired). *(Menu wired; needs a manual check, since the shell has no text input yet. Try it in DevTools or with PIGN-006's URL bar.)*
 - [x] No network access required to run the built app (fonts/assets bundled). *(The smoke run loads the bundled font, and the CSP blocks any remote `connect-src`.)*
 

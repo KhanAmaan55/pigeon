@@ -77,6 +77,32 @@ interface ProjectLocator {
 
 `PreparedRequest` / `RawResponse` are defined in [api-execution.md](api-execution.md).
 
+Supporting types (added in PIGN-004; source of truth is `packages/platform/src`):
+
+```ts
+type Unsubscribe = () => void;
+interface FsChangeEvent { kind: 'created' | 'modified' | 'removed'; path: ProjectPath } // rename = removed + created
+interface PickedFile { name: string; bytes: Uint8Array; mime?: string }
+
+interface Dialogs {                   // modal prompts; file/folder pickers live in FileExchange / ProjectLocator
+  confirm(opts: { title: string; message: string; confirmLabel?: string; destructive?: boolean }): Promise<boolean>;
+  message(opts: { title: string; message: string; kind?: 'info' | 'warning' | 'error' }): Promise<void>;
+}
+
+class FsError extends Error {          // the only rejection type for expected filesystem failures
+  code: 'invalid-path' | 'not-found' | 'already-exists' | 'not-a-directory' | 'is-a-directory' | 'not-empty';
+  path: ProjectPath;
+}
+```
+
+`ProjectFileSystem` semantics every implementation shares (enforced by `fsConformance` from `@pigeon/platform/conformance`):
+- **Paths**: `assertProjectPath()` rejects absolute paths (`/x`, `C:/x`), empty / `.` / `..` segments, backslashes and NUL with `FsError('invalid-path')`. `''` is the project root.
+- `writeFileAtomic` creates missing parent directories, copies the data, never leaves temp files, and readers see the old or the new content only. It refuses to replace a directory (`is-a-directory`) or write below a file (`not-a-directory`).
+- `list` returns full project paths sorted by path; `recursive` includes nested entries.
+- `remove` needs `recursive` for non-empty directories (`not-empty`), rejects missing paths (`not-found`) and the root.
+- `rename` replaces an existing file, creates missing parents of the target, allows case-only renames, and rejects existing directory targets (`already-exists`) and moves into itself (`invalid-path`).
+- `watch` delivers one batch per operation, asynchronously, never inside the call that caused it.
+
 ## 3. Capabilities
 
 The UI branches on capabilities only — never on `platform.kind`.

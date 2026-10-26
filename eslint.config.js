@@ -35,7 +35,8 @@ const forbiddenGroups = {
     message: 'Tauri APIs belong in @pigeon/platform-desktop (or apps/desktop) only.',
   },
   node: {
-    group: ['node:*', ...builtinModules],
+    // Exact module names: a gitignore-style `group` entry like `fs` would also match `./fs`.
+    regex: `^(node:.*|(${builtinModules.join('|')})(/.*)?)$`,
     message:
       'Node built-ins are not available in browsers or the Tauri webview; use a platform adapter.',
   },
@@ -125,6 +126,23 @@ export default defineConfig(
   {
     files: ['packages/ui/**/*.{ts,tsx}', 'apps/*/src/**/*.{ts,tsx}'],
     ...reactHooks.configs.flat['recommended-latest'],
+  },
+  {
+    // The UI branches on capabilities, never on the platform kind (docs/platform.md §3).
+    files: ['packages/ui/src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...[
+          'BinaryExpression > MemberExpression[property.name="kind"][object.name=/^platform$/i]',
+          'BinaryExpression > MemberExpression[property.name="kind"][object.callee.name="usePlatform"]',
+          'SwitchStatement > MemberExpression.discriminant[property.name="kind"][object.name=/^platform$/i]',
+        ].map((selector) => ({
+          selector,
+          message: 'Branch on useCapabilities(), not platform.kind (docs/platform.md §3).',
+        })),
+      ],
+    },
   },
   ...Object.entries(workspaces).flatMap(([dir, rule]) => restrictedImportsFor(dir, rule)),
   prettier,

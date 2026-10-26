@@ -1,6 +1,7 @@
 // Smoke probe injected by src/smoke.rs as an initialization script (runs before the page's
 // own scripts, on every load). Reports to the `smoke_report` command once the shell has
-// rendered, the bundled monospace font has loaded and no errors were logged.
+// rendered, the bundled monospace font has loaded, the desktop platform is wired in and no
+// errors were logged.
 (() => {
   if (window.top !== window) return;
 
@@ -25,6 +26,14 @@
     }
     const faces = await document.fonts.load('12px "JetBrains Mono"');
     if (faces.length === 0) throw new Error('bundled monospace font did not load');
+
+    // The desktop platform is wired in: capabilities and an OS detected by plugin-os.
+    document.querySelector('[data-testid="activity-settings"]').click();
+    await delay(100);
+    const text = (testId) => document.querySelector(`[data-testid="${testId}"]`)?.textContent;
+    if (text('capability-bypassesCors') !== 'true') throw new Error('desktop capabilities missing');
+    const os = text('diagnostics-os');
+    if (!['macOS', 'Windows', 'Linux'].includes(os)) throw new Error(`OS not detected: ${os}`);
     if (errors.length > 0) throw new Error(errors.join('\n'));
   }
 

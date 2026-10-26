@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-004 | 0 — Foundation | MVP | Todo | PIGN-002 |
+| PIGN-004 | 0 — Foundation | MVP | In review (CI pending) | PIGN-002 |
 
 ## Goal
 Define the `Platform` contract and capability model, provide in-memory implementations, inject the platform into the UI, and show capabilities in an About/Diagnostics panel on web and desktop.
@@ -29,10 +29,10 @@ As a user, I want Pigeon to know what my platform can and can't do, so features 
 - Real transports, filesystems, and storage (later stories).
 
 ## Acceptance criteria
-- [ ] `PigeonApp` requires a `platform` prop; `apps/web` passes `createWebPlatform()`, `apps/desktop` passes `createDesktopPlatform()`.
-- [ ] Diagnostics panel shows `bypassesCors: false` on web and `true` on desktop, and `projectFolders: 'fs-access'` in Chromium vs `'none'` in Firefox/WebKit.
-- [ ] `fsConformance` passes for MemoryFs.
-- [ ] No UI code checks `platform.kind` (lint rule or grep check in CI: forbid `platform.kind ===` in `packages/ui/src/features`).
+- [x] `PigeonApp` requires a `platform` prop; `apps/web` passes `createWebPlatform()`, `apps/desktop` passes `createDesktopPlatform()`.
+- [x] Diagnostics panel shows `bypassesCors: false` on web and `true` on desktop, and `projectFolders: 'fs-access'` in Chromium vs `'none'` in Firefox/WebKit.
+- [x] `fsConformance` passes for MemoryFs.
+- [x] No UI code checks `platform.kind` (lint rule or grep check in CI: forbid `platform.kind ===` in `packages/ui/src/features`).
 
 ## Technical notes
 - `MemoryFs` must reject absolute paths and `..` segments (shared `assertProjectPath()` helper in `platform`).
@@ -48,3 +48,30 @@ As a user, I want Pigeon to know what my platform can and can't do, so features 
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+
+- **Contract** (`packages/platform/src`): `fs.ts`, `transport.ts` (`PreparedRequest`/`RawResponse`/`Transport` per api-execution.md §2, plus `Id`), `app-state.ts`, `secrets.ts`, `dialogs.ts`, `files.ts`, `projects.ts`, `capabilities.ts`, `platform.ts`, `paths.ts`, matching platform.md. The docs left some types undefined, so this story defines them and documents them in platform.md §2: `Dialogs` (`confirm`/`message`), `FsChangeEvent`, `PickedFile`, `Unsubscribe`, and `FsError` with a `code`. `defineCapabilities()` returns a frozen copy. All interfaces stay async.
+- **Paths**: `assertProjectPath()` (plus `isProjectPath`, `joinProjectPath`, `parentPath`, `baseName`, `isSameOrInside`) rejects absolute paths, drive letters, empty/`.`/`..` segments, backslashes and NUL.
+- **Memory implementations** (`src/memory`):
+  - `MemoryFs`: the full contract including `watch`, which delivers one async batch per operation (a rename is reported as removed + created).
+  - `MemoryAppState`: values round-trip through JSON, so stored values are copies and anything non-serializable is rejected.
+  - `MemorySecretStore`.
+  - `MemoryDialogs`: `confirm` answers *cancel* by default, so a forgotten placeholder can never auto-approve a destructive action.
+  - `MemoryFileExchange`: queued picks; saves are recorded.
+  - `MemoryProjectLocator`.
+  - `MockTransport`: first matching route wins (method + URL string/regex, or a predicate). It records requests, fills response defaults, rejects unmatched requests, and rejects with `signal.reason` on abort.
+  - `createMemoryServices()` and `createMemoryPlatform({ capabilities?, os?, transport? })`, whose default capabilities look like desktop.
+- **Conformance**: `fsConformance(name, createFs, { cleanup? })` lives at `@pigeon/platform/conformance`, a separate export because it imports Vitest. It has 41 cases covering the story's list plus case-only rename, the temp-file-over-target pattern, buffer copying and invalid paths. It runs against `MemoryFs`.
+- **Web** (`createWebPlatform`): `detectWebCapabilities(env)` feature-detects `showDirectoryPicker` (fs-access vs none) and `indexedDB` (browser workspace). `fileReferencesByPath` follows fs-access, since only files inside the opened folder qualify. `detectWebOs` reads `userAgentData.platform`/`navigator.platform` for display only.
+- **Desktop** (`createDesktopPlatform`): capabilities from the platform.md §4 matrix. `secretStorage` is `local-state` until PIGN-053. The OS comes from `@tauri-apps/plugin-os` `platform()`, which reads a value injected by the Rust `tauri-plugin-os` with no IPC, so no capability permission is needed.
+- **Placeholders**: both apps' services (`projects`, fs, app state, secrets, dialogs, files) are memory-backed. `transport` rejects with a pointer to PIGN-006 (web) or PIGN-007 (desktop). Capabilities describe the target platform, not the placeholders.
+- **UI**: `PigeonApp` requires `platform` and wraps everything in `PlatformProvider`; `usePlatform()` throws outside it, and `useCapabilities()` is also available. The Settings sidebar view shows `Diagnostics` (`features/settings/Diagnostics.tsx`) with platform, OS and every capability (`data-testid="capability-<name>"`). The status bar shows platform · OS.
+- **Lint**: `no-restricted-syntax` in `packages/ui/src/**` forbids comparing or switching on `platform.kind` / `usePlatform().kind`. That is the whole UI, not just `features/`. While here, the Node-builtin import rule now matches exact module names. Its gitignore-style pattern also matched local modules like `./fs`.
+- **Tests**:
+  - `platform`: 81 tests (paths, MemoryFs + watch, MockTransport, stores, capabilities frozen).
+  - `platform-web`: capability detection per browser shape, and OS detection.
+  - `platform-desktop`: capabilities, and OS mapping with plugin-os mocked.
+  - `ui`: provider, Diagnostics, settings view and status bar.
+  - Playwright: a new diagnostics test in Chromium/Firefox/WebKit.
+  - Desktop `--smoke`: also opens Settings and requires `bypassesCors: true` plus a detected OS, so CI checks the desktop values on macOS, Windows and Linux.

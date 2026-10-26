@@ -11,6 +11,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@pigeon/platform": "workspace:*"
+    "@pigeon/platform": "workspace:*",
+    "@tauri-apps/plugin-os": "^2.4.0"
   }
 }
