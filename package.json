@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "build": "pnpm -r --if-present run build",
+    "build": "pnpm -r --if-present --filter=!@pigeon/desktop run build",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "clean": "tsc -b --clean",
     "test:e2e": "pnpm --filter @pigeon/web build && playwright test"

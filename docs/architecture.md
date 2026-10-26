@@ -59,6 +59,8 @@ Rule: **core, formats, compare, platform must not import React, DOM APIs, Tauri,
         tauri.conf.json
         capabilities/*.json    # Tauri permission sets
         src/main.rs
+        src/menu.rs            # macOS native menu
+        src/smoke.rs           # `--smoke` launch check used by CI
         src/http.rs            # http_send / http_cancel commands
   packages/
     core/src/
@@ -260,7 +262,7 @@ Status: **Proposed** = recommended, confirm before the dependent story starts. *
 
 | ID | Decision | Recommendation | Status | Needed by |
 |---|---|---|---|---|
-| D-01 | Desktop shell | **Tauri 2** (small binaries, low memory → "lightweight"; native HTTP in Rust bypasses CORS). Alternative: Electron (single language, Node HTTP, larger footprint). The adapter boundary keeps this swappable. | Proposed | PIGN-003 |
+| D-01 | Desktop shell | **Tauri 2** (small binaries, low memory → "lightweight"; native HTTP in Rust bypasses CORS). Alternative: Electron (single language, Node HTTP, larger footprint). The adapter boundary keeps this swappable. | **Accepted** (PIGN-003) | PIGN-003 |
 | D-02 | Language & tooling | TypeScript 6.0 (strict), pnpm 11 workspaces, Vite, Vitest 5, Playwright, ESLint 10 (flat) + typescript-eslint + Prettier, Node 24 LTS (`.nvmrc`; engines ≥ 22.12), Rust stable. TypeScript 7 is not used yet: typescript-eslint 8 supports TS < 6.1. | **Accepted** (PIGN-001) | PIGN-001 |
 | D-03 | Desktop HTTP | Custom Rust commands `http_send`/`http_cancel` using `reqwest` (full control of redirects, raw multi-value headers, timings, TLS options, cancellation). `tauri-plugin-http` acceptable as a spike only. | Proposed | PIGN-007 |
 | D-04 | UI stack | React 19, Zustand, CodeMirror 6, Tailwind v4, Radix (`radix-ui` package), react-resizable-panels v4, lucide-react icons, cmdk, @tanstack/react-virtual. PIGN-002 adopted React, Tailwind, Radix, resizable panels and lucide; the rest are added by the stories that need them. | **Accepted** (PIGN-002) | PIGN-002 |
@@ -270,7 +272,7 @@ Status: **Proposed** = recommended, confirm before the dependent story starts. *
 | D-08 | Web filesystem | File System Access API (Chromium) for real folders; IndexedDB browser workspace + zip import/export elsewhere. | Proposed | PIGN-015 |
 | D-09 | Validation | zod for file/import validation | Proposed | PIGN-006 |
 | D-10 | Script sandbox (later) | `quickjs-emscripten` in a Web Worker, identical on desktop and web | Proposed | PIGN-043 |
-| D-11 | Distribution | App identifier (e.g. `dev.pigeon.app`), code-signing certificates (Apple Developer ID, Windows Authenticode), auto-update policy | **Open** | PIGN-041 |
+| D-11 | Distribution | App identifier (placeholder `dev.pigeon.desktop` since PIGN-003; avoid a `.app` suffix, which clashes with the macOS bundle extension), code-signing certificates (Apple Developer ID, Windows Authenticode), auto-update policy | **Open** | PIGN-041 |
 | D-12 | Web hosting | Target host/domain for the static site | **Open** | PIGN-039 |
 | D-13 | License | Open-source license (if any) | **Open** | before public release |
 | D-14 | Apidog / Echo API formats | Collect real export samples before implementing importers | **Open** (needs samples) | PIGN-048/049 |

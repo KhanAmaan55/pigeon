@@ -1,0 +1,12 @@
+<!-- Placeholder app icon (final artwork with PIGN-041). Bird glyph: Lucide, ISC licence. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="#4f46e5"/>
+  <g transform="translate(212 212) scale(25)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 7h.01"/>
+    <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/>
+    <path d="m20 7 2 .5-2 .5"/>
+    <path d="M10 18v3"/>
+    <path d="M14 17.75V21"/>
+    <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
+  </g>
+</svg>

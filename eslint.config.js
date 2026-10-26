@@ -22,6 +22,7 @@ const workspaces = {
   'packages/platform-desktop': { pigeon: ['platform'], forbid: ['react', 'node'] },
   'packages/ui': { pigeon: ['core', 'formats', 'compare', 'platform'], forbid: ['tauri', 'node'] },
   'apps/web': { pigeon: ['ui', 'platform', 'platform-web'], forbid: ['tauri', 'node'] },
+  'apps/desktop': { pigeon: ['ui', 'platform', 'platform-desktop'], forbid: ['node'] },
 };
 
 const forbiddenGroups = {
@@ -89,6 +90,8 @@ export default defineConfig(
       'test-results/**',
       'playwright-report/**',
       'blob-report/**',
+      '**/src-tauri/target/**',
+      '**/src-tauri/gen/**',
     ],
   },
   js.configs.recommended,
@@ -108,7 +111,19 @@ export default defineConfig(
     rules: { 'no-var': 'off' },
   },
   {
-    files: ['packages/ui/**/*.{ts,tsx}', 'apps/web/src/**/*.{ts,tsx}'],
+    // Plain-JS probe that src-tauri injects into the webview (see src/smoke.rs).
+    files: ['apps/desktop/src-tauri/src/**/*.js'],
+    languageOptions: {
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        console: 'readonly',
+        setTimeout: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['packages/ui/**/*.{ts,tsx}', 'apps/*/src/**/*.{ts,tsx}'],
     ...reactHooks.configs.flat['recommended-latest'],
   },
   ...Object.entries(workspaces).flatMap(([dir, rule]) => restrictedImportsFor(dir, rule)),

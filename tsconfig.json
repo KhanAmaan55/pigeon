@@ -56,6 +56,12 @@
       "path": "apps/web/tsconfig.node.json"
     },
     {
+      "path": "apps/desktop"
+    },
+    {
+      "path": "apps/desktop/tsconfig.node.json"
+    },
+    {
       "path": "e2e"
     }
   ]
