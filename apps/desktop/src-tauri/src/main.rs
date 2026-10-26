@@ -6,7 +6,8 @@ mod menu;
 mod smoke;
 
 fn main() {
-    let mut builder = tauri::Builder::default();
+    // plugin-os injects the OS name into the webview; reading it needs no IPC permission.
+    let mut builder = tauri::Builder::default().plugin(tauri_plugin_os::init());
 
     // Windows and Linux get no native menu: shortcuts must not depend on one (docs/platform.md §5).
     #[cfg(target_os = "macos")]
