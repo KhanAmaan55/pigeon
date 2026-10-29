@@ -21,6 +21,14 @@ describe('MemoryFs', () => {
     expect(new MemoryFs({ id: 'p1' }).root).toEqual({ kind: 'memory', id: 'p1' });
   });
 
+  it('copies Node Buffer input instead of sharing its memory', async () => {
+    const fs = new MemoryFs();
+    const buffer = Buffer.from([1, 2, 3]);
+    await fs.writeFileAtomic('a.bin', buffer);
+    buffer[0] = 9;
+    expect(await fs.readFile('a.bin')).toEqual(new Uint8Array([1, 2, 3]));
+  });
+
   describe('watch', () => {
     it('reports created parents and the file in one batch', async () => {
       const fs = new MemoryFs();

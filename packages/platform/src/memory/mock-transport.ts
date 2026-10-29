@@ -70,7 +70,8 @@ function toPredicate(matcher: MockMatcher): (req: PreparedRequest) => boolean {
   const { method, url } = matcher;
   return (req) =>
     (method === undefined || method.toUpperCase() === req.method.toUpperCase()) &&
-    (typeof url === 'string' ? url === req.url : url.test(req.url));
+    // A fresh copy per check: `/g` and `/y` regexes keep `lastIndex` between `test` calls.
+    (typeof url === 'string' ? url === req.url : new RegExp(url).test(req.url));
 }
 
 /** Settles like `promise`, or rejects with `signal.reason` as soon as the signal aborts. */
