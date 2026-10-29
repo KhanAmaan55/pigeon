@@ -40,7 +40,8 @@ export class MemoryFs implements ProjectFileSystem {
     const existing = this.#nodes.get(path);
     if (path === '' || existing?.kind === 'dir') throw new FsError('is-a-directory', path);
     const events = this.#createParents(path);
-    const bytes = typeof data === 'string' ? encoder.encode(data) : data.slice();
+    // `new Uint8Array(data)` always copies; `slice()` on a Node Buffer would share memory.
+    const bytes = typeof data === 'string' ? encoder.encode(data) : new Uint8Array(data);
     this.#nodes.set(path, { kind: 'file', data: bytes, mtimeMs: Date.now() });
     events.push({ kind: existing ? 'modified' : 'created', path });
     this.#emit(events);

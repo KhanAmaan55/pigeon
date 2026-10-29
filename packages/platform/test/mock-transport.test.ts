@@ -51,6 +51,15 @@ describe('MockTransport', () => {
     expect((await send(transport, flagged)).status).toBe(500);
   });
 
+  it('matches global and sticky URL regexes on every request', async () => {
+    const transport = new MockTransport()
+      .on({ url: /users/g }, { status: 200 })
+      .on({ url: /https/y }, { status: 202 });
+    for (let i = 0; i < 3; i++) expect((await send(transport)).status).toBe(200);
+    const other = request({ url: 'https://api.example.test/orders' });
+    for (let i = 0; i < 3; i++) expect((await send(transport, other)).status).toBe(202);
+  });
+
   it('passes the request to handlers and propagates their errors', async () => {
     const transport = new MockTransport()
       .on({ url: /echo/ }, (req) => ({ body: `${req.method} ${req.url}` }))
