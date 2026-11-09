@@ -28,4 +28,4 @@ The desktop app (`apps/desktop`, Tauri 2) also needs the Rust stable toolchain a
 | `pnpm build`     | Build every package / app                              |
 | `pnpm test:e2e`  | Build the web app and run Playwright in 3 browsers     |
 
-Packages live in `packages/*` (`@pigeon/core`, `formats`, `compare`, `platform`, `platform-web`, `platform-desktop`, `ui`, `fixtures`); apps live in `apps/*` (`@pigeon/web`, `@pigeon/desktop`). Dependency rules between them are described in [docs/architecture.md §2](docs/architecture.md#2-repository-layout).
+Packages live in `packages/*` (`@pigeon/core`, `formats`, `compare`, `platform`, `platform-web`, `platform-desktop`, `ui`, `fixtures`, `test-server`); apps live in `apps/*` (`@pigeon/web`, `@pigeon/desktop`). Dependency rules between them are described in [docs/architecture.md §2](docs/architecture.md#2-repository-layout).

@@ -18,6 +18,8 @@ const workspaces = {
   'packages/compare': { pigeon: [], pure: true },
   'packages/core': { pigeon: ['platform', 'formats', 'compare'], pure: true },
   'packages/fixtures': { pigeon: [], pure: true },
+  // Node-only tooling for tests; never imported by app code.
+  'packages/test-server': { pigeon: [], forbid: ['react', 'tauri'] },
   'packages/platform-web': { pigeon: ['platform'], forbid: ['react', 'tauri', 'node'] },
   'packages/platform-desktop': { pigeon: ['platform'], forbid: ['react', 'node'] },
   'packages/ui': { pigeon: ['core', 'formats', 'compare', 'platform'], forbid: ['tauri', 'node'] },

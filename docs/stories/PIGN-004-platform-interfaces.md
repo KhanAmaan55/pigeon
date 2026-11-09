@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-004 | 0 — Foundation | MVP | In review (CI pending) | PIGN-002 |
+| PIGN-004 | 0 — Foundation | MVP | Done | PIGN-002 |
 
 ## Goal
 Define the `Platform` contract and capability model, provide in-memory implementations, inject the platform into the UI, and show capabilities in an About/Diagnostics panel on web and desktop.

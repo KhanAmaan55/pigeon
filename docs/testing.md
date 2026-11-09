@@ -19,7 +19,8 @@ Every story leaves the repo green: `pnpm verify` passes and the apps build. Test
 |---|---|
 | `pnpm verify` | lint + typecheck + unit/integration tests + web build (required after every story) |
 | `pnpm test` | Vitest across packages |
-| `pnpm test:e2e` | Builds `apps/web`, then runs Playwright web E2E against `vite preview` (the test server is added by PIGN-005). First run locally: `pnpm exec playwright install chromium firefox webkit` |
+| `pnpm test:e2e` | Builds `apps/web`, then runs Playwright web E2E against `vite preview`; Playwright also starts `@pigeon/test-server` on port 4010. First run locally: `pnpm exec playwright install chromium firefox webkit` |
+| `pnpm --filter @pigeon/test-server start` | Test server on `http://127.0.0.1:4010` (`PIGEON_TEST_SERVER_PORT` overrides) for E2E and Rust tests; endpoints in `packages/test-server/README.md` |
 | `pnpm test:e2e:desktop` | WebdriverIO desktop specs (Linux/Windows) |
 | `pnpm --filter @pigeon/desktop build` | Tauri build for current OS (requires Rust) |
 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` | Rust tests |

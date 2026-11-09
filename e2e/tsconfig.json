@@ -6,5 +6,5 @@
     "lib": ["ES2023", "DOM"],
     "types": ["node"]
   },
-  "include": ["web", "../playwright.config.ts"]
+  "include": ["web", "test-server.ts", "../playwright.config.ts"]
 }

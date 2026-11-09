@@ -50,6 +50,12 @@
       "path": "packages/fixtures/test"
     },
     {
+      "path": "packages/test-server"
+    },
+    {
+      "path": "packages/test-server/test"
+    },
+    {
       "path": "apps/web"
     },
     {
