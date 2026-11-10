@@ -12,6 +12,7 @@ export interface MockResponseInit {
   httpVersion?: string;
   headersRestricted?: boolean;
   ttfbMs?: number;
+  warnings?: string[];
 }
 
 /** A fixed response, or a handler that may be async (to test cancellation) or throw (network errors). */
@@ -61,6 +62,7 @@ export class MockTransport implements Transport {
         ...(init.ttfbMs === undefined ? {} : { ttfbMs: init.ttfbMs }),
       },
       headersRestricted: init.headersRestricted ?? false,
+      ...(init.warnings === undefined ? {} : { warnings: init.warnings }),
     };
   }
 }

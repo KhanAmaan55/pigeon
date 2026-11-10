@@ -111,7 +111,7 @@ Allowed dependencies (enforced by ESLint `no-restricted-imports` + per-package `
 | compare | — |
 | core | platform, formats, compare |
 | ui | core, formats, compare, platform |
-| platform-web / platform-desktop / platform-node | platform |
+| platform-web / platform-desktop / platform-node | platform (platform-desktop also platform-web, for the interim `FetchTransport` until PIGN-007) |
 | apps/web, apps/desktop | ui, platform-* |
 | apps/cli (later) | core, formats, compare, platform, platform-node |
 | test-server | — (Node-only test tooling; nothing in `src` may import it) |

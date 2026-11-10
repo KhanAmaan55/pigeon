@@ -27,7 +27,7 @@ Everything above `Transport.send` is shared by desktop, web, and Node.
 
 ```ts
 interface ExecutionContext {
-  projectId: Id;
+  projectId: Id | null;            // null for the scratch request (no project)
   environmentId: Id | null;
   scopes: VariableScopes;          // built by core from the working model + local current values/secrets
   preferences: { timeoutMs: number; followRedirects: boolean; maxRedirects: number; strictSSL: boolean };
@@ -68,6 +68,13 @@ interface RawResponse {
   httpVersion?: string;
   timings: { startedAt: number; totalMs: number; ttfbMs?: number };
   headersRestricted: boolean;        // true on web: some headers invisible
+  warnings?: string[];               // e.g. forbidden headers the transport dropped
+}
+
+// Transports reject with `signal.reason` when aborted and throw `TransportError` (platform)
+// for every other failure; core maps it to `ExecutionError`, keeping `warnings`.
+class TransportError extends Error {
+  kind: ExecutionError['kind']; detail?: string; hint?: string; warnings: string[];
 }
 
 interface ExecutionResult {
@@ -87,7 +94,7 @@ interface NormalizedResponse extends RawResponse {
   bodyText?: string;                 // when textual (utf-8 / charset from header)
   json?: unknown;                    // parsed when media type is JSON (+json suffix) and parse succeeds
   sizeBytes: number;
-  cookies: ParsedSetCookie[];        // desktop only (web can't see Set-Cookie)
+  cookies: ParsedSetCookie[];        // desktop only (web can't see Set-Cookie); added with PIGN-045
 }
 
 interface ExecutionError {
@@ -168,7 +175,7 @@ interface StreamingTransport {
 
 ### 7.2 Web — `FetchTransport`
 - `fetch(url, { method, headers, body, redirect: 'follow', signal, credentials: 'omit' | 'include' (per-request setting, default omit), cache: 'no-store' })`.
-- Forbidden headers are removed before calling fetch; each removal becomes a warning.
+- Forbidden headers are removed before calling fetch; each removal becomes a warning (`RawResponse.warnings` / `TransportError.warnings`). `User-Agent` is always dropped: Chromium ignores it although the Fetch spec no longer forbids it.
 - GET/HEAD with body → validation error before sending.
 - Error classification (fetch only gives `TypeError`):
   - `AbortError` → `aborted` or `timeout` (Pigeon's own timer).

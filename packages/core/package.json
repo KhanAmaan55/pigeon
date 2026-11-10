@@ -11,8 +11,9 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@pigeon/platform": "workspace:*",
+    "@pigeon/compare": "workspace:*",
     "@pigeon/formats": "workspace:*",
-    "@pigeon/compare": "workspace:*"
+    "@pigeon/platform": "workspace:*",
+    "zod": "^4.6.7"
   }
 }

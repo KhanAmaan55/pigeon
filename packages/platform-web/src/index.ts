@@ -1,5 +1,10 @@
-import type { Capabilities, OperatingSystem, Platform, Transport } from '@pigeon/platform';
+import type { Capabilities, OperatingSystem, Platform } from '@pigeon/platform';
 import { createMemoryServices, defineCapabilities } from '@pigeon/platform';
+
+import { FetchTransport } from './fetch-transport';
+
+export type { FetchTransportOptions } from './fetch-transport';
+export { FetchTransport, isForbiddenHeader } from './fetch-transport';
 
 /**
  * Browser capabilities (docs/platform.md §4) by feature detection, never by user agent.
@@ -41,17 +46,13 @@ export function detectWebOs(nav: {
   return 'unknown';
 }
 
-const pendingTransport: Transport = {
-  send: () => Promise.reject(new Error('Sending requests arrives with PIGN-006 (FetchTransport).')),
-};
-
 /** Real capabilities; fs, state, secrets and dialogs stay memory-backed until their stories land. */
 export function createWebPlatform(): Platform {
   return {
     kind: 'web',
     os: detectWebOs(navigator as Navigator & { userAgentData?: { platform?: string } }),
     capabilities: detectWebCapabilities(window),
-    transport: pendingTransport,
+    transport: new FetchTransport(),
     ...createMemoryServices(),
   };
 }

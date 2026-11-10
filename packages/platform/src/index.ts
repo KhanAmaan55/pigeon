@@ -34,7 +34,9 @@ export type {
   RawResponse,
   RequestSettings,
   Transport,
+  TransportErrorKind,
 } from './transport';
+export { TransportError } from './transport';
 
 export { MemoryFs } from './memory/memory-fs';
 export type { MemoryPlatform, MemoryServices } from './memory/memory-platform';

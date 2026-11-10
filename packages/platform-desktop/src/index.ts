@@ -1,5 +1,7 @@
-import type { Capabilities, OperatingSystem, Platform, Transport } from '@pigeon/platform';
+import type { Capabilities, OperatingSystem, Platform } from '@pigeon/platform';
 import { createMemoryServices, defineCapabilities } from '@pigeon/platform';
+// Temporary: the webview's fetch until the native transport lands (PIGN-007).
+import { FetchTransport } from '@pigeon/platform-web';
 import { platform as osPlatform } from '@tauri-apps/plugin-os';
 
 /** Desktop capabilities are the same on macOS, Windows and Linux (docs/platform.md §4). */
@@ -41,18 +43,16 @@ export function detectDesktopOs(): OperatingSystem {
   return toOperatingSystem(osPlatform());
 }
 
-const pendingTransport: Transport = {
-  send: () =>
-    Promise.reject(new Error('Sending requests arrives with PIGN-007 (native transport).')),
-};
-
-/** Real capabilities; fs, state, secrets and dialogs stay memory-backed until their stories land. */
+/**
+ * Real capabilities; fs, state, secrets and dialogs stay memory-backed until their stories land.
+ * Requests go through the webview's `fetch` (so CORS applies) until PIGN-007.
+ */
 export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): Platform {
   return {
     kind: 'desktop',
     os,
     capabilities: DESKTOP_CAPABILITIES,
-    transport: pendingTransport,
+    transport: new FetchTransport(),
     ...createMemoryServices(),
   };
 }

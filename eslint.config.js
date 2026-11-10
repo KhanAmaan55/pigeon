@@ -21,7 +21,8 @@ const workspaces = {
   // Node-only tooling for tests; never imported by app code.
   'packages/test-server': { pigeon: [], forbid: ['react', 'tauri'] },
   'packages/platform-web': { pigeon: ['platform'], forbid: ['react', 'tauri', 'node'] },
-  'packages/platform-desktop': { pigeon: ['platform'], forbid: ['react', 'node'] },
+  // platform-web only for the interim FetchTransport; drop it with PIGN-007 (native transport).
+  'packages/platform-desktop': { pigeon: ['platform', 'platform-web'], forbid: ['react', 'node'] },
   'packages/ui': { pigeon: ['core', 'formats', 'compare', 'platform'], forbid: ['tauri', 'node'] },
   'apps/web': { pigeon: ['ui', 'platform', 'platform-web'], forbid: ['tauri', 'node'] },
   'apps/desktop': { pigeon: ['ui', 'platform', 'platform-desktop'], forbid: ['node'] },

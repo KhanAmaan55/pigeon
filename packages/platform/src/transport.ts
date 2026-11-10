@@ -59,6 +59,50 @@ export interface RawResponse {
   timings: { startedAt: number; totalMs: number; ttfbMs?: number };
   /** True on web: some headers are invisible to the page. */
   headersRestricted: boolean;
+  /** Things the transport changed or could not do, e.g. forbidden headers it dropped. */
+  warnings?: string[];
+}
+
+/** How a request failed (docs/api-execution.md §2 `ExecutionError.kind`). */
+export type TransportErrorKind =
+  | 'network'
+  | 'timeout'
+  | 'aborted'
+  | 'cors-suspected'
+  | 'mixed-content'
+  | 'tls'
+  | 'dns'
+  | 'connection-refused'
+  | 'invalid-url'
+  | 'invalid-request'
+  | 'file-unavailable'
+  | 'unknown';
+
+/**
+ * A classified transport failure. Transports throw this for everything except aborts (which
+ * reject with `signal.reason`); core turns it into an `ExecutionError`.
+ */
+export class TransportError extends Error {
+  override readonly name = 'TransportError';
+  readonly kind: TransportErrorKind;
+  /** Raw transport error text. */
+  readonly detail?: string;
+  /** User-facing guidance. */
+  readonly hint?: string;
+  /** Warnings collected before the failure (e.g. dropped headers). */
+  readonly warnings: string[];
+
+  constructor(
+    kind: TransportErrorKind,
+    message: string,
+    opts: { detail?: string; hint?: string; warnings?: string[]; cause?: unknown } = {},
+  ) {
+    super(message, opts.cause === undefined ? undefined : { cause: opts.cause });
+    this.kind = kind;
+    if (opts.detail !== undefined) this.detail = opts.detail;
+    if (opts.hint !== undefined) this.hint = opts.hint;
+    this.warnings = opts.warnings ?? [];
+  }
 }
 
 export interface Transport {

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tauri-apps/plugin-os', () => ({ platform: () => 'linux' }));
 
+import { FetchTransport } from '@pigeon/platform-web';
 import { createDesktopPlatform, DESKTOP_CAPABILITIES, toOperatingSystem } from '../src/index';
 
 describe('createDesktopPlatform', () => {
@@ -19,11 +20,8 @@ describe('createDesktopPlatform', () => {
     expect(Object.isFrozen(platform.capabilities)).toBe(true);
   });
 
-  it('has no transport until PIGN-007', async () => {
-    const send = createDesktopPlatform('macos').transport.send({} as never, {
-      signal: new AbortController().signal,
-    });
-    await expect(send).rejects.toThrow('PIGN-007');
+  it('sends through the webview fetch until PIGN-007', () => {
+    expect(createDesktopPlatform('macos').transport).toBeInstanceOf(FetchTransport);
   });
 });
 

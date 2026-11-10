@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@pigeon/platform": "workspace:*",
+    "@pigeon/platform-web": "workspace:*",
     "@tauri-apps/plugin-os": "^2.4.0"
   }
 }
