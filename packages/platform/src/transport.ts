@@ -24,6 +24,8 @@ export interface PreparedRequest {
   settings: RequestSettings;
   meta: {
     requestId?: Id;
+    /** Project the request belongs to (selects the desktop connection pool); absent for scratch. */
+    projectId?: Id;
     protocol: 'http' | 'graphql';
     unresolved: string[];
     secretValues: string[];

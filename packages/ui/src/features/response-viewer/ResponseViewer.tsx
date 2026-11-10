@@ -1,8 +1,9 @@
 import type { ExecutionError, NormalizedResponse } from '@pigeon/core';
 import { CircleAlert, LoaderCircle, TriangleAlert } from 'lucide-react';
 
-import { formatBytes, formatDuration, statusText } from '../../lib/format';
+import { formatBytes } from '../../lib/format';
 import { useScratchRequest } from '../request-editor/ScratchRequestProvider';
+import { StatusLine } from './StatusLine';
 
 /** Status line, time, size and raw body of the latest result. Pretty viewer: PIGN-010. */
 export function ResponseViewer() {
@@ -33,52 +34,14 @@ export function ResponseViewer() {
         )
       ) : (
         <>
-          {result.response && <StatusLine response={result.response} />}
+          {result.response && (
+            <StatusLine response={result.response} transport={result.transport} />
+          )}
           {result.warnings.length > 0 && <Warnings warnings={result.warnings} />}
           {result.error && <ErrorCard error={result.error} />}
           {result.response && <Body response={result.response} />}
         </>
       )}
-    </div>
-  );
-}
-
-function statusColor(status: number): string {
-  if (status >= 500) return 'text-fail';
-  if (status >= 400) return 'text-warn';
-  if (status >= 300) return 'text-info';
-  if (status >= 200) return 'text-pass';
-  return 'text-fg-muted';
-}
-
-function StatusLine({ response }: { response: NormalizedResponse }) {
-  return (
-    <div
-      data-testid="response-status-line"
-      className="flex shrink-0 items-center gap-4 border-b border-border px-3 py-1.5 text-sm"
-    >
-      <span
-        data-testid="response-status"
-        className={`font-semibold ${statusColor(response.status)}`}
-      >
-        {`${response.status} ${statusText(response.status, response.statusText)}`.trim()}
-      </span>
-      <span className="text-fg-muted">
-        Time{' '}
-        <span data-testid="response-time" className="font-mono text-fg">
-          {formatDuration(response.timings.totalMs)}
-        </span>
-      </span>
-      <span className="text-fg-muted">
-        Size{' '}
-        <span
-          data-testid="response-size"
-          title={`${response.sizeBytes} bytes`}
-          className="font-mono text-fg"
-        >
-          {formatBytes(response.sizeBytes)}
-        </span>
-      </span>
     </div>
   );
 }

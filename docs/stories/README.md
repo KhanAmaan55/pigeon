@@ -35,7 +35,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-004](PIGN-004-platform-interfaces.md) | Platform interfaces, capabilities & memory adapters | 0 Foundation | MVP | 002 | Done |
 | [PIGN-005](PIGN-005-test-server.md) | Local HTTP test server | 0 Foundation | MVP | 001 | Done |
 | [PIGN-006](PIGN-006-send-adhoc-request-web.md) | Send an ad-hoc HTTP request (web fetch) | 1 First request | MVP | 004, 005 | Done |
-| [PIGN-007](PIGN-007-native-desktop-transport.md) | Native desktop HTTP transport | 1 First request | MVP | 003, 006 | Todo |
+| [PIGN-007](PIGN-007-native-desktop-transport.md) | Native desktop HTTP transport | 1 First request | MVP | 003, 006 | Done |
 | [PIGN-008](PIGN-008-params-headers.md) | Query params, path variables & headers | 1 First request | MVP | 006 | Todo |
 | [PIGN-009](PIGN-009-request-bodies.md) | Request body modes | 1 First request | MVP | 008 | Todo |
 | [PIGN-010](PIGN-010-response-viewer.md) | Response viewer | 1 First request | MVP | 006 | Todo |

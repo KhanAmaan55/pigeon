@@ -1,28 +1,13 @@
-import type { Capabilities, OperatingSystem, Platform } from '@pigeon/platform';
-import { createMemoryServices, defineCapabilities } from '@pigeon/platform';
-// Temporary: the webview's fetch until the native transport lands (PIGN-007).
-import { FetchTransport } from '@pigeon/platform-web';
+import type { OperatingSystem, Platform } from '@pigeon/platform';
+import { createMemoryServices } from '@pigeon/platform';
 import { platform as osPlatform } from '@tauri-apps/plugin-os';
 
-/** Desktop capabilities are the same on macOS, Windows and Linux (docs/platform.md §4). */
-export const DESKTOP_CAPABILITIES: Readonly<Capabilities> = defineCapabilities({
-  transport: 'native',
-  bypassesCors: true,
-  canSetAnyHeader: true,
-  canReadAllResponseHeaders: true,
-  canControlRedirects: true,
-  canDisableTlsVerification: true,
-  canSendBodyWithGet: true,
-  detailedTimings: true,
-  projectFolders: 'native',
-  browserWorkspace: false,
-  fileWatch: true,
-  persistentFolderAccess: true,
-  fileReferencesByPath: true,
-  secretStorage: 'local-state', // os-keychain with PIGN-053
-  multiWindow: false, // later
-  offline: true,
-});
+import { DESKTOP_CAPABILITIES } from './capabilities';
+import { NativeTransport } from './native-transport';
+
+export { DESKTOP_CAPABILITIES } from './capabilities';
+export type { Invoke, NativeTransportOptions } from './native-transport';
+export { decodeResponseFrame, encodeRequestFrame, NativeTransport } from './native-transport';
 
 /** Maps `@tauri-apps/plugin-os` platform names to Pigeon's. */
 export function toOperatingSystem(name: string): OperatingSystem {
@@ -44,15 +29,15 @@ export function detectDesktopOs(): OperatingSystem {
 }
 
 /**
- * Real capabilities; fs, state, secrets and dialogs stay memory-backed until their stories land.
- * Requests go through the webview's `fetch` (so CORS applies) until PIGN-007.
+ * Real capabilities and the native transport; fs, state, secrets and dialogs stay memory-backed
+ * until their stories land.
  */
 export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): Platform {
   return {
     kind: 'desktop',
     os,
     capabilities: DESKTOP_CAPABILITIES,
-    transport: new FetchTransport(),
+    transport: new NativeTransport(),
     ...createMemoryServices(),
   };
 }

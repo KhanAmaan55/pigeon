@@ -158,6 +158,13 @@ describe('prepareRequest', () => {
       secretValues: [],
     });
   });
+
+  it('names the project so the desktop transport can pick its connection pool', async () => {
+    const request = createRequest({ url: 'http://localhost/' });
+    const result = await prepareRequest(request, { ...ctx(), projectId: 'project-1' });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.value.meta.projectId).toBe('project-1');
+  });
 });
 
 describe('normalizeUrl', () => {

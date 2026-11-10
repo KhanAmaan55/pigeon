@@ -9,9 +9,6 @@
   "references": [
     {
       "path": "../platform"
-    },
-    {
-      "path": "../platform-web"
     }
   ]
 }

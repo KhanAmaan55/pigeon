@@ -116,7 +116,6 @@ If a story turns out too large, split it into `PIGN-0XXa/b` entries in the index
 | ID | Decision | Needed by |
 |---|---|---|
 | D-01 | Confirm Tauri 2 (vs Electron) | PIGN-003 |
-| D-03 | Confirm custom Rust HTTP command | PIGN-007 |
 | D-11 | App identifier, code signing, auto-update policy | PIGN-041 |
 | D-12 | Web hosting target/domain | PIGN-039 |
 | D-13 | License | public release |

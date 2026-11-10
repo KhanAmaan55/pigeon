@@ -6,7 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./conformance": "./src/conformance/index.ts"
+    "./conformance": "./src/conformance/index.ts",
+    "./conformance/transport-cases": "./src/conformance/transport-cases.ts"
   },
   "scripts": {
     "build": "tsc -b"

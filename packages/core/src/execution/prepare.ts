@@ -78,7 +78,13 @@ export async function prepareRequest(
         maxRedirects: settings.maxRedirects ?? preferences.maxRedirects,
         strictSSL: settings.strictSSL ?? preferences.strictSSL,
       },
-      meta: { requestId: request.id, protocol: 'http', unresolved: [], secretValues: [] },
+      meta: {
+        requestId: request.id,
+        ...(ctx.projectId === null ? {} : { projectId: ctx.projectId }),
+        protocol: 'http',
+        unresolved: [],
+        secretValues: [],
+      },
     },
   };
 }

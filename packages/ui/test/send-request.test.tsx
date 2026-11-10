@@ -1,4 +1,4 @@
-import type { MemoryPlatform } from '@pigeon/platform';
+import type { Capabilities, MemoryPlatform } from '@pigeon/platform';
 import { createMemoryPlatform, MockTransport, TransportError } from '@pigeon/platform';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -12,8 +12,12 @@ import { formatBytes, formatDuration, statusText } from '../src/lib/format';
 
 afterEach(cleanup);
 
-function renderEditor(transport: MockTransport, os: MemoryPlatform['os'] = 'macos') {
-  const platform = createMemoryPlatform({ transport, os });
+function renderEditor(
+  transport: MockTransport,
+  os: MemoryPlatform['os'] = 'macos',
+  capabilities: Partial<Capabilities> = {},
+) {
+  const platform = createMemoryPlatform({ transport, os, capabilities });
   render(
     <PlatformProvider platform={platform}>
       <ScratchRequestProvider>
@@ -59,6 +63,21 @@ describe('scratch request editor', () => {
     expect(transport.requests).toHaveLength(1);
     expect(transport.requests[0]?.method).toBe('POST');
     expect(screen.getByTestId('send-button').getAttribute('title')).toBe('Send (Ctrl+Enter)');
+  });
+
+  it.each([
+    ['native', 'Native', 'no CORS'],
+    ['fetch', 'Browser', 'CORS applies'],
+  ] as const)('labels %s responses with a %s transport badge', async (transport, label, hint) => {
+    const mock = new MockTransport().on({ url: /status/ }, { body: 'ok' });
+    const user = renderEditor(mock, 'macos', { transport });
+
+    await user.type(screen.getByTestId('url-input'), 'localhost:4010/status/200{enter}');
+
+    const badge = await screen.findByTestId('response-transport');
+    expect(badge.textContent).toBe(label);
+    expect(badge.getAttribute('data-transport')).toBe(transport);
+    expect(badge.getAttribute('title')).toContain(hint);
   });
 
   it('shows a validation error for an invalid URL without calling the transport', async () => {

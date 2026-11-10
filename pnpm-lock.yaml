@@ -11,6 +11,12 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+      '@pigeon/platform':
+        specifier: workspace:*
+        version: link:packages/platform
+      '@pigeon/platform-web':
+        specifier: workspace:*
+        version: link:packages/platform-web
       '@playwright/test':
         specifier: ^1.64.1
         version: 1.64.1
@@ -142,9 +148,9 @@ importers:
       '@pigeon/platform':
         specifier: workspace:*
         version: link:../platform
-      '@pigeon/platform-web':
-        specifier: workspace:*
-        version: link:../platform-web
+      '@tauri-apps/api':
+        specifier: ^2.12.0
+        version: 2.12.4
       '@tauri-apps/plugin-os':
         specifier: ^2.4.0
         version: 2.4.0

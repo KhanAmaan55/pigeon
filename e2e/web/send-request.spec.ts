@@ -14,6 +14,7 @@ test('GET /json/user shows status, time, size and the JSON body', async ({ page 
   await expect(page.getByTestId('response-time')).toHaveText(/^\d+ ms$|^\d+\.\d+ s$/);
   await expect(page.getByTestId('response-size')).toHaveText(/^\d+(\.\d)? (B|KB)$/);
   await expect(page.getByTestId('response-body')).toContainText('"name": "Ada Lovelace"');
+  await expect(page.getByTestId('response-transport')).toHaveText('Browser');
 });
 
 test('POST /echo with a raw text body shows the echoed body', async ({ page }) => {

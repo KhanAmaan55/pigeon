@@ -14,7 +14,7 @@ await fetch(`${server.url}/echo`);
 await server.close(); // also drops open connections, e.g. a pending /delay
 ```
 
-As a process (E2E, Rust `cargo test`): `pnpm --filter @pigeon/test-server start` serves on `http://127.0.0.1:4010` until stopped. To override, set `PIGEON_TEST_SERVER_PORT` (`0` = any free port) and `PIGEON_TEST_SERVER_HOST`. The script runs the TypeScript sources directly with Node's type stripping, so there's no build step. Playwright starts it as a `webServer` (see `playwright.config.ts`).
+As a process (E2E, Rust `cargo test`): `pnpm --filter @pigeon/test-server start` serves on `http://127.0.0.1:4010` until stopped. To override, set `PIGEON_TEST_SERVER_PORT` (`0` = any free port) and `PIGEON_TEST_SERVER_HOST`. With `PIGEON_TEST_SERVER_EXIT_ON_STDIN_END=1` it also exits when its stdin closes, so a parent process that spawns it (Rust `cargo test` does) can't leave it running. The script runs the TypeScript sources directly with Node's type stripping, so there's no build step. Playwright starts it as a `webServer` (see `playwright.config.ts`).
 
 ## Conventions
 

@@ -51,7 +51,7 @@ Fixtures in `packages/fixtures/postman/`:
 
 ### 3.5 Request execution
 - `@pigeon/test-server` endpoints: `/echo` (reflects method, headers, query, body, multipart parts), `/json/:shape`, `/status/:code`, `/delay/:ms`, `/redirect/:n`, `/redirect-to?url=&status=`, `/cookies/set`, `/cookies`, `/gzip`, `/bytes/:n`, `/large/:mb`, `/graphql` (tiny schema), `/cors/*` variants (no CORS headers, allow-all, preflight-required, expose-headers), `/auth/basic`, `/auth/bearer`, `/unicode`.
-- `transportConformance` suite (capability-aware) runs against MockTransport, NodeTransport, FetchTransport (Playwright page), and mirrored Rust `cargo test` cases.
+- `transportConformance` suite (capability-aware) runs against MockTransport (Vitest), FetchTransport (Playwright page, all three browsers), NodeTransport (later), and mirrored Rust `cargo test` cases. `cargo test` starts `@pigeon/test-server` with Node on a free port (needs `pnpm install`), or uses `PIGEON_TEST_SERVER_URL` when set.
 - Web-specific: CORS failure classified as `cors-suspected`; forbidden headers dropped with warnings; GET+body rejected; mixed-content classification (unit-tested with injected page origin).
 
 ### 3.6 Filesystem / Git workflows

@@ -11,6 +11,22 @@ tauri-build = { version = "2.7", features = [] }
 [dependencies]
 tauri = { version = "2.12", features = [] }
 tauri-plugin-os = "2.4"
+# Native HTTP transport (docs/api-execution.md §7.1). rustls only; no system proxy (proxies are
+# a later preference) and no cookie store (cookies are handled in TS, PIGN-045). reqwest's own
+# decompression is off because it strips `Content-Encoding`/`Content-Length` from the response;
+# http.rs decodes with the crates below and keeps the headers as the server sent them.
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2"] }
+brotli-decompressor = "6"
+bytes = "1"
+flate2 = "1"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+# Only for `hyper::ext::ReasonPhrase` (the server's own status text).
+hyper = { version = "1", default-features = false, features = ["http1"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "time"] }
+url = "2"
+zstd = "0.14"
 
 [dev-dependencies]
-serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

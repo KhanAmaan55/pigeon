@@ -1,13 +1,18 @@
 // Prevents an extra console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod http;
 #[cfg(target_os = "macos")]
 mod menu;
 mod smoke;
+#[cfg(test)]
+mod test_server;
 
 fn main() {
     // plugin-os injects the OS name into the webview; reading it needs no IPC permission.
-    let mut builder = tauri::Builder::default().plugin(tauri_plugin_os::init());
+    let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
+        .manage(http::HttpState::default());
 
     // Windows and Linux get no native menu: shortcuts must not depend on one (docs/platform.md §5).
     #[cfg(target_os = "macos")]
@@ -15,9 +20,16 @@ fn main() {
         builder = builder.menu(menu::build);
     }
 
-    if smoke::requested(std::env::args()) {
-        builder = smoke::install(builder);
-    }
+    // Tauri keeps only the last `invoke_handler`, so every command is registered here at once.
+    builder = if smoke::requested(std::env::args()) {
+        smoke::install(builder).invoke_handler(tauri::generate_handler![
+            http::http_send,
+            http::http_cancel,
+            smoke::smoke_report
+        ])
+    } else {
+        builder.invoke_handler(tauri::generate_handler![http::http_send, http::http_cancel])
+    };
 
     builder
         .run(tauri::generate_context!())

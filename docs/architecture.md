@@ -111,7 +111,7 @@ Allowed dependencies (enforced by ESLint `no-restricted-imports` + per-package `
 | compare | — |
 | core | platform, formats, compare |
 | ui | core, formats, compare, platform |
-| platform-web / platform-desktop / platform-node | platform (platform-desktop also platform-web, for the interim `FetchTransport` until PIGN-007) |
+| platform-web / platform-desktop / platform-node | platform |
 | apps/web, apps/desktop | ui, platform-* |
 | apps/cli (later) | core, formats, compare, platform, platform-node |
 | test-server | — (Node-only test tooling; nothing in `src` may import it) |
@@ -265,7 +265,7 @@ Status: **Proposed** = recommended, confirm before the dependent story starts. *
 |---|---|---|---|---|
 | D-01 | Desktop shell | **Tauri 2** (small binaries, low memory → "lightweight"; native HTTP in Rust bypasses CORS). Alternative: Electron (single language, Node HTTP, larger footprint). The adapter boundary keeps this swappable. | **Accepted** (PIGN-003) | PIGN-003 |
 | D-02 | Language & tooling | TypeScript 6.0 (strict), pnpm 11 workspaces, Vite, Vitest 5, Playwright, ESLint 10 (flat) + typescript-eslint + Prettier, Node 24 LTS (`.nvmrc`; engines ≥ 22.12), Rust stable. TypeScript 7 is not used yet: typescript-eslint 8 supports TS < 6.1. | **Accepted** (PIGN-001) | PIGN-001 |
-| D-03 | Desktop HTTP | Custom Rust commands `http_send`/`http_cancel` using `reqwest` (full control of redirects, raw multi-value headers, timings, TLS options, cancellation). `tauri-plugin-http` acceptable as a spike only. | Proposed | PIGN-007 |
+| D-03 | Desktop HTTP | Custom Rust commands `http_send`/`http_cancel` using `reqwest` (full control of redirects, raw multi-value headers, timings, TLS options, cancellation). `tauri-plugin-http` acceptable as a spike only. | **Accepted** (PIGN-007) | PIGN-007 |
 | D-04 | UI stack | React 19, Zustand, CodeMirror 6, Tailwind v4, Radix (`radix-ui` package), react-resizable-panels v4, lucide-react icons, cmdk, @tanstack/react-virtual. PIGN-002 adopted React, Tailwind, Radix, resizable panels and lucide; the rest are added by the stories that need them. | **Accepted** (PIGN-002) | PIGN-002 |
 | D-05 | On-disk format | Exploded **Postman v2.1 fragments** as JSON: one file per collection root, folder, request, environment, example. Pigeon-only data under `_pigeon` or in Pigeon-only files. Alternatives rejected: single v2.1 file per collection (huge diffs, merge conflicts); YAML (diverges from Postman, harder determinism). | Proposed | PIGN-012 |
 | D-06 | Example bodies | Stored in sidecar files (`*.body.json` pretty-printed, `*.body.txt`, …) for readable diffs; inlined on Postman export. | Proposed | PIGN-027 |

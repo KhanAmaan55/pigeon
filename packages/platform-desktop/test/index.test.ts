@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tauri-apps/plugin-os', () => ({ platform: () => 'linux' }));
+vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 
-import { FetchTransport } from '@pigeon/platform-web';
-import { createDesktopPlatform, DESKTOP_CAPABILITIES, toOperatingSystem } from '../src/index';
+import {
+  createDesktopPlatform,
+  DESKTOP_CAPABILITIES,
+  NativeTransport,
+  toOperatingSystem,
+} from '../src/index';
 
 describe('createDesktopPlatform', () => {
   it('reports desktop capabilities and the OS from plugin-os', () => {
@@ -14,14 +19,20 @@ describe('createDesktopPlatform', () => {
     expect(platform.capabilities).toMatchObject({
       transport: 'native',
       bypassesCors: true,
+      canSetAnyHeader: true,
+      canReadAllResponseHeaders: true,
+      canControlRedirects: true,
+      canDisableTlsVerification: true,
+      canSendBodyWithGet: true,
+      detailedTimings: true,
       projectFolders: 'native',
       fileWatch: true,
     });
     expect(Object.isFrozen(platform.capabilities)).toBe(true);
   });
 
-  it('sends through the webview fetch until PIGN-007', () => {
-    expect(createDesktopPlatform('macos').transport).toBeInstanceOf(FetchTransport);
+  it('sends through the native Rust transport', () => {
+    expect(createDesktopPlatform('macos').transport).toBeInstanceOf(NativeTransport);
   });
 });
 

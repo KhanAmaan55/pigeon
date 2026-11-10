@@ -41,7 +41,7 @@ interface PreparedRequest {
   headers: Array<[string, string]>;// ordered, duplicates allowed
   body?: PreparedBody;
   settings: { timeoutMs: number; followRedirects: boolean; maxRedirects: number; strictSSL: boolean };
-  meta: { requestId?: Id; protocol: 'http' | 'graphql'; unresolved: string[]; secretValues: string[] };
+  meta: { requestId?: Id; projectId?: Id; protocol: 'http' | 'graphql'; unresolved: string[]; secretValues: string[] }; // projectId absent for scratch
 }
 
 type PreparedBody =
@@ -163,15 +163,18 @@ interface StreamingTransport {
 ## 7. Transports
 
 ### 7.1 Desktop — Rust `http_send` (all three OSes)
-- Command input: `PreparedRequest` serialized; file parts passed as absolute paths (TS resolves project paths to absolute) or bytes.
-- `reqwest` client per project (connection pooling, isolation), rustls TLS; `danger_accept_invalid_certs` when `strictSSL === false`.
-- Redirects: policy `none`; the command follows redirects manually up to `maxRedirects` to record each hop; 301/302/303 → GET without body (Postman default), 307/308 keep method & body.
+Implemented in `apps/desktop/src-tauri/src/http.rs` (Rust) and `packages/platform-desktop/src/native-transport.ts` (`NativeTransport`).
+- **IPC framing**: both directions use one binary frame, `[u32 little-endian JSON length][JSON][body bytes]`. The request JSON is `PreparedRequest` without the body bytes (`body: { kind: 'bytes' }` marks that bytes follow); serde field names are identical to the TS types. `NativeTransport` passes the frame as a `Uint8Array` argument and Rust answers with `tauri::ipc::Response`, so bodies never go through base64 or JSON number arrays; the TS response body is a view into the received `ArrayBuffer`. Failures reject with `{ kind, message, detail? }`, which `NativeTransport` turns into a `TransportError`. File parts (PIGN-009) will be passed as absolute paths (TS resolves project paths to absolute) or bytes.
+- `reqwest` client per project id (`meta.projectId`; scratch requests share a default pool) and TLS mode, rustls TLS; `tls_danger_accept_invalid_certs` + `…_hostnames` when `strictSSL === false`. No system proxy (proxies are a later preference).
+- Redirects: policy `none`; the command follows redirects manually up to `maxRedirects` to record each hop (`{ status, url: URL that redirected, location: Location header as sent }`); more → `network` error "Too many redirects". 301/302 turn methods other than GET/HEAD into GET, 303 turns everything except HEAD into GET (dropping the body and `Content-Type`/`Content-Length`/`Content-Encoding`/`Transfer-Encoding`); 307/308 keep method & body. A redirect to another origin drops `Authorization`, `Cookie`, `Proxy-Authorization` and `Host`.
 - No cookie store in reqwest; cookies are handled in TS (PIGN-045) so logic is shared.
-- Automatic decompression (gzip, br, deflate, zstd).
-- Timeout via `tokio::time::timeout`; cancellation via `http_cancel(id)` using an abort handle map.
-- Timings: `ttfbMs` (headers received) and `totalMs`.
-- Returns body as bytes (binary IPC via `tauri::ipc::Response`) to avoid base64 overhead for large bodies.
-- Max response size default 100 MB (preference); beyond → truncated + warning.
+- Decompression (gzip, br, deflate — zlib or raw —, zstd, chained codings) is done in `http.rs`, not by reqwest, because reqwest strips `Content-Encoding`/`Content-Length` from the response: headers stay exactly as the server sent them. `Accept-Encoding: gzip, deflate, br, zstd` is sent unless the request sets its own. An unknown or corrupt coding keeps the body as received, with a warning.
+- Request headers are sent as given (duplicates as separate lines, UTF-8 values as raw bytes); custom `Host`, `Cookie`, `Origin`, … reach the server. HTTP/1.1 header names go out lowercased (hyper). Response headers come back in order per name with duplicates kept.
+- Timeout (`timeoutMs`, `0` = none) via `tokio::time::timeout` over the whole exchange (all hops + body); cancellation via `http_cancel(id)` using an abort-handle map (`State<HttpState>`). A cancel that arrives before its send still aborts it. `NativeTransport` rejects with `signal.reason` as soon as the signal aborts and sends `http_cancel` in the background.
+- Errors: coarse reqwest classification into `timeout`, `connection-refused`, `dns`, `tls`, `network`, `invalid-url`, `invalid-request` (PIGN-011 refines wording and hints).
+- Timings: `ttfbMs` (headers of the final response received, redirect hops included) and `totalMs`; `httpVersion` as `HTTP/1.1`, `HTTP/2`, …; `statusText` is the server's reason phrase.
+- Max response size 100 MB (decoded; becomes a preference later); beyond → truncated + warning.
+- Permissions: `build.rs` declares the app commands, so `capabilities/default.json` grants exactly `allow-http-send`, `allow-http-cancel` and `allow-smoke-report`.
 
 ### 7.2 Web — `FetchTransport`
 - `fetch(url, { method, headers, body, redirect: 'follow', signal, credentials: 'omit' | 'include' (per-request setting, default omit), cache: 'no-store' })`.
