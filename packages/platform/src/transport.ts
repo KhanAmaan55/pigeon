@@ -29,6 +29,8 @@ export interface PreparedRequest {
     protocol: 'http' | 'graphql';
     unresolved: string[];
     secretValues: string[];
+    /** What preparing changed, e.g. a GET body that was not sent; merged into the result's warnings. */
+    warnings?: string[];
   };
 }
 
@@ -44,7 +46,7 @@ export type MultipartPart =
 export type FileRef =
   | { kind: 'project'; path: ProjectPath } // read through ProjectFileSystem
   | { kind: 'absolute'; path: string } // desktop only
-  | { kind: 'picked'; id: string }; // web: in-memory File picked this session
+  | { kind: 'picked'; id: string }; // in-memory file picked this session (`PickedFileStore`)
 
 export interface RawResponse {
   status: number;

@@ -62,7 +62,7 @@ As a process (E2E, Rust `cargo test`): `pnpm --filter @pigeon/test-server start`
   "headers": { "content-type": "…" }, // lower-cased, as Node combines them
   "rawHeaders": [["Content-Type", "…"]], // original names, order and duplicates
   "httpVersion": "1.1",
-  "body": { "size": 3, "text": "a=1", "base64": "YT0x" }, // text is null if not valid UTF-8
+  "body": { "size": 3, "text": "a=1", "base64": "YT0x", "sha256": "…" }, // text is null if not valid UTF-8
   "parsed": { "kind": "urlencoded", "fields": [["a", "1"]] },
 }
 ```

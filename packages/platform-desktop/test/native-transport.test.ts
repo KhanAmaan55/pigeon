@@ -1,5 +1,5 @@
-import type { PreparedRequest, RawResponse } from '@pigeon/platform';
-import { TransportError } from '@pigeon/platform';
+import type { FileRef, PreparedRequest, RawResponse } from '@pigeon/platform';
+import { PickedFileStore, TransportError } from '@pigeon/platform';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
@@ -100,12 +100,104 @@ describe('request frames', () => {
     expect(body.byteLength).toBe(0);
   });
 
-  it('reject body kinds the native side does not support yet', () => {
-    expect(() =>
+  it('send absolute file paths for http.rs to read and picked files inline', () => {
+    const pickedFiles = new PickedFileStore();
+    const png = pickedFiles.add({ name: 'a.png', bytes: new Uint8Array([1, 2, 3]) });
+    const csv = pickedFiles.add({ name: 'b.csv', bytes: new Uint8Array([4, 5]) });
+    const { meta, body } = readRequestFrame(
       encodeRequestFrame(
-        prepared({ body: { kind: 'file', ref: { kind: 'absolute', path: '/x' } } }),
+        prepared({
+          method: 'POST',
+          body: {
+            kind: 'multipart',
+            parts: [
+              { name: 't', kind: 'text', value: 'v', contentType: 'text/plain' },
+              { name: 'f1', kind: 'file', file: png, filename: 'a.png', contentType: 'image/png' },
+              {
+                name: 'f2',
+                kind: 'file',
+                file: { kind: 'absolute', path: '/x/y.bin' },
+                filename: 'y.bin',
+              },
+              { name: 'f3', kind: 'file', file: csv, filename: 'b.csv' },
+            ],
+          },
+        }),
+        pickedFiles,
       ),
-    ).toThrow(TransportError);
+    );
+    expect(meta['body']).toEqual({
+      kind: 'multipart',
+      parts: [
+        { name: 't', kind: 'text', value: 'v', contentType: 'text/plain' },
+        {
+          name: 'f1',
+          kind: 'file',
+          file: { kind: 'inline', offset: 0, length: 3 },
+          filename: 'a.png',
+          contentType: 'image/png',
+        },
+        {
+          name: 'f2',
+          kind: 'file',
+          file: { kind: 'absolute', path: '/x/y.bin' },
+          filename: 'y.bin',
+        },
+        {
+          name: 'f3',
+          kind: 'file',
+          file: { kind: 'inline', offset: 3, length: 2 },
+          filename: 'b.csv',
+        },
+      ],
+    });
+    expect(body).toEqual(new Uint8Array([1, 2, 3, 4, 5]));
+  });
+
+  it('send binary bodies by path, or picked bytes as a plain body', () => {
+    const byPath = readRequestFrame(
+      encodeRequestFrame(
+        prepared({ method: 'POST', body: { kind: 'file', ref: { kind: 'absolute', path: '/x' } } }),
+      ),
+    );
+    expect(byPath.meta['body']).toEqual({ kind: 'file', ref: { kind: 'absolute', path: '/x' } });
+    expect(byPath.body.byteLength).toBe(0);
+
+    const pickedFiles = new PickedFileStore();
+    const ref = pickedFiles.add({ name: 'a.bin', bytes: new Uint8Array([7, 8]) });
+    const picked = readRequestFrame(
+      encodeRequestFrame(prepared({ method: 'POST', body: { kind: 'file', ref } }), pickedFiles),
+    );
+    expect(picked.meta['body']).toEqual({ kind: 'bytes' });
+    expect(picked.body).toEqual(new Uint8Array([7, 8]));
+  });
+
+  it('reject files they cannot read as file-unavailable', () => {
+    const unavailable = (ref: FileRef) => {
+      try {
+        encodeRequestFrame(
+          prepared({
+            method: 'POST',
+            body: {
+              kind: 'multipart',
+              parts: [{ name: 'f', kind: 'file', file: ref, filename: 'a' }],
+            },
+          }),
+          new PickedFileStore(),
+        );
+      } catch (error) {
+        return error;
+      }
+      throw new Error('expected a rejection');
+    };
+    for (const ref of [
+      { kind: 'picked', id: 'gone' },
+      { kind: 'project', path: 'files/a.png' },
+    ] as const) {
+      const error = unavailable(ref);
+      expect(error).toBeInstanceOf(TransportError);
+      expect(error).toMatchObject({ kind: 'file-unavailable' });
+    }
   });
 });
 

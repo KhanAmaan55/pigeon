@@ -1,6 +1,7 @@
 import { describe, it } from 'vitest';
 
 import type { Capabilities } from '../capabilities';
+import { PickedFileStore } from '../picked-files';
 import type { Transport } from '../transport';
 import { transportConformanceCases } from './transport-cases';
 
@@ -13,11 +14,12 @@ export interface TransportConformanceOptions {
 
 /**
  * Registers the shared transport cases (./transport-cases.ts) as Vitest tests:
- * `transportConformance('MockTransport', () => transport, caps, { baseUrl })`.
+ * `transportConformance('MockTransport', (pickedFiles) => transport, caps, { baseUrl })`.
+ * `createTransport` must read `picked` file refs from the store it is given.
  */
 export function transportConformance(
   name: string,
-  createTransport: () => Transport,
+  createTransport: (pickedFiles: PickedFileStore) => Transport,
   caps: Readonly<Capabilities>,
   opts: TransportConformanceOptions,
 ): void {
@@ -25,7 +27,14 @@ export function transportConformance(
 
   describe(`Transport conformance: ${name}`, () => {
     for (const testCase of transportConformanceCases(caps)) {
-      const run = () => testCase.run({ transport: createTransport(), baseUrl: baseUrl() });
+      const run = () => {
+        const pickedFiles = new PickedFileStore();
+        return testCase.run({
+          transport: createTransport(pickedFiles),
+          pickedFiles,
+          baseUrl: baseUrl(),
+        });
+      };
       const story = opts.expectedFailures?.[testCase.id];
       if (testCase.skip !== undefined) {
         it.skip(`${testCase.title} (${testCase.skip})`, run);

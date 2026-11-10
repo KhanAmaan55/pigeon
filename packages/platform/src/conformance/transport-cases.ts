@@ -8,10 +8,13 @@
  */
 
 import type { Capabilities } from '../capabilities';
-import type { PreparedRequest, RawResponse, Transport } from '../transport';
+import type { PickedFileStore } from '../picked-files';
+import type { PreparedBody, PreparedRequest, RawResponse, Transport } from '../transport';
 
 export interface TransportConformanceContext {
   transport: Transport;
+  /** The store `transport` reads `picked` file refs from. */
+  pickedFiles: PickedFileStore;
   /** `@pigeon/test-server` base URL without a trailing slash, e.g. `http://127.0.0.1:4010`. */
   baseUrl: string;
 }
@@ -29,8 +32,13 @@ export interface TransportConformanceCase {
 interface Echo {
   method: string;
   rawHeaders: Array<[string, string]>;
-  body: { size: number; text: string | null };
+  body: { size: number; text: string | null; sha256: string };
+  parsed: { kind: string; parts?: unknown[]; fields?: unknown[] } | null;
 }
+
+/** `(0..1024).map(i => i % 256)` and its SHA-256, as `/echo` reports it. */
+const PAYLOAD = Uint8Array.from({ length: 1024 }, (_, i) => i % 256);
+const PAYLOAD_SHA256 = '785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9';
 
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
@@ -54,15 +62,17 @@ function request(
   baseUrl: string,
   method: string,
   path: string,
-  overrides: Partial<Omit<PreparedRequest, 'body'>> & { body?: string } = {},
+  overrides: Partial<Omit<PreparedRequest, 'body'>> & { body?: string | PreparedBody } = {},
 ): PreparedRequest {
   const { body, ...rest } = overrides;
+  const prepared: PreparedBody | undefined =
+    typeof body === 'string' ? { kind: 'bytes', bytes: encoder.encode(body) } : body;
   return {
     id: `conformance-${++nextId}`,
     method,
     url: path.startsWith('http') ? path : `${baseUrl}${path}`,
     headers: [],
-    ...(body === undefined ? {} : { body: { kind: 'bytes', bytes: encoder.encode(body) } }),
+    ...(prepared === undefined ? {} : { body: prepared }),
     settings: { timeoutMs: 30_000, followRedirects: true, maxRedirects: 10, strictSSL: true },
     meta: { protocol: 'http', unresolved: [], secretValues: [] },
     ...rest,
@@ -163,6 +173,79 @@ export function transportConformanceCases(
         checkEqual(echo.method, 'POST', 'method');
         checkEqual(echo.body.text, body, 'body.text');
         checkEqual(echo.body.size, encoder.encode(body).byteLength, 'body.size');
+      },
+    },
+    {
+      id: 'multipart',
+      title: 'multipart bodies arrive with field names, file name, size, type and bytes',
+      async run({ transport, pickedFiles, baseUrl }) {
+        const file = pickedFiles.add({ name: 'pixel.png', bytes: PAYLOAD, mime: 'image/png' });
+        const body: PreparedBody = {
+          kind: 'multipart',
+          parts: [
+            { name: 'greeting', kind: 'text', value: 'héllo wörld' },
+            { name: 'note', kind: 'text', value: 'a&b=c "quoted"' },
+            { name: 'upload', kind: 'file', file, filename: 'pixel.png', contentType: 'image/png' },
+          ],
+        };
+        const echo = json<Echo>(await send(transport, request(baseUrl, 'POST', '/echo', { body })));
+        check(
+          headerValues(echo.rawHeaders, 'content-type')[0]?.startsWith(
+            'multipart/form-data; boundary=',
+          ),
+          `multipart content-type, got ${String(headerValues(echo.rawHeaders, 'content-type'))}`,
+        );
+        checkEqual(
+          echo.parsed,
+          {
+            kind: 'multipart',
+            parts: [
+              { name: 'greeting', kind: 'text', value: 'héllo wörld' },
+              { name: 'note', kind: 'text', value: 'a&b=c "quoted"' },
+              {
+                name: 'upload',
+                kind: 'file',
+                filename: 'pixel.png',
+                contentType: 'image/png',
+                size: PAYLOAD.byteLength,
+                sha256: PAYLOAD_SHA256,
+              },
+            ],
+          },
+          'parsed multipart',
+        );
+      },
+    },
+    {
+      id: 'file-body',
+      title: 'binary bodies from a picked file arrive byte for byte',
+      async run({ transport, pickedFiles, baseUrl }) {
+        const ref = pickedFiles.add({ name: 'blob.bin', bytes: PAYLOAD });
+        const req = request(baseUrl, 'POST', '/echo', {
+          headers: [['Content-Type', 'application/octet-stream']],
+          body: { kind: 'file', ref },
+        });
+        const echo = json<Echo>(await send(transport, req));
+        checkEqual([echo.body.size, echo.body.sha256], [1024, PAYLOAD_SHA256], 'size and sha256');
+        checkEqual(
+          headerValues(echo.rawHeaders, 'content-type'),
+          ['application/octet-stream'],
+          'content-type',
+        );
+      },
+    },
+    {
+      id: 'file-unavailable',
+      title: 'a picked file that is gone fails as file-unavailable',
+      async run({ transport, baseUrl }) {
+        const req = request(baseUrl, 'POST', '/echo', {
+          body: { kind: 'file', ref: { kind: 'picked', id: 'not-picked' } },
+        });
+        checkTransportError(
+          await rejection(send(transport, req), 'missing file'),
+          ['file-unavailable'],
+          'missing file',
+        );
       },
     },
     {

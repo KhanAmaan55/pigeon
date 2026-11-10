@@ -5,6 +5,7 @@ import type { EchoResponse } from '../src/index';
 import { rawRequest, useTestServer } from './helpers';
 
 const url = useTestServer();
+const EMPTY_SHA256 = createHash('sha256').digest('hex');
 
 const echo = async (path: string, init?: RequestInit) => {
   const res = await fetch(url(path), init);
@@ -28,7 +29,7 @@ describe('/echo', () => {
     });
     expect(body.headers['x-custom']).toBe('one');
     expect(body.rawHeaders).toContainEqual(['X-Custom', 'one']);
-    expect(body.body).toEqual({ size: 0, text: '', base64: '' });
+    expect(body.body).toEqual({ size: 0, text: '', base64: '', sha256: EMPTY_SHA256 });
   });
 
   it('keeps header name casing, order and duplicates in rawHeaders', async () => {
@@ -58,6 +59,7 @@ describe('/echo', () => {
       size: 6,
       text: 'héllo',
       base64: Buffer.from('héllo').toString('base64'),
+      sha256: createHash('sha256').update('héllo').digest('hex'),
     });
     expect(body.parsed).toBeNull();
   });
@@ -65,7 +67,12 @@ describe('/echo', () => {
   it('returns null text for bytes that are not UTF-8', async () => {
     const bytes = new Uint8Array([0xff, 0x00, 0xfe, 0x80]);
     const body = await echo('/echo', { method: 'PUT', body: bytes });
-    expect(body.body).toEqual({ size: 4, text: null, base64: '/wD+gA==' });
+    expect(body.body).toEqual({
+      size: 4,
+      text: null,
+      base64: '/wD+gA==',
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    });
   });
 
   it('parses JSON bodies, and reports invalid JSON', async () => {

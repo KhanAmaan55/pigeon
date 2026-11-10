@@ -13,11 +13,18 @@ import {
   withValue,
 } from './bulk';
 
-export interface KeyValueTableProps {
+/** A column after Value, e.g. form-data's part content type. */
+export interface KeyValueColumn<T extends KeyValue> {
+  id: string;
+  header: string;
+  render: (row: T, update: (next: T) => void, isDraft: boolean) => ReactNode;
+}
+
+export interface KeyValueTableProps<T extends KeyValue = KeyValue> {
   /** Accessible name of the table, e.g. "Query parameters". */
   label: string;
-  rows: readonly KeyValue[];
-  onChange: (rows: KeyValue[]) => void;
+  rows: readonly T[];
+  onChange: (rows: T[]) => void;
   /**
    * Keys come from elsewhere (path variables from the URL): keys are read-only and rows can't be
    * added, removed, disabled, reordered or bulk edited.
@@ -27,8 +34,13 @@ export interface KeyValueTableProps {
   bulkSeparator?: BulkSeparator;
   keyPlaceholder?: string;
   valuePlaceholder?: string;
-  /** Shown after a row's key, e.g. a warning icon. */
-  keyAdornment?: (row: KeyValue) => ReactNode;
+  /** Shown after a row's key, e.g. a warning icon or a text/file toggle. */
+  keyAdornment?: (row: T, update: (next: T) => void) => ReactNode;
+  /** Replaces the value input of a row when it returns something (e.g. a file picker). */
+  renderValue?: (row: T, update: (next: T) => void) => ReactNode;
+  extraColumns?: ReadonlyArray<KeyValueColumn<T>>;
+  /** The row the empty row turns into, and bulk/pasted rows are completed with. */
+  newRow?: () => T;
   testId?: string;
 }
 
@@ -42,7 +54,7 @@ const toolbarButton =
  * delete, an always-present empty row that turns into a real row when typed in, drag (or
  * Alt+↑/↓) to reorder, bulk edit as text, and pasting several `key: value` lines at once.
  */
-export function KeyValueTable({
+export function KeyValueTable<T extends KeyValue = KeyValue>({
   label,
   rows,
   onChange,
@@ -51,8 +63,11 @@ export function KeyValueTable({
   keyPlaceholder = 'Key',
   valuePlaceholder = 'Value',
   keyAdornment,
+  renderValue,
+  extraColumns = [],
+  newRow = () => ({ key: '', value: '' }) as T,
   testId,
-}: KeyValueTableProps) {
+}: KeyValueTableProps<T>) {
   const [showDescription, setShowDescription] = useState(() =>
     rows.some((row) => descriptionText(row.description) !== ''),
   );
@@ -60,8 +75,8 @@ export function KeyValueTable({
   // carry over to re-typed keys). Rows changed elsewhere (e.g. the URL) restart it from them.
   const [bulk, setBulk] = useState<{
     text: string;
-    rows: readonly KeyValue[];
-    base: readonly KeyValue[];
+    rows: readonly T[];
+    base: readonly T[];
   } | null>(null);
   const bulkCurrent = bulk !== null && bulk.rows === rows;
   const bulkText =
@@ -79,11 +94,14 @@ export function KeyValueTable({
   }, [rows]);
 
   // Index `rows.length` is the trailing empty row; editing it appends a real row.
-  const setRow = (index: number, update: (row: KeyValue) => KeyValue) => {
+  const setRow = (index: number, update: (row: T) => T) => {
     const next = [...rows];
-    next[index] = update(rows[index] ?? { key: '', value: '' });
+    next[index] = update(rows[index] ?? newRow());
     onChange(next);
   };
+  // Bulk-parsed rows keep the fields of the row they matched; new ones get `newRow()`'s.
+  const parseRows = (text: string, previous: readonly T[] = []): T[] =>
+    parseBulkText(text, bulkSeparator, previous).map((row) => ({ ...newRow(), ...row }) as T);
   const move = (from: number, to: number) => {
     if (to < 0 || to >= rows.length || from === to) return;
     onChange(moveRow(rows, from, to));
@@ -93,7 +111,7 @@ export function KeyValueTable({
     const text = event.clipboardData.getData('text/plain');
     if (fixedKeys || !/\r?\n/.test(text.trim())) return;
     event.preventDefault();
-    const pasted = parseBulkText(text, bulkSeparator);
+    const pasted = parseRows(text);
     const current = rows[index];
     const replace = current === undefined || (current.key === '' && current.value === '');
     const next = [...rows];
@@ -167,7 +185,7 @@ export function KeyValueTable({
           data-testid="kv-bulk-input"
           value={bulkText}
           onChange={(event) => {
-            const parsed = parseBulkText(event.target.value, bulkSeparator, bulkBase);
+            const parsed = parseRows(event.target.value, bulkBase);
             setBulk({ text: event.target.value, rows: parsed, base: bulkBase });
             onChange(parsed);
           }}
@@ -198,6 +216,11 @@ export function KeyValueTable({
             )}
             <th className="py-1 pl-1.5">Key</th>
             <th className="py-1 pl-1.5">Value</th>
+            {extraColumns.map((column) => (
+              <th key={column.id} className="w-40 py-1 pl-1.5">
+                {column.header}
+              </th>
+            ))}
             {showDescription && <th className="py-1 pl-1.5">Description</th>}
             {!fixedKeys && (
               <th className="w-8 py-1">
@@ -210,7 +233,9 @@ export function KeyValueTable({
           {Array.from({ length: count }, (_, index) => {
             const row = rows[index];
             const isDraft = row === undefined;
-            const current = row ?? { key: '', value: '' };
+            const current = row ?? newRow();
+            const update = (next: T) => setRow(index, () => next);
+            const customValue = renderValue?.(current, update);
             return (
               // Keyed by position so the empty row keeps focus when it becomes a real row.
               <tr
@@ -290,21 +315,28 @@ export function KeyValueTable({
                       onPaste={onPaste(index)}
                       className={`${cellInput} ${fixedKeys ? 'hover:border-transparent focus:border-transparent' : ''}`}
                     />
-                    {!isDraft && keyAdornment?.(current)}
+                    {!isDraft && keyAdornment?.(current, update)}
                   </div>
                 </td>
                 <td className="py-0.5">
-                  <input
-                    aria-label="Value"
-                    value={current.value}
-                    placeholder={isDraft || fixedKeys ? valuePlaceholder : ''}
-                    spellCheck={false}
-                    autoComplete="off"
-                    onChange={(event) => setRow(index, (r) => withValue(r, event.target.value))}
-                    onPaste={onPaste(index)}
-                    className={cellInput}
-                  />
+                  {customValue ?? (
+                    <input
+                      aria-label="Value"
+                      value={current.value}
+                      placeholder={isDraft || fixedKeys ? valuePlaceholder : ''}
+                      spellCheck={false}
+                      autoComplete="off"
+                      onChange={(event) => setRow(index, (r) => withValue(r, event.target.value))}
+                      onPaste={onPaste(index)}
+                      className={cellInput}
+                    />
+                  )}
                 </td>
+                {extraColumns.map((column) => (
+                  <td key={column.id} className="py-0.5">
+                    {column.render(current, update, isDraft)}
+                  </td>
+                ))}
                 {showDescription && (
                   <td className="py-0.5">
                     <input

@@ -60,11 +60,51 @@ pub struct PreparedRequest {
     pub meta: RequestMeta,
 }
 
-/// Only `bytes` for now; multipart and file bodies arrive with PIGN-009.
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+/// How to build the request body. `Bytes`: the frame's body bytes are the body.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum PreparedBody {
     Bytes,
+    /// Binary body read from a file.
+    File {
+        #[serde(rename = "ref")]
+        file: FileRef,
+    },
+    /// `multipart/form-data`; the boundary is chosen here (see [`multipart_boundary`]).
+    Multipart {
+        parts: Vec<MultipartPart>,
+    },
+}
+
+/// A file to send: read from disk, or a slice of the frame's body bytes (files picked in the
+/// webview, which has no path for them).
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum FileRef {
+    Absolute { path: String },
+    Inline { offset: usize, length: usize },
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum MultipartPart {
+    Text {
+        name: String,
+        value: String,
+        #[serde(default)]
+        content_type: Option<String>,
+    },
+    File {
+        name: String,
+        file: FileRef,
+        filename: String,
+        #[serde(default)]
+        content_type: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -137,6 +177,7 @@ pub enum ErrorKind {
     ConnectionRefused,
     InvalidUrl,
     InvalidRequest,
+    FileUnavailable,
 }
 
 /// Rejection value of `http_send`; `NativeTransport` turns it into a `TransportError`.
@@ -344,7 +385,10 @@ impl HttpState {
                 HeaderValue::from_static(ACCEPT_ENCODING),
             );
         }
-        let mut body = req.body.map(|_| body);
+        let mut body = match &req.body {
+            Some(spec) => Some(build_body(spec, body, &mut headers).await?),
+            None => None,
+        };
         let mut redirects = Vec::new();
 
         let mut response = loop {
@@ -474,6 +518,176 @@ impl HttpState {
             warnings,
         })
     }
+}
+
+/// The bytes to send for `spec`; `tail` holds the frame's body bytes. Sets the multipart
+/// `Content-Type` in `headers`.
+async fn build_body(
+    spec: &PreparedBody,
+    tail: Bytes,
+    headers: &mut HeaderMap,
+) -> Result<Bytes, TransportFailure> {
+    match spec {
+        PreparedBody::Bytes => Ok(tail),
+        PreparedBody::File { file } => read_file(file, &tail, None).await,
+        PreparedBody::Multipart { parts } => {
+            let mut resolved = Vec::with_capacity(parts.len());
+            for part in parts {
+                let content = match part {
+                    MultipartPart::Text { value, .. } => Bytes::copy_from_slice(value.as_bytes()),
+                    MultipartPart::File { file, filename, .. } => {
+                        read_file(file, &tail, Some(filename)).await?
+                    }
+                };
+                resolved.push((part, content));
+            }
+            let boundary = multipart_boundary(headers);
+            Ok(encode_multipart(&resolved, &boundary))
+        }
+    }
+}
+
+async fn read_file(
+    file: &FileRef,
+    tail: &Bytes,
+    name: Option<&str>,
+) -> Result<Bytes, TransportFailure> {
+    match file {
+        FileRef::Inline { offset, length } => offset
+            .checked_add(*length)
+            .filter(|end| *end <= tail.len())
+            .map(|end| tail.slice(*offset..end))
+            .ok_or_else(|| {
+                TransportFailure::new(ErrorKind::InvalidRequest, "The request could not be read.")
+                    .with_detail(format!(
+                        "inline file {offset}+{length} exceeds the {} body bytes",
+                        tail.len()
+                    ))
+            }),
+        FileRef::Absolute { path } => {
+            let owned = path.clone();
+            let read = tokio::task::spawn_blocking(move || std::fs::read(owned))
+                .await
+                .expect("file reader panicked");
+            read.map(Bytes::from).map_err(|error| {
+                let label = name.map_or_else(
+                    || "The file".to_owned(),
+                    |name| format!("The file \"{name}\""),
+                );
+                TransportFailure::new(
+                    ErrorKind::FileUnavailable,
+                    format!("{label} could not be read."),
+                )
+                .with_detail(format!("{path}: {error}"))
+            })
+        }
+    }
+}
+
+/// The boundary to encode with, making sure `Content-Type` announces it: a boundary the user
+/// set is kept; a `multipart/*` type without one gets ours appended; no `Content-Type` becomes
+/// `multipart/form-data; boundary=…`. Any other type the user set is left alone.
+fn multipart_boundary(headers: &mut HeaderMap) -> String {
+    let current = headers
+        .get(header::CONTENT_TYPE)
+        .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
+    if let Some(boundary) = current.as_deref().and_then(boundary_param) {
+        return boundary;
+    }
+    let boundary = new_boundary();
+    let value = match current {
+        None => Some(format!("multipart/form-data; boundary={boundary}")),
+        Some(current)
+            if current
+                .trim_start()
+                .to_ascii_lowercase()
+                .starts_with("multipart/") =>
+        {
+            Some(format!(
+                "{}; boundary={boundary}",
+                current.trim_end().trim_end_matches(';')
+            ))
+        }
+        Some(_) => None,
+    };
+    if let Some(value) = value.and_then(|value| HeaderValue::from_str(&value).ok()) {
+        headers.insert(header::CONTENT_TYPE, value);
+    }
+    boundary
+}
+
+/// The `boundary` parameter of a media type, unquoted.
+fn boundary_param(content_type: &str) -> Option<String> {
+    content_type.split(';').skip(1).find_map(|param| {
+        let (name, value) = param.split_once('=')?;
+        if !name.trim().eq_ignore_ascii_case("boundary") {
+            return None;
+        }
+        let value = value.trim().trim_matches('"');
+        (!value.is_empty()).then(|| value.to_owned())
+    })
+}
+
+/// 32 random hex digits (std's per-process random hash keys; no RNG crate needed).
+fn new_boundary() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    let random = || {
+        let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
+        hasher.write_u128(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0, |elapsed| elapsed.as_nanos()),
+        );
+        hasher.finish()
+    };
+    format!("----PigeonFormBoundary{:016x}{:016x}", random(), random())
+}
+
+/// RFC 7578 body. Names and file names are escaped like browsers do (`"`, CR, LF as `%XX`).
+fn encode_multipart(parts: &[(&MultipartPart, Bytes)], boundary: &str) -> Bytes {
+    let escape = |text: &str| {
+        text.replace('"', "%22")
+            .replace('\r', "%0D")
+            .replace('\n', "%0A")
+    };
+    let mut out = Vec::new();
+    for (part, content) in parts {
+        out.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
+        let (disposition, content_type) = match part {
+            MultipartPart::Text {
+                name, content_type, ..
+            } => (
+                format!("form-data; name=\"{}\"", escape(name)),
+                content_type.clone(),
+            ),
+            MultipartPart::File {
+                name,
+                filename,
+                content_type,
+                ..
+            } => (
+                format!(
+                    "form-data; name=\"{}\"; filename=\"{}\"",
+                    escape(name),
+                    escape(filename)
+                ),
+                Some(
+                    content_type
+                        .clone()
+                        .unwrap_or_else(|| "application/octet-stream".to_owned()),
+                ),
+            ),
+        };
+        out.extend_from_slice(format!("Content-Disposition: {disposition}\r\n").as_bytes());
+        if let Some(content_type) = content_type {
+            out.extend_from_slice(format!("Content-Type: {content_type}\r\n").as_bytes());
+        }
+        out.extend_from_slice(b"\r\n");
+        out.extend_from_slice(content);
+        out.extend_from_slice(b"\r\n");
+    }
+    out.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
+    Bytes::from(out)
 }
 
 /// Removes the abort handle when a send finishes or its future is dropped.

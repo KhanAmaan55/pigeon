@@ -185,6 +185,7 @@ interface Platform {
   projects: ProjectLocator;                 // pick/create/reopen project locations
   openProjectFs(loc: ProjectLocation): Promise<ProjectFileSystem>;
   transport: Transport;
+  pickedFiles: PickedFileStore;             // files picked this session for request bodies; the transport reads them
   appState: AppStateStore;
   secrets: SecretStore;
   dialogs: Dialogs;                         // open/save file pickers, confirm

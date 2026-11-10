@@ -41,7 +41,7 @@ interface PreparedRequest {
   headers: Array<[string, string]>;// ordered, duplicates allowed
   body?: PreparedBody;
   settings: { timeoutMs: number; followRedirects: boolean; maxRedirects: number; strictSSL: boolean };
-  meta: { requestId?: Id; projectId?: Id; protocol: 'http' | 'graphql'; unresolved: string[]; secretValues: string[] }; // projectId absent for scratch
+  meta: { requestId?: Id; projectId?: Id; protocol: 'http' | 'graphql'; unresolved: string[]; secretValues: string[]; warnings?: string[] }; // projectId absent for scratch; warnings: what prepare changed (e.g. a dropped GET body), first in ExecutionResult.warnings
 }
 
 type PreparedBody =
@@ -56,7 +56,7 @@ type MultipartPart =
 type FileRef =
   | { kind: 'project'; path: ProjectPath }                   // read through ProjectFileSystem
   | { kind: 'absolute'; path: string }                       // desktop only
-  | { kind: 'picked'; id: string };                          // web: in-memory File picked this session
+  | { kind: 'picked'; id: string };                          // file picked this session, bytes in Platform.pickedFiles (web and desktop)
 
 interface RawResponse {
   status: number;
@@ -137,10 +137,15 @@ MVP handlers: `noauth`, `basic` (`Authorization: Basic base64(user:pass)`, UTF-8
 | raw text / xml / html / javascript | UTF-8 | `text/plain` / `application/xml` / `text/html` / `application/javascript` |
 | urlencoded | `application/x-www-form-urlencoded` encoding of enabled params | `application/x-www-form-urlencoded` |
 | formdata | `multipart` parts (transport builds boundary) | set by transport (`multipart/form-data; boundary=…`) |
-| file | bytes of file | from file extension or `application/octet-stream` |
+| file | bytes of file | from file extension (`mediaTypeForFileName`) or `application/octet-stream` |
 | graphql | JSON `{"query","variables","operationName"}`; `variables` parsed as JSON (invalid → validation error) | `application/json` |
 
-Disabled params/headers are skipped. `body.disabled` → no body.
+Disabled params/headers are skipped. `body.disabled` → no body. A body that encodes to nothing (empty raw text, no enabled urlencoded/form-data rows, no file chosen) is no body: nothing is sent and no `Content-Type` is added. Implementation: `core/execution/body/` (`encodeBody`, `hasBody`).
+
+- **urlencoded**: WHATWG `application/x-www-form-urlencoded` serializer (what `URLSearchParams` writes): UTF-8, `*-._` and alphanumerics kept, space → `+`, everything else `%XX`; values are encoded as typed. Rows with neither key nor value are skipped.
+- **formdata**: one part per text row and per file of a file row, in table order. File part `contentType` = the row's content type, else from the file name, else `application/octet-stream`; text parts carry a content type only when the row sets one (browsers can't send one: dropped with a warning). A named file row without a file is skipped with a warning. The transport writes `Content-Type: multipart/form-data; boundary=…`; the headers tab shows it as a preview (`AutoHeader.preview`). On desktop a user `Content-Type` with a `boundary` is kept and its boundary used, a `multipart/*` one without gets the boundary appended; browsers always write their own, with a warning if the user's differed.
+- **file sources** (`src` in the model, see [data-model.md §4](data-model.md#4-collection-folder-request)): `picked:<id>/<name>` → `picked` ref, absolute path (`/…`, `C:\…`, `\\server\…`) → `absolute`, anything else → `project` (read by PIGN-014; until then `file-unavailable`).
+- **GET/HEAD with a body** (`core/execution/validate.ts`): `!canSendBodyWithGet` (browsers) → `invalid-request` validation error. Otherwise the body (and its default `Content-Type`) is dropped with a warning unless `settings.disableBodyPruning` ("Send body with GET" in the request's Settings tab), as Postman does.
 
 ## 6. Protocol handlers
 
@@ -166,7 +171,9 @@ interface StreamingTransport {
 
 ### 7.1 Desktop — Rust `http_send` (all three OSes)
 Implemented in `apps/desktop/src-tauri/src/http.rs` (Rust) and `packages/platform-desktop/src/native-transport.ts` (`NativeTransport`).
-- **IPC framing**: both directions use one binary frame, `[u32 little-endian JSON length][JSON][body bytes]`. The request JSON is `PreparedRequest` without the body bytes (`body: { kind: 'bytes' }` marks that bytes follow); serde field names are identical to the TS types. `NativeTransport` passes the frame as a `Uint8Array` argument and Rust answers with `tauri::ipc::Response`, so bodies never go through base64 or JSON number arrays; the TS response body is a view into the received `ArrayBuffer`. Failures reject with `{ kind, message, detail? }`, which `NativeTransport` turns into a `TransportError`. File parts (PIGN-009) will be passed as absolute paths (TS resolves project paths to absolute) or bytes.
+- **IPC framing**: both directions use one binary frame, `[u32 little-endian JSON length][JSON][body bytes]`. The request JSON is `PreparedRequest` without the body bytes (`body: { kind: 'bytes' }` marks that bytes follow); serde field names are identical to the TS types. `NativeTransport` passes the frame as a `Uint8Array` argument and Rust answers with `tauri::ipc::Response`, so bodies never go through base64 or JSON number arrays; the TS response body is a view into the received `ArrayBuffer`. Failures reject with `{ kind, message, detail? }`, which `NativeTransport` turns into a `TransportError`.
+- **Request bodies in the frame** (`WireBody`): `{ kind: 'bytes' }` — the frame's body bytes are the body (raw, urlencoded, and binary bodies from picked files); `{ kind: 'file', ref: { kind: 'absolute', path } }` — `http.rs` reads the file; `{ kind: 'multipart', parts }` — parts as in `MultipartPart`, with `file` a `WireFileRef`: `{ kind: 'absolute', path }` (read from disk) or `{ kind: 'inline', offset, length }` (a slice of the frame's body bytes: picked files, appended in part order). Project refs are resolved to absolute paths by TS once PIGN-014 lands; until then they, and picked ids missing from the store, fail as `file-unavailable` before sending. A file that can't be read fails as `file-unavailable` with the path and OS error in `detail`.
+- Multipart bodies are encoded in `http.rs` (RFC 7578; names and file names escaped like browsers, `"`/CR/LF as `%22`/`%0D`/`%0A`; random 32-hex-digit boundary) rather than with reqwest's `multipart`, so the body is plain `Bytes` that a 307/308 can replay.
 - `reqwest` client per project id (`meta.projectId`; scratch requests share a default pool) and TLS mode, rustls TLS; `tls_danger_accept_invalid_certs` + `…_hostnames` when `strictSSL === false`. No system proxy (proxies are a later preference).
 - Redirects: policy `none`; the command follows redirects manually up to `maxRedirects` to record each hop (`{ status, url: URL that redirected, location: Location header as sent }`); more → `network` error "Too many redirects". 301/302 turn methods other than GET/HEAD into GET, 303 turns everything except HEAD into GET (dropping the body and `Content-Type`/`Content-Length`/`Content-Encoding`/`Transfer-Encoding`); 307/308 keep method & body. A redirect to another origin drops `Authorization`, `Cookie`, `Proxy-Authorization` and `Host`.
 - No cookie store in reqwest; cookies are handled in TS (PIGN-045) so logic is shared.
@@ -187,7 +194,7 @@ Implemented in `apps/desktop/src-tauri/src/http.rs` (Rust) and `packages/platfor
   - page is `https:` and URL is `http:` (not localhost/127.0.0.1/[::1]) → `mixed-content`.
   - otherwise `TypeError` → `cors-suspected` with hint text listing CORS, network down, DNS, self-signed TLS as possible causes (the browser does not say which).
 - `redirects: []`, `headersRestricted: true`, timings total only.
-- Multipart: build `FormData` (browser sets boundary); `project` file refs read through `FsAccessFs`; `picked` refs from memory; otherwise `file-unavailable` error.
+- Multipart: build `FormData` (browser sets boundary and Content-Type; a user `Content-Type` is dropped) with a `File` per file part; binary file bodies are a `Blob` without a type (core already set `Content-Type`). `picked` refs are read from `Platform.pickedFiles`; `absolute` refs and (until PIGN-015) `project` refs fail as `file-unavailable` before `fetch`.
 
 ### 7.3 Node — `NodeTransport` (tests, CLI)
 undici with manual redirects; mirrors the Rust behaviour; used by the conformance suite as the reference implementation.

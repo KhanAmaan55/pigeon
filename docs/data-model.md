@@ -141,6 +141,10 @@ interface RequestSettings {           // maps to protocolProfileBehavior + Pigeo
 }
 ```
 
+**File sources** (`FormDataParam.src`, file body `src`) are strings, as in Postman: an absolute path (desktop), a project-relative path (PIGN-014), or `picked:<id>/<file name>` for a file picked this session in the editor. Picked files live only in memory (`Platform.pickedFiles`) and must be picked again after a restart; they are never meant to be committed (PIGN-012 decides how they are saved). `fileRefFromSrc` / `fileNameFromSrc` in `core/model/body.ts` interpret them.
+
+**Body modes in the editor**: the request stores only the active body, like Postman. The editor keeps the bodies of the other modes in its own state (`bodyDrafts` in the scratch store) while the user switches between them; they are not saved.
+
 **Protocol** is derived: `body.mode === 'graphql'` → GraphQL request; otherwise HTTP. (Postman v2.1 has no separate request type.) Future protocols add a `protocol` discriminator stored under `_pigeon.protocol`.
 
 ### 4.1 Auth

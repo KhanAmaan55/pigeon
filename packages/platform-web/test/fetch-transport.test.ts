@@ -1,5 +1,5 @@
-import type { PreparedRequest } from '@pigeon/platform';
-import { TransportError } from '@pigeon/platform';
+import type { FileRef, PreparedRequest } from '@pigeon/platform';
+import { PickedFileStore, TransportError } from '@pigeon/platform';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FetchTransport, isForbiddenHeader } from '../src/index';
@@ -156,6 +156,96 @@ describe('FetchTransport', () => {
     await expect(
       transport.send(prepared({ headers: [['X-Bad', 'é\u0000']] }), { signal: signal() }),
     ).rejects.toMatchObject({ kind: 'invalid-request' });
+  });
+});
+
+describe('FetchTransport bodies', () => {
+  const ok = () => fakeFetch(() => new Response('ok'));
+  const post = (body: PreparedRequest['body'], headers: Array<[string, string]> = []) =>
+    prepared({
+      method: 'POST',
+      url: 'http://localhost:4010/echo',
+      headers,
+      ...(body ? { body } : {}),
+    });
+
+  it('sends multipart bodies as FormData and lets the browser set the Content-Type', async () => {
+    const pickedFiles = new PickedFileStore();
+    const png = pickedFiles.add({ name: 'a.png', bytes: new Uint8Array([1, 2, 3]) });
+    const fetchFn = ok();
+    const res = await new FetchTransport({ fetch: fetchFn, pickedFiles }).send(
+      post(
+        {
+          kind: 'multipart',
+          parts: [
+            { name: 'name', kind: 'text', value: 'Ada' },
+            { name: 'pic', kind: 'file', file: png, filename: 'a.png', contentType: 'image/png' },
+          ],
+        },
+        [['Content-Type', 'multipart/form-data']],
+      ),
+      { signal: signal() },
+    );
+    const init = fetchFn.mock.calls[0]?.[1];
+    expect((init?.headers as Headers).has('content-type')).toBe(false);
+    const form = init?.body as FormData;
+    expect(form).toBeInstanceOf(FormData);
+    expect(form.get('name')).toBe('Ada');
+    const pic = form.get('pic') as File;
+    expect([pic.name, pic.type, pic.size]).toEqual(['a.png', 'image/png', 3]);
+    expect(new Uint8Array(await pic.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+    expect(res.warnings).toEqual([]);
+  });
+
+  it('warns about multipart Content-Types and text part types the browser replaces', async () => {
+    const res = await new FetchTransport({ fetch: ok() }).send(
+      post(
+        {
+          kind: 'multipart',
+          parts: [{ name: 'meta', kind: 'text', value: '{}', contentType: 'application/json' }],
+        },
+        [['content-type', 'multipart/mixed; boundary=x']],
+      ),
+      { signal: signal() },
+    );
+    expect(res.warnings).toEqual([
+      'Header "content-type: multipart/mixed; boundary=x" was replaced by multipart/form-data: browsers set the Content-Type of form-data bodies.',
+      'The content type of form field "meta" was not sent: browsers send text fields without one.',
+    ]);
+  });
+
+  it('sends picked binary files as a Blob, keeping the prepared Content-Type', async () => {
+    const pickedFiles = new PickedFileStore();
+    const ref = pickedFiles.add({ name: 'x.bin', bytes: new Uint8Array([0, 255, 7]) });
+    const fetchFn = ok();
+    await new FetchTransport({ fetch: fetchFn, pickedFiles }).send(
+      post({ kind: 'file', ref }, [['Content-Type', 'application/octet-stream']]),
+      { signal: signal() },
+    );
+    const init = fetchFn.mock.calls[0]?.[1];
+    const blob = init?.body as Blob;
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.type).toBe('');
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(new Uint8Array([0, 255, 7]));
+    expect((init?.headers as Headers).get('content-type')).toBe('application/octet-stream');
+  });
+
+  it.each<[string, FileRef]>([
+    ['a picked file that is gone', { kind: 'picked', id: 'missing' }],
+    ['an absolute path', { kind: 'absolute', path: '/etc/hosts' }],
+    ['a project file', { kind: 'project', path: 'files/a.png' }],
+  ])('fails %s as file-unavailable without fetching', async (_, ref) => {
+    const fetchFn = ok();
+    const transport = new FetchTransport({ fetch: fetchFn, pickedFiles: new PickedFileStore() });
+    for (const body of [
+      { kind: 'file', ref },
+      { kind: 'multipart', parts: [{ name: 'f', kind: 'file', file: ref, filename: 'a.png' }] },
+    ] satisfies PreparedRequest['body'][]) {
+      const error = await transport.send(post(body), { signal: signal() }).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(TransportError);
+      expect(error).toMatchObject({ kind: 'file-unavailable' });
+    }
+    expect(fetchFn).not.toHaveBeenCalled();
   });
 });
 

@@ -1,12 +1,12 @@
 import type { OperatingSystem, Platform } from '@pigeon/platform';
-import { createMemoryServices } from '@pigeon/platform';
+import { createMemoryServices, PickedFileStore } from '@pigeon/platform';
 import { platform as osPlatform } from '@tauri-apps/plugin-os';
 
 import { DESKTOP_CAPABILITIES } from './capabilities';
 import { NativeTransport } from './native-transport';
 
 export { DESKTOP_CAPABILITIES } from './capabilities';
-export type { Invoke, NativeTransportOptions } from './native-transport';
+export type { Invoke, NativeTransportOptions, WireBody, WireFileRef } from './native-transport';
 export { decodeResponseFrame, encodeRequestFrame, NativeTransport } from './native-transport';
 
 /** Maps `@tauri-apps/plugin-os` platform names to Pigeon's. */
@@ -33,11 +33,13 @@ export function detectDesktopOs(): OperatingSystem {
  * until their stories land.
  */
 export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): Platform {
+  const pickedFiles = new PickedFileStore();
   return {
     kind: 'desktop',
     os,
     capabilities: DESKTOP_CAPABILITIES,
-    transport: new NativeTransport(),
+    transport: new NativeTransport({ pickedFiles }),
+    pickedFiles,
     ...createMemoryServices(),
   };
 }

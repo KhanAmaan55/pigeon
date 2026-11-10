@@ -1,6 +1,6 @@
 /** Runs a request end to end: prepare → `Transport.send` → normalize (docs/api-execution.md §1). */
 
-import type { PreparedRequest, Transport } from '@pigeon/platform';
+import type { FileRef, PreparedRequest, Transport } from '@pigeon/platform';
 import { TransportError } from '@pigeon/platform';
 
 import type { Request } from '../model/request';
@@ -46,14 +46,19 @@ export class RequestExecutor {
     const req = prepared.value;
     const signal = opts.signal ?? new AbortController().signal;
     const summary = { ...base, id: req.id, request: summarize(req) };
+    const prepareWarnings = req.meta.warnings ?? [];
     try {
       const raw = await this.#transport.send(req, { signal });
-      return { ...summary, response: normalizeResponse(raw), warnings: raw.warnings ?? [] };
+      return {
+        ...summary,
+        response: normalizeResponse(raw),
+        warnings: [...prepareWarnings, ...(raw.warnings ?? [])],
+      };
     } catch (error) {
       return {
         ...summary,
         error: toExecutionError(error, signal),
-        warnings: error instanceof TransportError ? error.warnings : [],
+        warnings: [...prepareWarnings, ...(error instanceof TransportError ? error.warnings : [])],
       };
     }
   }
@@ -85,11 +90,33 @@ function summarize(req: PreparedRequest): ExecutionResult['request'] {
     url: mask(req.url),
     headers: req.headers.map(([name, value]) => [name, mask(value)]),
   };
-  if (req.body?.kind === 'bytes') {
-    const text = new TextDecoder().decode(req.body.bytes);
+  const preview = bodyPreview(req.body);
+  if (preview !== undefined) {
     summary.bodyPreview = mask(
-      text.length > BODY_PREVIEW_CHARS ? `${text.slice(0, BODY_PREVIEW_CHARS)}…` : text,
+      preview.length > BODY_PREVIEW_CHARS ? `${preview.slice(0, BODY_PREVIEW_CHARS)}…` : preview,
     );
   }
   return summary;
+}
+
+/** Text bodies as sent; form-data as `name: value` lines; files by name. */
+function bodyPreview(body: PreparedRequest['body']): string | undefined {
+  switch (body?.kind) {
+    case undefined:
+      return undefined;
+    case 'bytes':
+      return new TextDecoder().decode(body.bytes);
+    case 'multipart':
+      return body.parts
+        .map((part) =>
+          part.kind === 'text' ? `${part.name}: ${part.value}` : `${part.name}: <${part.filename}>`,
+        )
+        .join('\n');
+    case 'file':
+      return `<${fileRefLabel(body.ref)}>`;
+  }
+}
+
+function fileRefLabel(ref: FileRef): string {
+  return ref.kind === 'picked' ? 'picked file' : ref.path;
 }

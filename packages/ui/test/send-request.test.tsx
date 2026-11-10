@@ -9,6 +9,7 @@ import { RequestEditor } from '../src/features/request-editor/RequestEditor';
 import { ScratchRequestProvider } from '../src/features/request-editor/ScratchRequestProvider';
 import { ResponseViewer } from '../src/features/response-viewer/ResponseViewer';
 import { formatBytes, formatDuration, statusText } from '../src/lib/format';
+import { bodyInput, editorText, editorView, setEditorText } from './code-editor';
 
 afterEach(cleanup);
 
@@ -57,12 +58,16 @@ describe('scratch request editor', () => {
     await user.selectOptions(screen.getByTestId('method-select'), 'POST');
     await user.type(screen.getByTestId('url-input'), 'localhost:4010/echo');
     await user.click(screen.getByTestId('body-tab'));
-    await user.type(screen.getByTestId('body-input'), 'hello pigeon');
+    await user.click(screen.getByTestId('body-mode-raw'));
+    setEditorText(await bodyInput(), 'hello pigeon');
+    editorView(await bodyInput()).focus();
     await user.keyboard('{Control>}{Enter}{/Control}');
 
     expect((await screen.findByTestId('response-body')).textContent).toContain('hello pigeon');
     expect(transport.requests).toHaveLength(1);
     expect(transport.requests[0]?.method).toBe('POST');
+    // Cmd/Ctrl+Enter sends; it does not insert a line in the body.
+    expect(editorText(await bodyInput())).toBe('hello pigeon');
     expect(screen.getByTestId('send-button').getAttribute('title')).toBe('Send (Ctrl+Enter)');
   });
 

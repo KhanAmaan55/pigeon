@@ -1,6 +1,13 @@
 /** `Transport` over the browser's `fetch` (docs/api-execution.md §7.2). */
 
-import type { PreparedRequest, RawResponse, Transport } from '@pigeon/platform';
+import type {
+  FileRef,
+  MultipartPart,
+  PickedFileStore,
+  PreparedRequest,
+  RawResponse,
+  Transport,
+} from '@pigeon/platform';
 import { isForbiddenHeader, isForbiddenMethod, TransportError } from '@pigeon/platform';
 
 const CORS_HINT =
@@ -14,22 +21,26 @@ export interface FetchTransportOptions {
   fetch?: typeof fetch;
   /** Monotonic clock in ms; defaults to `performance.now()`. */
   now?: () => number;
+  /** Where `picked` file refs are read from; without it, file bodies fail as `file-unavailable`. */
+  pickedFiles?: PickedFileStore;
 }
 
 export class FetchTransport implements Transport {
   readonly #fetch: typeof fetch;
   readonly #now: () => number;
+  readonly #pickedFiles: PickedFileStore | undefined;
 
   constructor(opts: FetchTransportOptions = {}) {
     // Unbound `fetch` throws "Illegal invocation" in browsers.
     this.#fetch = opts.fetch ?? ((input, init) => globalThis.fetch(input, init));
     this.#now = opts.now ?? (() => performance.now());
+    this.#pickedFiles = opts.pickedFiles;
   }
 
   async send(req: PreparedRequest, { signal }: { signal: AbortSignal }): Promise<RawResponse> {
     signal.throwIfAborted();
     const warnings: string[] = [];
-    const fail = (kind: TransportError['kind'], message: string, opts = {}) =>
+    const fail: Fail = (kind, message, opts = {}) =>
       new TransportError(kind, message, { ...opts, warnings });
 
     if (isForbiddenMethod(req.method)) {
@@ -39,8 +50,18 @@ export class FetchTransport implements Transport {
       throw fail('invalid-request', `Browsers cannot send a body with ${req.method} requests.`);
     }
 
+    const multipart = req.body?.kind === 'multipart';
     const headers = new Headers();
     for (const [name, value] of req.headers) {
+      // The browser picks the boundary, so it must write the multipart Content-Type itself.
+      if (multipart && name.toLowerCase() === 'content-type') {
+        if (!/^\s*multipart\/form-data\s*$/i.test(value)) {
+          warnings.push(
+            `Header "${name}: ${value}" was replaced by multipart/form-data: browsers set the Content-Type of form-data bodies.`,
+          );
+        }
+        continue;
+      }
       if (isForbiddenHeader(name, value)) {
         warnings.push(`Header "${name}" was not sent: browsers do not allow setting it.`);
         continue;
@@ -56,10 +77,19 @@ export class FetchTransport implements Transport {
     }
 
     let body: BodyInit | undefined;
-    if (req.body?.kind === 'bytes') {
-      body = req.body.bytes as Uint8Array<ArrayBuffer>;
-    } else if (req.body) {
-      throw fail('invalid-request', 'This body type is not supported yet.');
+    switch (req.body?.kind) {
+      case undefined:
+        break;
+      case 'bytes':
+        body = req.body.bytes as Uint8Array<ArrayBuffer>;
+        break;
+      case 'file':
+        // No Blob type: core already set Content-Type (from the extension, or the user's).
+        body = new Blob([this.#read(req.body.ref, undefined, fail) as Uint8Array<ArrayBuffer>]);
+        break;
+      case 'multipart':
+        body = this.#formData(req.body.parts, warnings, fail);
+        break;
     }
 
     const startedAt = Date.now();
@@ -106,4 +136,59 @@ export class FetchTransport implements Transport {
       warnings,
     };
   }
+
+  #formData(parts: MultipartPart[], warnings: string[], fail: Fail): FormData {
+    const form = new FormData();
+    for (const part of parts) {
+      if (part.kind === 'text') {
+        if (part.contentType !== undefined) {
+          warnings.push(
+            `The content type of form field "${part.name}" was not sent: browsers send text fields without one.`,
+          );
+        }
+        form.append(part.name, part.value);
+      } else {
+        const bytes = this.#read(part.file, part.filename, fail) as Uint8Array<ArrayBuffer>;
+        const type = part.contentType ?? 'application/octet-stream';
+        form.append(part.name, new File([bytes], part.filename, { type }));
+      }
+    }
+    return form;
+  }
+
+  /** The bytes behind a file reference; browsers can only read files picked this session. */
+  #read(ref: FileRef, name: string | undefined, fail: Fail): Uint8Array {
+    const label = name === undefined ? 'The file' : `The file "${name}"`;
+    switch (ref.kind) {
+      case 'picked': {
+        const file = this.#pickedFiles?.get(ref.id);
+        if (file) return file.bytes;
+        throw fail('file-unavailable', `${label} is no longer available. Select it again.`);
+      }
+      case 'absolute':
+        throw fail(
+          'file-unavailable',
+          `${label} cannot be read: browsers cannot open files by path.`,
+          {
+            detail: ref.path,
+            hint: 'Select the file again, or use the desktop app.',
+          },
+        );
+      case 'project':
+        throw fail(
+          'file-unavailable',
+          `${label} cannot be read: project files are not supported yet.`,
+          {
+            detail: ref.path,
+            hint: 'Select the file again.',
+          },
+        );
+    }
+  }
 }
+
+type Fail = (
+  kind: TransportError['kind'],
+  message: string,
+  opts?: { detail?: string; hint?: string; cause?: unknown },
+) => TransportError;

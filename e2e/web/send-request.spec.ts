@@ -21,6 +21,8 @@ test('POST /echo with a raw text body shows the echoed body', async ({ page }) =
   await page.getByTestId('method-select').selectOption('POST');
   await page.getByTestId('url-input').fill(`${TEST_SERVER_URL}/echo`);
   await page.getByTestId('body-tab').click();
+  await page.getByTestId('body-mode-raw').check();
+  await page.getByTestId('raw-language-select').selectOption('text');
   await page.getByTestId('body-input').fill('hello from pigeon');
   await page.getByTestId('body-input').press('ControlOrMeta+Enter');
 

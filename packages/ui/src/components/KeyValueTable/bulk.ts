@@ -67,7 +67,7 @@ export function descriptionText(description: Description | undefined): string {
 }
 
 /** Keeps a structured description's other fields (e.g. `type`) when its text changes. */
-export function withDescription(row: KeyValue, text: string): KeyValue {
+export function withDescription<T extends KeyValue>(row: T, text: string): T {
   const next = { ...row };
   if (typeof row.description === 'object') next.description = { ...row.description, content: text };
   else if (text === '') delete next.description;
@@ -76,8 +76,8 @@ export function withDescription(row: KeyValue, text: string): KeyValue {
 }
 
 /** Sets a row's value; a typed value ends a `?flag` param's "no value" state. */
-export function withValue(row: KeyValue, value: string): KeyValue {
-  const next: KeyValue = { ...row, value };
+export function withValue<T extends KeyValue>(row: T, value: string): T {
+  const next: T = { ...row, value };
   if (value !== '' && next.extra?.['valueNull'] !== undefined) {
     const { valueNull: _ignored, ...extra } = next.extra;
     if (Object.keys(extra).length === 0) delete next.extra;

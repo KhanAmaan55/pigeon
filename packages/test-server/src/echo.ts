@@ -37,6 +37,8 @@ export interface EchoResponse {
     /** `null` when the bytes are not valid UTF-8. */
     text: string | null;
     base64: string;
+    /** Hex SHA-256 of the body bytes. */
+    sha256: string;
   };
   /** Set for non-empty JSON, urlencoded and multipart bodies. */
   parsed: EchoParsedBody | null;
@@ -60,7 +62,12 @@ export async function echo(ctx: RequestContext): Promise<EchoResponse> {
     headers,
     rawHeaders,
     httpVersion: req.httpVersion,
-    body: { size: body.byteLength, text: utf8(body), base64: body.toString('base64') },
+    body: {
+      size: body.byteLength,
+      text: utf8(body),
+      base64: body.toString('base64'),
+      sha256: sha256(body),
+    },
     parsed: await parseBody(req.headers['content-type'] ?? '', body),
   };
 }
@@ -124,9 +131,13 @@ async function parseMultipart(contentType: string, body: Buffer): Promise<EchoPa
         filename: value.name,
         contentType: value.type,
         size: bytes.byteLength,
-        sha256: createHash('sha256').update(bytes).digest('hex'),
+        sha256: sha256(bytes),
       });
     }
   }
   return parts;
+}
+
+function sha256(bytes: Uint8Array): string {
+  return createHash('sha256').update(bytes).digest('hex');
 }

@@ -2,25 +2,26 @@ import { Send } from 'lucide-react';
 import { Tabs } from 'radix-ui';
 import type { KeyboardEvent, ReactNode } from 'react';
 
+import { hasBody } from '@pigeon/core';
+
 import { usePlatform } from '../../app/PlatformProvider';
+import { BodyTab } from './BodyTab';
 import { HeadersTab } from './HeadersTab';
 import { methodColorClass } from './methods';
 import { ParamsTab } from './ParamsTab';
 import { useScratchRequest } from './ScratchRequestProvider';
+import { SettingsTab } from './SettingsTab';
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 
-/** URL bar and Params / Headers / Body tabs for the scratch request (docs/ui-ux.md §3.3). */
+/** URL bar and Params / Headers / Body / Settings tabs for the scratch request (docs/ui-ux.md §3.3). */
 export function RequestEditor() {
   const method = useScratchRequest((s) => s.request.method);
   const url = useScratchRequest((s) => s.request.url.raw);
-  const bodyText = useScratchRequest((s) =>
-    s.request.body.mode === 'raw' ? s.request.body.raw : '',
-  );
+  const withBody = useScratchRequest((s) => hasBody(s.request.body));
   const sending = useScratchRequest((s) => s.status === 'sending');
   const setMethod = useScratchRequest((s) => s.setMethod);
   const setUrl = useScratchRequest((s) => s.setUrl);
-  const setBodyText = useScratchRequest((s) => s.setBodyText);
   const paramCount = useScratchRequest(
     (s) =>
       s.request.url.query.filter((p) => !p.disabled && (p.key !== '' || p.value !== '')).length,
@@ -99,6 +100,16 @@ export function RequestEditor() {
           </TabTrigger>
           <TabTrigger value="body" testId="body-tab">
             Body
+            {withBody && (
+              <span
+                data-testid="body-tab-indicator"
+                aria-label="(has body)"
+                className="size-1.5 rounded-full bg-accent"
+              />
+            )}
+          </TabTrigger>
+          <TabTrigger value="settings" testId="settings-tab">
+            Settings
           </TabTrigger>
         </Tabs.List>
         <Tabs.Content value="params" className="min-h-0 flex-1 overflow-auto">
@@ -107,20 +118,11 @@ export function RequestEditor() {
         <Tabs.Content value="headers" className="min-h-0 flex-1 overflow-auto">
           <HeadersTab />
         </Tabs.Content>
-        <Tabs.Content value="body" className="flex min-h-0 flex-1 flex-col">
-          <label className="flex min-h-0 flex-1 flex-col gap-1 p-2">
-            <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
-              Body (raw text)
-            </span>
-            <textarea
-              data-testid="body-input"
-              value={bodyText}
-              onChange={(event) => setBodyText(event.target.value)}
-              placeholder="No body"
-              spellCheck={false}
-              className="min-h-0 flex-1 resize-none rounded border border-border bg-bg p-2 font-mono text-sm text-fg placeholder:text-fg-muted"
-            />
-          </label>
+        <Tabs.Content value="body" className="flex min-h-0 flex-1 flex-col overflow-auto">
+          <BodyTab />
+        </Tabs.Content>
+        <Tabs.Content value="settings" className="min-h-0 flex-1 overflow-auto">
+          <SettingsTab />
         </Tabs.Content>
       </Tabs.Root>
     </div>

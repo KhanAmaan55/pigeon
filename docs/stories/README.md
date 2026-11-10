@@ -37,7 +37,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-006](PIGN-006-send-adhoc-request-web.md) | Send an ad-hoc HTTP request (web fetch) | 1 First request | MVP | 004, 005 | Done |
 | [PIGN-007](PIGN-007-native-desktop-transport.md) | Native desktop HTTP transport | 1 First request | MVP | 003, 006 | Done |
 | [PIGN-008](PIGN-008-params-headers.md) | Query params, path variables & headers | 1 First request | MVP | 006 | Done |
-| [PIGN-009](PIGN-009-request-bodies.md) | Request body modes | 1 First request | MVP | 008 | Todo |
+| [PIGN-009](PIGN-009-request-bodies.md) | Request body modes | 1 First request | MVP | 008 | Done |
 | [PIGN-010](PIGN-010-response-viewer.md) | Response viewer | 1 First request | MVP | 006 | Todo |
 | [PIGN-011](PIGN-011-timeouts-cancel-redirects-errors.md) | Timeouts, cancel, redirects & network errors | 1 First request | MVP | 007, 010 | Todo |
 | [PIGN-012](PIGN-012-canonical-serialization.md) | Canonical JSON & filename rules | 2 Projects | MVP | 001 | Todo |

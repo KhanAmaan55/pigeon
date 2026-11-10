@@ -1,3 +1,4 @@
+import { PickedFileStore } from '@pigeon/platform';
 import { transportConformanceCases } from '@pigeon/platform/conformance/transport-cases';
 import { detectWebCapabilities, FetchTransport } from '@pigeon/platform-web';
 import type { Page } from '@playwright/test';
@@ -30,8 +31,9 @@ test.describe('FetchTransport conformance', () => {
       test.skip(testCase.skip !== undefined, testCase.skip);
       const story = EXPECTED_FAILURES[testCase.id];
       test.fail(story !== undefined, `until ${story}`);
-      const transport = new FetchTransport({ fetch: browserFetch(page) });
-      await testCase.run({ transport, baseUrl: TEST_SERVER_URL });
+      const pickedFiles = new PickedFileStore();
+      const transport = new FetchTransport({ fetch: browserFetch(page), pickedFiles });
+      await testCase.run({ transport, pickedFiles, baseUrl: TEST_SERVER_URL });
     });
   }
 });
@@ -47,12 +49,23 @@ type PageFetchResult =
     }
   | { ok: false; name: string; message: string };
 
+/** A fetch body as it crosses into the page: bytes, or `FormData` entries. */
+type PageBody =
+  | { kind: 'bytes'; data: number[] }
+  | {
+      kind: 'form';
+      entries: Array<
+        | { name: string; value: string }
+        | { name: string; filename: string; type: string; data: number[] }
+      >;
+    };
+
 interface PageFetchInit {
   id: string;
   url: string;
   method: string;
   headers: Array<[string, string]>;
-  body: number[] | null;
+  body: PageBody | null;
   redirect: RequestRedirect;
   cache: RequestCache;
   credentials: RequestCredentials;
@@ -78,7 +91,7 @@ function browserFetch(page: Page): typeof fetch {
         url: String(input),
         method: init.method ?? 'GET',
         headers: [...new Headers(init.headers)],
-        body: init.body instanceof Uint8Array ? [...init.body] : null,
+        body: await toPageBody(init.body),
         redirect: init.redirect ?? 'follow',
         cache: init.cache ?? 'default',
         credentials: init.credentials ?? 'same-origin',
@@ -88,11 +101,26 @@ function browserFetch(page: Page): typeof fetch {
         const aborts = (scope.pigeonAborts ??= new Map());
         const controller = new AbortController();
         aborts.set(req.id, controller);
+        let body: BodyInit | undefined;
+        if (req.body?.kind === 'bytes') body = new Uint8Array(req.body.data);
+        if (req.body?.kind === 'form') {
+          const form = new FormData();
+          for (const entry of req.body.entries) {
+            if ('value' in entry) form.append(entry.name, entry.value);
+            else {
+              const file = new File([new Uint8Array(entry.data)], entry.filename, {
+                type: entry.type,
+              });
+              form.append(entry.name, file);
+            }
+          }
+          body = form;
+        }
         try {
           const response = await fetch(req.url, {
             method: req.method,
             headers: req.headers,
-            ...(req.body ? { body: new Uint8Array(req.body) } : {}),
+            ...(body === undefined ? {} : { body }),
             redirect: req.redirect,
             cache: req.cache,
             credentials: req.credentials,
@@ -138,4 +166,24 @@ function browserFetch(page: Page): typeof fetch {
       signal?.removeEventListener('abort', abortInPage);
     }
   };
+}
+
+async function toPageBody(body: BodyInit | null | undefined): Promise<PageBody | null> {
+  if (body === null || body === undefined) return null;
+  if (body instanceof Uint8Array) return { kind: 'bytes', data: [...body] };
+  if (body instanceof Blob) {
+    return { kind: 'bytes', data: [...new Uint8Array(await body.arrayBuffer())] };
+  }
+  if (body instanceof FormData) {
+    const entries: Extract<PageBody, { kind: 'form' }>['entries'] = [];
+    for (const [name, value] of body) {
+      if (typeof value === 'string') entries.push({ name, value });
+      else {
+        const data = [...new Uint8Array(await value.arrayBuffer())];
+        entries.push({ name, filename: value.name, type: value.type, data });
+      }
+    }
+    return { kind: 'form', entries };
+  }
+  throw new Error(`browserFetch: unsupported body ${Object.prototype.toString.call(body)}`);
 }

@@ -2,6 +2,7 @@ import type { Capabilities } from '../capabilities';
 import { defineCapabilities } from '../capabilities';
 import type { ProjectFileSystem, ProjectLocation } from '../fs';
 import { FsError } from '../fs';
+import { PickedFileStore } from '../picked-files';
 import type { OperatingSystem, Platform } from '../platform';
 import type { ProjectLocator } from '../projects';
 import type { Transport } from '../transport';
@@ -89,13 +90,19 @@ export type MemoryPlatform = Omit<Platform, keyof MemoryServices | 'kind'> &
   MemoryServices & { readonly kind: 'memory' };
 
 export function createMemoryPlatform(
-  opts: { capabilities?: Partial<Capabilities>; os?: OperatingSystem; transport?: Transport } = {},
+  opts: {
+    capabilities?: Partial<Capabilities>;
+    os?: OperatingSystem;
+    transport?: Transport;
+    pickedFiles?: PickedFileStore;
+  } = {},
 ): MemoryPlatform {
   return {
     kind: 'memory',
     os: opts.os ?? 'unknown',
     capabilities: defineCapabilities({ ...MEMORY_CAPABILITIES, ...opts.capabilities }),
     transport: opts.transport ?? new MockTransport(),
+    pickedFiles: opts.pickedFiles ?? new PickedFileStore(),
     ...createMemoryServices(),
   };
 }

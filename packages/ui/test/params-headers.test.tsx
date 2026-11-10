@@ -9,6 +9,7 @@ import { PlatformProvider } from '../src/app/PlatformProvider';
 import { RequestEditor } from '../src/features/request-editor/RequestEditor';
 import { ScratchRequestProvider } from '../src/features/request-editor/ScratchRequestProvider';
 import { ResponseViewer } from '../src/features/response-viewer/ResponseViewer';
+import { bodyInput, setEditorText } from './code-editor';
 
 afterEach(cleanup);
 
@@ -133,7 +134,9 @@ describe('Headers tab', () => {
   it('lists auto-generated headers read-only, minus ones the user overrides', async () => {
     const { user } = renderEditor();
     await user.click(screen.getByTestId('body-tab'));
-    await user.type(screen.getByTestId('body-input'), 'hi');
+    await user.click(screen.getByTestId('body-mode-raw'));
+    await user.selectOptions(screen.getByTestId('raw-language-select'), 'text');
+    setEditorText(await bodyInput(), 'hi');
     await user.click(screen.getByTestId('headers-tab'));
 
     const autoRows = () =>

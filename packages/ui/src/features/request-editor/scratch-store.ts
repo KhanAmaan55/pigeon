@@ -1,7 +1,15 @@
-import type { ExecutionResult, KeyValue, Request } from '@pigeon/core';
+import type {
+  Body,
+  BodyMode,
+  ExecutionResult,
+  KeyValue,
+  Request,
+  RequestSettings,
+} from '@pigeon/core';
 import {
   createExecutionContext,
   createRequest,
+  emptyBody,
   RequestExecutor,
   syncQueryIntoRaw,
   syncUrlFromRaw,
@@ -22,8 +30,16 @@ export interface ScratchRequestState {
   setQuery: (query: KeyValue[]) => void;
   setPathVariables: (pathVariables: KeyValue[]) => void;
   setHeaders: (headers: KeyValue[]) => void;
-  /** Raw text body; an empty body means no body. */
-  setBodyText: (text: string) => void;
+  /**
+   * Bodies of the modes the user switched away from, so switching back restores them (Postman
+   * behaviour). Editor state only: the request holds just the active mode.
+   */
+  bodyDrafts: Partial<Record<BodyMode, Body>>;
+  setBody: (body: Body) => void;
+  /** Switches the body mode, keeping the current mode's content in `bodyDrafts`. */
+  setBodyMode: (mode: BodyMode) => void;
+  /** `undefined` resets a setting to the preference default. */
+  setSettings: (patch: Partial<RequestSettings>) => void;
   /** Sends the request; a send while one is in flight supersedes it. */
   send: () => Promise<void>;
 }
@@ -49,10 +65,24 @@ export function createScratchRequestStore(platform: Pick<Platform, 'transport' |
       },
       setPathVariables: (pathVariables) => update({ url: { ...get().request.url, pathVariables } }),
       setHeaders: (headers) => update({ headers }),
-      setBodyText: (text) =>
-        update({
-          body: text === '' ? { mode: 'none' } : { mode: 'raw', raw: text, language: 'text' },
-        }),
+      bodyDrafts: {},
+      setBody: (body) => update({ body }),
+      setBodyMode: (mode) => {
+        const { request, bodyDrafts } = get();
+        const current = request.body;
+        if (current.mode === mode) return;
+        set({
+          bodyDrafts: { ...bodyDrafts, [current.mode]: current },
+          request: { ...request, body: bodyDrafts[mode] ?? emptyBody(mode) },
+        });
+      },
+      setSettings: (patch) => {
+        const settings: Record<string, unknown> = { ...get().request.settings, ...patch };
+        for (const [key, value] of Object.entries(settings)) {
+          if (value === undefined) delete settings[key];
+        }
+        update({ settings: settings as RequestSettings });
+      },
       send: async () => {
         inFlight?.abort();
         const controller = new AbortController();

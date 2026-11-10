@@ -1,31 +1,18 @@
 /**
- * Request model (docs/data-model.md §4). This is the first slice: URL, headers and the `none` and
- * `raw` body modes. Auth, scripts, examples and the other body modes arrive with their stories.
+ * Request model (docs/data-model.md §4): URL, headers, body (./body.ts) and settings. Auth,
+ * scripts and examples arrive with their stories.
  */
 
+import type { Body, KeyValue } from './body';
+import { BodySchema, DescriptionSchema, KeyValueSchema } from './body';
 import { z } from './zod';
+
+export type { Body, Description, KeyValue } from './body';
 
 export type Id = string;
 
 const extraSchema = z.record(z.string(), z.unknown());
 
-/** Postman description: plain string or `{ content, type }`. */
-export const DescriptionSchema = z.union([
-  z.string(),
-  z.object({ content: z.string(), type: z.string().optional() }),
-]);
-export type Description = z.infer<typeof DescriptionSchema>;
-
-export const KeyValueSchema = z.object({
-  key: z.string(),
-  value: z.string(),
-  disabled: z.boolean().optional(),
-  description: DescriptionSchema.optional(),
-  /** Preserved Postman `type` when present. */
-  type: z.string().optional(),
-  extra: extraSchema.optional(),
-});
-export type KeyValue = z.infer<typeof KeyValueSchema>;
 export type QueryParam = KeyValue;
 
 export const UrlSchema = z.object({
@@ -38,21 +25,6 @@ export const UrlSchema = z.object({
   extra: extraSchema,
 });
 export type Url = z.infer<typeof UrlSchema>;
-
-export const RAW_LANGUAGES = ['json', 'text', 'xml', 'html', 'javascript'] as const;
-export type RawLanguage = (typeof RAW_LANGUAGES)[number];
-
-export const BodySchema = z.discriminatedUnion('mode', [
-  z.object({ mode: z.literal('none'), disabled: z.boolean().optional() }),
-  z.object({
-    mode: z.literal('raw'),
-    raw: z.string(),
-    language: z.enum(RAW_LANGUAGES),
-    disabled: z.boolean().optional(),
-    extra: extraSchema.optional(),
-  }),
-]);
-export type Body = z.infer<typeof BodySchema>;
 
 /** Maps to Postman `protocolProfileBehavior` + Pigeon settings; unset = preference default. */
 export const RequestSettingsSchema = z.object({

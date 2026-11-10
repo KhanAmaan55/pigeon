@@ -23,6 +23,7 @@ export {
   parentPath,
 } from './paths';
 export { isForbiddenHeader, isForbiddenMethod } from './headers';
+export { PickedFileStore } from './picked-files';
 export type { OperatingSystem, Platform, PlatformKind } from './platform';
 export type { ProjectLocator } from './projects';
 export type { SecretBackend, SecretStore } from './secrets';

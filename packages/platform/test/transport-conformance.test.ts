@@ -1,8 +1,15 @@
+import { createHash } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import { describe, expect, it } from 'vitest';
 
-import type { MockResponseInit, PreparedRequest, RawResponse } from '../src/index';
+import type {
+  FileRef,
+  MockResponseInit,
+  PreparedRequest,
+  RawResponse,
+  PickedFileStore,
+} from '../src/index';
 import { MEMORY_CAPABILITIES, MockTransport, TransportError } from '../src/index';
 import { transportConformance, transportConformanceCases } from '../src/conformance/index';
 
@@ -22,8 +29,13 @@ interface Exchange {
   url: URL;
   headers: Headers;
   body: Uint8Array | undefined;
+  /** What `/echo` parses (multipart only; the double does not encode multipart bodies). */
+  parsed: unknown;
   settings: PreparedRequest['settings'];
 }
+
+const sha256 = (bytes: Uint8Array = new Uint8Array()) =>
+  createHash('sha256').update(bytes).digest('hex');
 
 const json = (value: unknown, status = 200, headers: Headers = []): MockResponseInit => ({
   status,
@@ -39,6 +51,7 @@ async function route({
   url,
   headers,
   body,
+  parsed,
   settings,
 }: Exchange): Promise<MockResponseInit> {
   if (url.origin !== BASE_URL) {
@@ -49,7 +62,12 @@ async function route({
   if (path === '/json/user') return json({ id: 1, name: 'Ada Lovelace' });
   if (path === '/echo') {
     const size = body?.byteLength ?? 0;
-    return json({ method, rawHeaders: headers, body: { size, text: decoder.decode(body) } });
+    return json({
+      method,
+      rawHeaders: headers,
+      body: { size, text: decoder.decode(body), sha256: sha256(body) },
+      parsed,
+    });
   }
   if ((match = /^\/status\/(\d+)$/.exec(path))) {
     const status = Number(match[1]);
@@ -92,14 +110,48 @@ async function route({
   return json({ error: `No test endpoint at ${path}` }, 404);
 }
 
-async function serve(req: PreparedRequest): Promise<MockResponseInit> {
+/** Reads picked files like the real transports; other refs are unavailable to the double. */
+function readFile(ref: FileRef, pickedFiles: PickedFileStore): Uint8Array {
+  const file = ref.kind === 'picked' ? pickedFiles.get(ref.id) : undefined;
+  if (!file) throw new TransportError('file-unavailable', 'The file is no longer available.');
+  return file.bytes;
+}
+
+async function serve(
+  req: PreparedRequest,
+  pickedFiles: PickedFileStore,
+): Promise<MockResponseInit> {
   const exchange: Exchange = {
     method: req.method,
     url: new URL(req.url),
     headers: req.headers,
-    body: req.body?.kind === 'bytes' ? req.body.bytes : undefined,
+    body: undefined,
+    parsed: null,
     settings: req.settings,
   };
+  if (req.body?.kind === 'bytes') exchange.body = req.body.bytes;
+  if (req.body?.kind === 'file') exchange.body = readFile(req.body.ref, pickedFiles);
+  if (req.body?.kind === 'multipart') {
+    exchange.headers = [
+      ...req.headers.filter(([name]) => name.toLowerCase() !== 'content-type'),
+      ['Content-Type', 'multipart/form-data; boundary=mock'],
+    ];
+    exchange.parsed = {
+      kind: 'multipart',
+      parts: req.body.parts.map((part) => {
+        if (part.kind === 'text') return { name: part.name, kind: 'text', value: part.value };
+        const bytes = readFile(part.file, pickedFiles);
+        return {
+          name: part.name,
+          kind: 'file',
+          filename: part.filename,
+          contentType: part.contentType ?? 'application/octet-stream',
+          size: bytes.byteLength,
+          sha256: sha256(bytes),
+        };
+      }),
+    };
+  }
   const redirects: RawResponse['redirects'] = [];
   for (;;) {
     const res = await route(exchange);
@@ -129,6 +181,7 @@ async function serve(req: PreparedRequest): Promise<MockResponseInit> {
     if (toGet) {
       exchange.method = 'GET';
       exchange.body = undefined;
+      exchange.parsed = null;
       exchange.headers = exchange.headers.filter(
         ([name]) => !['content-type', 'content-length'].includes(name.toLowerCase()),
       );
@@ -139,7 +192,11 @@ async function serve(req: PreparedRequest): Promise<MockResponseInit> {
 
 transportConformance(
   'MockTransport (test-server double)',
-  () => new MockTransport().on(() => true, serve),
+  (pickedFiles) =>
+    new MockTransport().on(
+      () => true,
+      (req) => serve(req, pickedFiles),
+    ),
   MEMORY_CAPABILITIES,
   { baseUrl: BASE_URL },
 );

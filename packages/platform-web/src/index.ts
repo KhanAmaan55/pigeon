@@ -1,5 +1,5 @@
 import type { Capabilities, OperatingSystem, Platform } from '@pigeon/platform';
-import { createMemoryServices, defineCapabilities } from '@pigeon/platform';
+import { createMemoryServices, defineCapabilities, PickedFileStore } from '@pigeon/platform';
 
 import { FetchTransport } from './fetch-transport';
 
@@ -50,11 +50,13 @@ export function detectWebOs(nav: {
 
 /** Real capabilities; fs, state, secrets and dialogs stay memory-backed until their stories land. */
 export function createWebPlatform(): Platform {
+  const pickedFiles = new PickedFileStore();
   return {
     kind: 'web',
     os: detectWebOs(navigator as Navigator & { userAgentData?: { platform?: string } }),
     capabilities: detectWebCapabilities(window),
-    transport: new FetchTransport(),
+    transport: new FetchTransport({ pickedFiles }),
+    pickedFiles,
     ...createMemoryServices(),
   };
 }

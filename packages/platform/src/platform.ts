@@ -4,6 +4,7 @@ import type { Dialogs } from './dialogs';
 import type { FileExchange } from './files';
 import type { ProjectFileSystem, ProjectLocation } from './fs';
 import type { ProjectLocator } from './projects';
+import type { PickedFileStore } from './picked-files';
 import type { SecretStore } from './secrets';
 import type { Transport } from './transport';
 
@@ -19,6 +20,8 @@ export interface Platform {
   readonly projects: ProjectLocator;
   openProjectFs(loc: ProjectLocation): Promise<ProjectFileSystem>;
   readonly transport: Transport;
+  /** Files picked this session for request bodies; the transport reads `picked` refs from it. */
+  readonly pickedFiles: PickedFileStore;
   readonly appState: AppStateStore;
   readonly secrets: SecretStore;
   readonly dialogs: Dialogs;

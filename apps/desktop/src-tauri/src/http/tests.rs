@@ -468,6 +468,275 @@ async fn bodies_over_the_limit_are_truncated_with_a_warning() {
 
 // --- timeout & cancellation ------------------------------------------------------------------
 
+// --- bodies (PIGN-009) -----------------------------------------------------------------------
+
+/// `(0..len).map(i % 256)`; SHA-256 of 1024 and 300 bytes below.
+fn payload(len: usize) -> Vec<u8> {
+    (0..len).map(|i| (i % 256) as u8).collect()
+}
+const SHA256_1024: &str = "785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9";
+const SHA256_300: &str = "7728ae2f2c36e2aaafbe79ca14c87ae2f89e7c88c4390ecbbf82dce88706958d";
+
+/// A file in the OS temp dir, removed when dropped.
+struct TempFile(std::path::PathBuf);
+
+impl TempFile {
+    fn new(name: &str, bytes: &[u8]) -> Self {
+        let dir = std::env::temp_dir().join(format!("pigeon-http-{}", next_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(name);
+        std::fs::write(&path, bytes).unwrap();
+        Self(path)
+    }
+
+    fn path(&self) -> String {
+        self.0.to_string_lossy().into_owned()
+    }
+}
+
+impl Drop for TempFile {
+    fn drop(&mut self) {
+        if let Some(dir) = self.0.parent() {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
+}
+
+async fn send_spec(mut req: PreparedRequest, spec: PreparedBody, tail: Vec<u8>) -> RawResponse {
+    req.body = Some(spec);
+    HttpState::default()
+        .send(req, Bytes::from(tail))
+        .await
+        .expect("request succeeds")
+}
+
+fn text_part(name: &str, value: &str) -> MultipartPart {
+    MultipartPart::Text {
+        name: name.into(),
+        value: value.into(),
+        content_type: None,
+    }
+}
+
+fn file_part(name: &str, file: FileRef, filename: &str, content_type: &str) -> MultipartPart {
+    MultipartPart::File {
+        name: name.into(),
+        file,
+        filename: filename.into(),
+        content_type: Some(content_type.into()),
+    }
+}
+
+#[tokio::test]
+async fn multipart_text_fields_and_a_picked_file_arrive_parsed() {
+    let parts = vec![
+        text_part("greeting", "héllo wörld"),
+        text_part("quote", "say \"hi\"\r\nbye"),
+        file_part(
+            "upload",
+            FileRef::Inline {
+                offset: 3,
+                length: 1024,
+            },
+            "pixel.png",
+            "image/png",
+        ),
+    ];
+    let mut tail = vec![9, 9, 9];
+    tail.extend(payload(1024));
+    let res = send_spec(
+        request("POST", "/echo"),
+        PreparedBody::Multipart { parts },
+        tail,
+    )
+    .await;
+    let echo = json_body(&res);
+    let content_type = &echoed(&echo, "content-type")[0];
+    assert!(
+        content_type.starts_with("multipart/form-data; boundary=----PigeonFormBoundary"),
+        "{content_type}"
+    );
+    assert_eq!(
+        echo["parsed"],
+        json!({ "kind": "multipart", "parts": [
+            { "name": "greeting", "kind": "text", "value": "héllo wörld" },
+            { "name": "quote", "kind": "text", "value": "say \"hi\"\r\nbye" },
+            { "name": "upload", "kind": "file", "filename": "pixel.png", "contentType": "image/png",
+              "size": 1024, "sha256": SHA256_1024 },
+        ]})
+    );
+}
+
+#[tokio::test]
+async fn multipart_files_are_read_from_disk_by_absolute_path() {
+    let file = TempFile::new("report.csv", &payload(300));
+    let parts = vec![
+        text_part("a", "1"),
+        file_part(
+            "doc",
+            FileRef::Absolute { path: file.path() },
+            "report.csv",
+            "text/csv",
+        ),
+    ];
+    let echo = json_body(
+        &send_spec(
+            request("POST", "/echo"),
+            PreparedBody::Multipart { parts },
+            Vec::new(),
+        )
+        .await,
+    );
+    assert_eq!(echo["parsed"]["parts"][1]["filename"], "report.csv");
+    assert_eq!(echo["parsed"]["parts"][1]["contentType"], "text/csv");
+    assert_eq!(echo["parsed"]["parts"][1]["size"], 300);
+    assert_eq!(echo["parsed"]["parts"][1]["sha256"], SHA256_300);
+}
+
+#[tokio::test]
+async fn a_multipart_content_type_without_boundary_gets_one_and_a_boundary_is_kept() {
+    let parts = || vec![text_part("a", "1")];
+    let req = with_headers(
+        request("POST", "/echo"),
+        &[("Content-Type", "multipart/form-data")],
+    );
+    let echo = json_body(&send_spec(req, PreparedBody::Multipart { parts: parts() }, vec![]).await);
+    assert!(echoed(&echo, "content-type")[0].starts_with("multipart/form-data; boundary="));
+    assert_eq!(echo["parsed"]["parts"][0]["value"], "1");
+
+    let req = with_headers(
+        request("POST", "/echo"),
+        &[(
+            "Content-Type",
+            "multipart/form-data; boundary=\"my-boundary\"",
+        )],
+    );
+    let echo = json_body(&send_spec(req, PreparedBody::Multipart { parts: parts() }, vec![]).await);
+    assert_eq!(echo["parsed"]["parts"][0]["value"], "1");
+    assert!(echo["body"]["text"]
+        .as_str()
+        .unwrap()
+        .starts_with("--my-boundary\r\n"));
+}
+
+#[tokio::test]
+async fn multipart_bodies_survive_a_307() {
+    let parts = vec![text_part("a", "1")];
+    let echo = json_body(
+        &send_spec(
+            request("POST", "/redirect/1?status=307"),
+            PreparedBody::Multipart { parts },
+            vec![],
+        )
+        .await,
+    );
+    assert_eq!(echo["method"], "POST");
+    assert_eq!(echo["parsed"]["parts"][0]["value"], "1");
+}
+
+#[tokio::test]
+async fn file_bodies_are_read_from_disk_byte_for_byte() {
+    let file = TempFile::new("blob.bin", &payload(1024));
+    let req = with_headers(
+        request("POST", "/echo"),
+        &[("Content-Type", "application/octet-stream")],
+    );
+    let spec = PreparedBody::File {
+        file: FileRef::Absolute { path: file.path() },
+    };
+    let echo = json_body(&send_spec(req, spec, Vec::new()).await);
+    assert_eq!(echo["body"]["size"], 1024);
+    assert_eq!(echo["body"]["sha256"], SHA256_1024);
+    assert_eq!(echoed(&echo, "content-length"), ["1024"]);
+}
+
+#[tokio::test]
+async fn missing_files_fail_as_file_unavailable() {
+    let missing = std::env::temp_dir()
+        .join("pigeon-definitely-missing-file.bin")
+        .to_string_lossy()
+        .into_owned();
+    for spec in [
+        PreparedBody::File {
+            file: FileRef::Absolute {
+                path: missing.clone(),
+            },
+        },
+        PreparedBody::Multipart {
+            parts: vec![file_part(
+                "f",
+                FileRef::Absolute {
+                    path: missing.clone(),
+                },
+                "x.bin",
+                "application/octet-stream",
+            )],
+        },
+    ] {
+        let mut req = request("POST", "/echo");
+        req.body = Some(spec);
+        let failure = HttpState::default()
+            .send(req, Bytes::new())
+            .await
+            .expect_err("request fails");
+        assert_eq!(failure.kind, ErrorKind::FileUnavailable);
+        assert!(failure.detail.unwrap().contains(&missing));
+    }
+}
+
+#[tokio::test]
+async fn inline_files_outside_the_body_bytes_are_invalid_requests() {
+    let mut req = request("POST", "/echo");
+    req.body = Some(PreparedBody::Multipart {
+        parts: vec![file_part(
+            "f",
+            FileRef::Inline {
+                offset: 2,
+                length: 10,
+            },
+            "x",
+            "text/plain",
+        )],
+    });
+    let failure = HttpState::default()
+        .send(req, Bytes::from_static(b"short"))
+        .await
+        .expect_err("request fails");
+    assert_eq!(failure.kind, ErrorKind::InvalidRequest);
+}
+
+#[test]
+fn multipart_names_are_escaped_like_browsers() {
+    let part = MultipartPart::File {
+        name: "a\"b".into(),
+        file: FileRef::Inline {
+            offset: 0,
+            length: 0,
+        },
+        filename: "x\r\n.txt".into(),
+        content_type: None,
+    };
+    let body = encode_multipart(&[(&part, Bytes::from_static(b"hi"))], "B");
+    assert_eq!(
+        &body[..],
+        b"--B\r\nContent-Disposition: form-data; name=\"a%22b\"; filename=\"x%0D%0A.txt\"\r\nContent-Type: application/octet-stream\r\n\r\nhi\r\n--B--\r\n"
+    );
+}
+
+#[test]
+fn boundaries_are_unique_and_read_from_content_types() {
+    assert_ne!(new_boundary(), new_boundary());
+    assert_eq!(
+        boundary_param("multipart/form-data; charset=utf-8; Boundary=\"abc\""),
+        Some("abc".to_owned())
+    );
+    assert_eq!(boundary_param("multipart/form-data"), None);
+    let mut headers = HeaderMap::new();
+    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+    multipart_boundary(&mut headers);
+    assert_eq!(headers[header::CONTENT_TYPE], "text/plain");
+}
+
 #[tokio::test]
 async fn timeout_fails_with_timeout() {
     let mut req = request("GET", "/delay/3000");
@@ -613,6 +882,58 @@ fn frames_decode_the_typescript_request_shape() {
 }
 
 #[test]
+fn frames_decode_multipart_and_file_bodies() {
+    let decode = |body: Value| {
+        let meta = json!({
+            "id": "exec-1",
+            "method": "POST",
+            "url": "http://127.0.0.1/echo",
+            "headers": [],
+            "body": body,
+            "settings": { "timeoutMs": 0, "followRedirects": true, "maxRedirects": 3, "strictSSL": true },
+            "meta": { "protocol": "http", "unresolved": [], "secretValues": [], "warnings": ["x"] }
+        });
+        let json = serde_json::to_vec(&meta).unwrap();
+        let mut frame = (json.len() as u32).to_le_bytes().to_vec();
+        frame.extend_from_slice(&json);
+        decode_frame(&frame).unwrap().0.body
+    };
+    assert_eq!(
+        decode(json!({ "kind": "file", "ref": { "kind": "absolute", "path": "/tmp/a.bin" } })),
+        Some(PreparedBody::File {
+            file: FileRef::Absolute {
+                path: "/tmp/a.bin".into()
+            }
+        })
+    );
+    assert_eq!(
+        decode(json!({ "kind": "multipart", "parts": [
+            { "name": "t", "kind": "text", "value": "v", "contentType": "text/plain" },
+            { "name": "f", "kind": "file", "filename": "a.png", "contentType": "image/png",
+              "file": { "kind": "inline", "offset": 0, "length": 4 } },
+        ]})),
+        Some(PreparedBody::Multipart {
+            parts: vec![
+                MultipartPart::Text {
+                    name: "t".into(),
+                    value: "v".into(),
+                    content_type: Some("text/plain".into()),
+                },
+                file_part(
+                    "f",
+                    FileRef::Inline {
+                        offset: 0,
+                        length: 4
+                    },
+                    "a.png",
+                    "image/png"
+                ),
+            ]
+        })
+    );
+}
+
+#[test]
 fn malformed_frames_are_invalid_requests() {
     for frame in [
         &[1u8, 0][..],
@@ -678,6 +999,10 @@ fn failures_serialize_like_transport_errors() {
     assert_eq!(
         serde_json::to_value(&failure).unwrap(),
         json!({ "kind": "connection-refused", "message": "Refused", "detail": "os error 61" })
+    );
+    assert_eq!(
+        serde_json::to_value(TransportFailure::new(ErrorKind::FileUnavailable, "Gone")).unwrap(),
+        json!({ "kind": "file-unavailable", "message": "Gone" })
     );
     assert_eq!(
         serde_json::to_value(TransportFailure::aborted()).unwrap(),
