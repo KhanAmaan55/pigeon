@@ -183,7 +183,7 @@ Implemented in `apps/desktop/src-tauri/src/http.rs` (Rust) and `packages/platfor
 - Errors: coarse reqwest classification into `timeout`, `connection-refused`, `dns`, `tls`, `network`, `invalid-url`, `invalid-request` (PIGN-011 refines wording and hints).
 - Timings: `ttfbMs` (headers of the final response received, redirect hops included) and `totalMs`; `httpVersion` as `HTTP/1.1`, `HTTP/2`, …; `statusText` is the server's reason phrase.
 - Max response size 100 MB (decoded; becomes a preference later); beyond → truncated + warning.
-- Permissions: `build.rs` declares the app commands, so `capabilities/default.json` grants exactly `allow-http-send`, `allow-http-cancel` and `allow-smoke-report`.
+- Permissions: `build.rs` declares the app commands, so `capabilities/default.json` grants exactly `allow-http-send`, `allow-http-cancel`, `allow-save-file` and `allow-smoke-report`.
 
 ### 7.2 Web — `FetchTransport`
 - `fetch(url, { method, headers, body, redirect: 'follow', signal, credentials: 'omit' | 'include' (per-request setting, default omit), cache: 'no-store' })`.

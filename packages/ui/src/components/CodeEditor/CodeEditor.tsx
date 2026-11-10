@@ -1,10 +1,15 @@
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import {
   bracketMatching,
+  codeFolding,
+  foldGutter,
+  foldKeymap,
   HighlightStyle,
   indentOnInput,
   syntaxHighlighting,
 } from '@codemirror/language';
+import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search';
+import type { Extension } from '@codemirror/state';
 import { Compartment, EditorState } from '@codemirror/state';
 import {
   drawSelection,
@@ -28,6 +33,12 @@ export interface CodeEditorProps {
   /** Syntax diagnostics where the language has them (JSON). Never blocks anything. */
   lint?: boolean;
   readOnly?: boolean;
+  /** Fold markers in the gutter (Ctrl/Cmd+Alt+[ / ] too). */
+  folding?: boolean;
+  /** Find panel on Cmd/Ctrl+F, matches highlighted. */
+  search?: boolean;
+  /** Soft-wrap long lines (default on). */
+  wrap?: boolean;
   /** Accessible name of the editable area. */
   ariaLabel: string;
   /** `data-testid` of the editable area (a contenteditable element). */
@@ -57,6 +68,24 @@ const theme = EditorView.theme({
   '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground':
     { backgroundColor: 'color-mix(in srgb, var(--pg-accent) 25%, transparent)' },
   '.cm-placeholder': { color: 'var(--pg-fg-muted)' },
+  '.cm-panels': {
+    backgroundColor: 'var(--pg-surface)',
+    color: 'var(--pg-fg)',
+    borderColor: 'var(--pg-border)',
+  },
+  '.cm-panels input, .cm-panels button': { fontSize: '12px' },
+  '.cm-searchMatch': {
+    backgroundColor: 'color-mix(in srgb, var(--pg-warn) 30%, transparent)',
+    outline: '1px solid color-mix(in srgb, var(--pg-warn) 60%, transparent)',
+  },
+  '.cm-searchMatch-selected': {
+    backgroundColor: 'color-mix(in srgb, var(--pg-accent) 40%, transparent)',
+  },
+  '.cm-foldPlaceholder': {
+    backgroundColor: 'var(--pg-hover)',
+    border: '1px solid var(--pg-border)',
+    color: 'var(--pg-fg-muted)',
+  },
   '.cm-tooltip': {
     backgroundColor: 'var(--pg-surface-raised)',
     color: 'var(--pg-fg)',
@@ -78,10 +107,21 @@ const highlight = HighlightStyle.define([
 /** Cmd/Ctrl+Enter belongs to the request editor (Send), not to "insert blank line". */
 const keys = [...defaultKeymap.filter((binding) => binding.key !== 'Mod-Enter'), ...historyKeymap];
 
+/** The optional features, as one extension (reconfigured when the props change). */
+function features(opts: { folding: boolean; search: boolean; wrap: boolean }): Extension {
+  return [
+    opts.wrap ? EditorView.lineWrapping : [],
+    opts.folding ? [codeFolding(), foldGutter(), keymap.of(foldKeymap)] : [],
+    opts.search
+      ? [search({ top: true }), highlightSelectionMatches(), keymap.of(searchKeymap)]
+      : [],
+  ];
+}
+
 /**
- * CodeMirror 6 editor (docs/ui-ux.md): line numbers, history, bracket matching, syntax colours
- * and optional lint. Language support is loaded lazily (./languages.ts). Controlled: `value`
- * changes from outside replace the document.
+ * CodeMirror 6 editor (docs/ui-ux.md): line numbers, history, bracket matching, syntax colours,
+ * and optional lint, folding and search. Language support is loaded lazily (./languages.ts).
+ * Controlled: `value` changes from outside replace the document.
  */
 export function CodeEditor({
   value,
@@ -89,6 +129,9 @@ export function CodeEditor({
   language = 'text',
   lint = false,
   readOnly = false,
+  folding = false,
+  search: searchable = false,
+  wrap = true,
   ariaLabel,
   testId,
   placeholder = '',
@@ -97,10 +140,13 @@ export function CodeEditor({
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
+  // The text the editor holds, so re-renders don't stringify a large document to compare.
+  const valueRef = useRef(value);
   const compartments = useRef({
     language: new Compartment(),
     readOnly: new Compartment(),
     attributes: new Compartment(),
+    features: new Compartment(),
   });
 
   useEffect(() => {
@@ -109,7 +155,12 @@ export function CodeEditor({
 
   // Created once; props below are applied through compartments and effects.
   useEffect(() => {
-    const { language: languageSlot, readOnly: readOnlySlot, attributes } = compartments.current;
+    const {
+      language: languageSlot,
+      readOnly: readOnlySlot,
+      attributes,
+      features: featureSlot,
+    } = compartments.current;
     const view = new EditorView({
       parent: hostRef.current ?? undefined,
       state: EditorState.create({
@@ -123,7 +174,7 @@ export function CodeEditor({
           indentOnInput(),
           bracketMatching(),
           syntaxHighlighting(highlight),
-          EditorView.lineWrapping,
+          featureSlot.of(features({ folding, search: searchable, wrap })),
           keymap.of(keys),
           theme,
           placeholderExtension(placeholder),
@@ -131,7 +182,9 @@ export function CodeEditor({
           readOnlySlot.of(EditorState.readOnly.of(readOnly)),
           attributes.of([]),
           EditorView.updateListener.of((update) => {
-            if (update.docChanged) onChangeRef.current?.(update.state.doc.toString());
+            if (!update.docChanged || !onChangeRef.current) return;
+            valueRef.current = update.state.doc.toString();
+            onChangeRef.current(valueRef.current);
           }),
         ],
       }),
@@ -146,9 +199,18 @@ export function CodeEditor({
 
   useEffect(() => {
     const view = viewRef.current;
-    if (!view || view.state.doc.toString() === value) return;
+    if (!view || value === valueRef.current) return;
+    valueRef.current = value;
     view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
   }, [value]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: compartments.current.features.reconfigure(
+        features({ folding, search: searchable, wrap }),
+      ),
+    });
+  }, [folding, searchable, wrap]);
 
   useEffect(() => {
     const view = viewRef.current;

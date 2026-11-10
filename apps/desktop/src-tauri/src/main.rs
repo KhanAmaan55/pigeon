@@ -1,6 +1,7 @@
 // Prevents an extra console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod files;
 mod http;
 #[cfg(target_os = "macos")]
 mod menu;
@@ -12,6 +13,8 @@ fn main() {
     // plugin-os injects the OS name into the webview; reading it needs no IPC permission.
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
+        // Used from Rust only (`files::save_file`); the webview gets no dialog permissions.
+        .plugin(tauri_plugin_dialog::init())
         .manage(http::HttpState::default());
 
     // Windows and Linux get no native menu: shortcuts must not depend on one (docs/platform.md §5).
@@ -25,10 +28,15 @@ fn main() {
         smoke::install(builder).invoke_handler(tauri::generate_handler![
             http::http_send,
             http::http_cancel,
+            files::save_file,
             smoke::smoke_report
         ])
     } else {
-        builder.invoke_handler(tauri::generate_handler![http::http_send, http::http_cancel])
+        builder.invoke_handler(tauri::generate_handler![
+            http::http_send,
+            http::http_cancel,
+            files::save_file
+        ])
     };
 
     builder

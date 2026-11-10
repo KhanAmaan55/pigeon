@@ -228,7 +228,8 @@ The web version uses `fetch()`. The browser, not Pigeon, decides what is allowed
 
 ### 6.5 Importing / exporting files
 - Import: `<input type="file">` / drag & drop / `showOpenFilePicker` (Chromium). Works everywhere.
-- Export: `showSaveFilePicker` where available; otherwise `Blob` + `<a download>`.
+- Export: `showSaveFilePicker` where available; otherwise `Blob` + `<a download>` (`WebFileExchange`, `platform-web/src/files.ts`; a dismissed picker is `'cancelled'`).
+- Desktop `FileExchange` (`platform-desktop/src/files.ts`): `saveFile` sends one binary frame (`[u32 LE JSON length][{ suggestedName, mime }][bytes]`, like `http_send`) to the Rust `save_file` command (`src-tauri/src/files.rs`), which shows the native Save dialog (tauri-plugin-dialog, used from Rust only) and writes the bytes itself through a temporary file and a rename. The webview gets no filesystem or dialog permission, only `allow-save-file`. `pickFiles` uses the webview's file input.
 - Form-data/binary file bodies: the browser can't re-read a file by path. With an fs-access project, files inside the project folder are read through the handle (PIGN-015); otherwise the user re-picks the file (kept in memory for the session only, `Platform.pickedFiles`). The desktop editor uses the same `<input type="file">` picker for now, so its picked files travel to Rust as bytes; native dialogs with real paths (`absolute` refs) come with the dialog work.
 
 ### 6.6 Git / local repository access

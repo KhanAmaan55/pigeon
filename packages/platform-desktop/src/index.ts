@@ -3,9 +3,11 @@ import { createMemoryServices, PickedFileStore } from '@pigeon/platform';
 import { platform as osPlatform } from '@tauri-apps/plugin-os';
 
 import { DESKTOP_CAPABILITIES } from './capabilities';
+import { DesktopFileExchange } from './files';
 import { NativeTransport } from './native-transport';
 
 export { DESKTOP_CAPABILITIES } from './capabilities';
+export { DesktopFileExchange, encodeSaveFrame } from './files';
 export type { Invoke, NativeTransportOptions, WireBody, WireFileRef } from './native-transport';
 export { decodeResponseFrame, encodeRequestFrame, NativeTransport } from './native-transport';
 
@@ -29,8 +31,8 @@ export function detectDesktopOs(): OperatingSystem {
 }
 
 /**
- * Real capabilities and the native transport; fs, state, secrets and dialogs stay memory-backed
- * until their stories land.
+ * Real capabilities, native transport and file exchange; fs, state, secrets and dialogs stay
+ * memory-backed until their stories land.
  */
 export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): Platform {
   const pickedFiles = new PickedFileStore();
@@ -41,5 +43,6 @@ export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): 
     transport: new NativeTransport({ pickedFiles }),
     pickedFiles,
     ...createMemoryServices(),
+    files: new DesktopFileExchange(),
   };
 }

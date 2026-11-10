@@ -26,6 +26,13 @@ function statusColor(status: number): string {
   return 'text-fg-muted';
 }
 
+function sizeTooltip(bytes: number, transport: TransportKind): string {
+  const size = `${bytes.toLocaleString('en-US')} bytes, decoded`;
+  return transport === 'fetch'
+    ? `${size} by the browser (the compressed size on the wire is not visible to web pages)`
+    : `${size} (after removing Content-Encoding)`;
+}
+
 export function StatusLine({
   response,
   transport,
@@ -55,7 +62,7 @@ export function StatusLine({
         Size{' '}
         <span
           data-testid="response-size"
-          title={`${response.sizeBytes} bytes`}
+          title={sizeTooltip(response.sizeBytes, transport)}
           className="font-mono text-fg"
         >
           {formatBytes(response.sizeBytes)}

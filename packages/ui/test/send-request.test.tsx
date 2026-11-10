@@ -45,7 +45,8 @@ describe('scratch request editor', () => {
     expect(screen.getByTestId('response-status').className).toContain('text-pass');
     expect(screen.getByTestId('response-time').textContent).toMatch(/^\d+ ms$/);
     expect(screen.getByTestId('response-size').textContent).toContain('8 B');
-    expect(screen.getByTestId('response-body').textContent).toContain('{"id":1}');
+    // JSON opens in Pretty: re-indented, values as received.
+    expect((await screen.findByTestId('response-body')).textContent).toBe('{  "id": 1}');
   });
 
   it('sends a POST with a raw body on Cmd/Ctrl+Enter', async () => {

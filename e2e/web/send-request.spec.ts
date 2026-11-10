@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { TEST_SERVER_URL } from '../test-server';
+import { sendAndEcho } from './echo';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -24,12 +25,13 @@ test('POST /echo with a raw text body shows the echoed body', async ({ page }) =
   await page.getByTestId('body-mode-raw').check();
   await page.getByTestId('raw-language-select').selectOption('text');
   await page.getByTestId('body-input').fill('hello from pigeon');
-  await page.getByTestId('body-input').press('ControlOrMeta+Enter');
+  const echo = await sendAndEcho<{ body: { text: string } }>(page, () =>
+    page.getByTestId('body-input').press('ControlOrMeta+Enter'),
+  );
 
-  await expect(page.getByTestId('response-status')).toHaveText('200 OK');
-  const body = page.getByTestId('response-body');
-  await expect(body).toContainText('"method": "POST"');
-  await expect(body).toContainText('"text": "hello from pigeon"');
+  expect(echo.body.text).toBe('hello from pigeon');
+  // The viewer only renders the lines on screen; the top of the echo is.
+  await expect(page.getByTestId('response-body')).toContainText('"method": "POST"');
 });
 
 test('an invalid URL shows a validation error', async ({ page }) => {

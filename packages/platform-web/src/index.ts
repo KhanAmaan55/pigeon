@@ -2,9 +2,12 @@ import type { Capabilities, OperatingSystem, Platform } from '@pigeon/platform';
 import { createMemoryServices, defineCapabilities, PickedFileStore } from '@pigeon/platform';
 
 import { FetchTransport } from './fetch-transport';
+import { WebFileExchange } from './files';
 
 export type { FetchTransportOptions } from './fetch-transport';
 export { FetchTransport } from './fetch-transport';
+export type { FileEnvironment } from './files';
+export { WebFileExchange } from './files';
 /** Re-exported for existing callers; the list lives in `@pigeon/platform`. */
 export { isForbiddenHeader } from '@pigeon/platform';
 
@@ -48,7 +51,10 @@ export function detectWebOs(nav: {
   return 'unknown';
 }
 
-/** Real capabilities; fs, state, secrets and dialogs stay memory-backed until their stories land. */
+/**
+ * Real capabilities, transport and file exchange; fs, state, secrets and dialogs stay
+ * memory-backed until their stories land.
+ */
 export function createWebPlatform(): Platform {
   const pickedFiles = new PickedFileStore();
   return {
@@ -58,5 +64,6 @@ export function createWebPlatform(): Platform {
     transport: new FetchTransport({ pickedFiles }),
     pickedFiles,
     ...createMemoryServices(),
+    files: new WebFileExchange(),
   };
 }

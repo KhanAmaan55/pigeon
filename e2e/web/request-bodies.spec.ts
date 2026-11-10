@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 import { TEST_SERVER_URL } from '../test-server';
+import { sendAndEcho } from './echo';
 
 /** The parts of `/echo`'s JSON these tests read. */
 interface Echo {
@@ -24,12 +25,6 @@ async function postToEcho(page: Page, mode: string) {
   await page.getByTestId(`body-mode-${mode}`).check();
 }
 
-async function sendAndEcho(page: Page): Promise<Echo> {
-  await page.getByTestId('send-button').click();
-  await expect(page.getByTestId('response-status')).toHaveText('200 OK');
-  return JSON.parse((await page.getByTestId('response-body').textContent()) ?? '') as Echo;
-}
-
 const contentType = (echo: Echo) =>
   echo.rawHeaders.filter(([name]) => name.toLowerCase() === 'content-type').map(([, v]) => v);
 
@@ -40,7 +35,7 @@ test('a raw JSON body is sent byte for byte as application/json', async ({ page 
   const json = '{\n  "id": 12345678901234567890,\n  "name": "Ada ✓",\n  "tags": [ ]\n}';
   await page.getByTestId('body-input').fill(json);
 
-  const echo = await sendAndEcho(page);
+  const echo = await sendAndEcho<Echo>(page);
   expect(echo.body.text).toBe(json);
   expect(contentType(echo)).toEqual(['application/json']);
 });
@@ -52,7 +47,7 @@ test('invalid JSON shows an inline lint marker but is still sent', async ({ page
   await expect(page.locator('.cm-lintRange-error, .cm-lintPoint-error')).toHaveCount(1);
   await expect(page.locator('.cm-lint-marker-error')).toHaveCount(1);
 
-  const echo = await sendAndEcho(page);
+  const echo = await sendAndEcho<Echo>(page);
   expect(echo.body.text).toBe('{"a": }');
   expect(echo.parsed).toMatchObject({ kind: 'invalid' });
 });
@@ -80,7 +75,7 @@ test('an urlencoded body with special characters is parsed back exactly', async 
     await rows.getByLabel('Value').nth(index).fill(value);
   }
 
-  const echo = await sendAndEcho(page);
+  const echo = await sendAndEcho<Echo>(page);
   expect(echo.parsed).toEqual({ kind: 'urlencoded', fields });
   expect(contentType(echo)).toEqual(['application/x-www-form-urlencoded']);
 });
@@ -102,7 +97,7 @@ test('form-data with two text fields and a file arrives with names, file name, s
     .setInputFiles({ name: 'avatar.png', mimeType: 'image/png', buffer: png });
   await expect(table.getByTestId('file-chip')).toHaveText('avatar.png');
 
-  const echo = await sendAndEcho(page);
+  const echo = await sendAndEcho<Echo>(page);
   expect(contentType(echo)[0]).toMatch(/^multipart\/form-data; boundary=/);
   expect(echo.parsed).toEqual({
     kind: 'multipart',
@@ -129,7 +124,7 @@ test('a binary body from a picked file arrives byte for byte', async ({ page }) 
     .setInputFiles({ name: 'dump.bin', mimeType: 'application/octet-stream', buffer: bytes });
   await expect(page.getByTestId('file-chip')).toHaveText('dump.bin');
 
-  const echo = await sendAndEcho(page);
+  const echo = await sendAndEcho<Echo>(page);
   expect([echo.body.size, echo.body.sha256]).toEqual([bytes.byteLength, sha256(bytes)]);
   expect(contentType(echo)).toEqual(['application/octet-stream']);
 });

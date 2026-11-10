@@ -1,12 +1,40 @@
-import type { ExecutionError, NormalizedResponse } from '@pigeon/core';
-import { CircleAlert, LoaderCircle, TriangleAlert } from 'lucide-react';
+import type { ExecutionError, ExecutionResult, NormalizedResponse } from '@pigeon/core';
+import {
+  CircleAlert,
+  Copy,
+  FileDown,
+  LoaderCircle,
+  PanelBottom,
+  PanelRight,
+  TriangleAlert,
+} from 'lucide-react';
+import { Tabs } from 'radix-ui';
+import type { ReactNode } from 'react';
+import { lazy, Suspense, useState } from 'react';
 
-import { formatBytes } from '../../lib/format';
+import { usePlatform } from '../../app/PlatformProvider';
 import { useScratchRequest } from '../request-editor/ScratchRequestProvider';
+import { suggestFileName } from './body-view';
+import { CopyButton } from './CopyButton';
+import { HeadersTable } from './HeadersTable';
 import { StatusLine } from './StatusLine';
 
-/** Status line, time, size and raw body of the latest result. Pretty viewer: PIGN-010. */
-export function ResponseViewer() {
+export type ResponseDock = 'bottom' | 'right';
+
+/** Loaded with the first response, keeping the formatters out of the initial bundle. */
+const BodyView = lazy(async () => ({ default: (await import('./BodyView')).BodyView }));
+
+/**
+ * The latest result (docs/ui-ux.md §3.5): status line, warnings, error card, and Body / Headers
+ * tabs with copy, save and the dock toggle.
+ */
+export function ResponseViewer({
+  dock = 'bottom',
+  onToggleDock,
+}: {
+  dock?: ResponseDock;
+  onToggleDock?: () => void;
+} = {}) {
   const sending = useScratchRequest((s) => s.status === 'sending');
   const result = useScratchRequest((s) => s.result);
 
@@ -39,7 +67,15 @@ export function ResponseViewer() {
           )}
           {result.warnings.length > 0 && <Warnings warnings={result.warnings} />}
           {result.error && <ErrorCard error={result.error} />}
-          {result.response && <Body response={result.response} />}
+          {result.response && (
+            <ResponseTabs
+              key={result.id}
+              result={result}
+              response={result.response}
+              dock={dock}
+              {...(onToggleDock ? { onToggleDock } : {})}
+            />
+          )}
         </>
       )}
     </div>
@@ -90,26 +126,173 @@ function ErrorCard({ error }: { error: ExecutionError }) {
   );
 }
 
-function Body({ response }: { response: NormalizedResponse }) {
-  if (response.sizeBytes === 0) {
-    return <p className="p-3 text-sm text-fg-muted">Empty response body</p>;
+const actionButton =
+  'inline-flex h-6 items-center gap-1 rounded px-1.5 text-xs text-fg-muted hover:bg-hover hover:text-fg disabled:opacity-50';
+
+type SaveState =
+  | { kind: 'idle' }
+  | { kind: 'saved' }
+  | { kind: 'cancelled' }
+  | { kind: 'failed'; message: string };
+
+function saveMessage(state: SaveState): string {
+  switch (state.kind) {
+    case 'idle':
+      return '';
+    case 'saved':
+      return 'Saved';
+    case 'cancelled':
+      return 'Not saved';
+    case 'failed':
+      return state.message;
   }
-  if (response.bodyText === undefined) {
-    return (
-      <p className="p-3 text-sm text-fg-muted">
-        Binary response ({formatBytes(response.sizeBytes)}
-        {response.contentType ? `, ${response.contentType}` : ''})
-      </p>
-    );
-  }
+}
+
+function ResponseTabs({
+  result,
+  response,
+  dock,
+  onToggleDock,
+}: {
+  result: ExecutionResult;
+  response: NormalizedResponse;
+  dock: ResponseDock;
+  onToggleDock?: () => void;
+}) {
+  const { files } = usePlatform();
+  const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
+
+  const save = () => {
+    setSaveState({ kind: 'idle' });
+    files
+      .saveFile(
+        suggestFileName(response),
+        response.body,
+        response.contentType ?? 'application/octet-stream',
+      )
+      .then(
+        (outcome) => setSaveState({ kind: outcome }),
+        (error: unknown) =>
+          setSaveState({
+            kind: 'failed',
+            message: error instanceof Error ? error.message : String(error),
+          }),
+      );
+  };
+
   return (
-    <pre
-      data-testid="response-body"
-      tabIndex={0}
-      aria-label="Response body"
-      className="min-h-0 flex-1 overflow-auto p-3 font-mono text-sm break-all whitespace-pre-wrap text-fg"
+    <Tabs.Root
+      defaultValue="body"
+      data-transport={result.transport}
+      className="flex min-h-0 flex-1 flex-col"
     >
-      {response.bodyText}
-    </pre>
+      <div className="flex shrink-0 items-center gap-1 border-b border-border px-2">
+        <Tabs.List aria-label="Response sections" className="flex gap-1">
+          <ResponseTab value="body" testId="response-body-tab">
+            Body
+          </ResponseTab>
+          <ResponseTab value="headers" testId="response-headers-tab">
+            Headers
+            <span
+              data-testid="response-headers-count"
+              className="rounded-full bg-hover px-1.5 text-xs leading-4 text-fg"
+            >
+              {response.headers.length}
+            </span>
+          </ResponseTab>
+        </Tabs.List>
+        <div className="ml-auto flex items-center gap-1">
+          {saveState.kind !== 'idle' && (
+            <span
+              role="status"
+              data-testid="response-save-status"
+              data-state={saveState.kind}
+              className={`text-xs ${saveState.kind === 'failed' ? 'text-fail' : 'text-fg-muted'}`}
+            >
+              {saveMessage(saveState)}
+            </span>
+          )}
+          <CopyButton
+            text={() => response.bodyText ?? ''}
+            label="Copy body"
+            testId="response-copy"
+            icon={<Copy size={12} aria-hidden />}
+            className={response.bodyText === undefined ? 'pointer-events-none opacity-50' : ''}
+          >
+            Copy
+          </CopyButton>
+          <button
+            type="button"
+            data-testid="response-save"
+            title={`Save body as ${suggestFileName(response)}`}
+            onClick={save}
+            className={actionButton}
+          >
+            <FileDown size={12} aria-hidden />
+            Save
+          </button>
+          {onToggleDock && <DockToggle dock={dock} onToggle={onToggleDock} />}
+        </div>
+      </div>
+      <Tabs.Content
+        value="body"
+        className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+      >
+        <Suspense
+          fallback={<div aria-busy data-testid="response-body-loading" className="flex-1" />}
+        >
+          <BodyView response={response} onSave={save} />
+        </Suspense>
+      </Tabs.Content>
+      <Tabs.Content
+        value="headers"
+        className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+      >
+        <HeadersTable headers={response.headers} restricted={response.headersRestricted} />
+      </Tabs.Content>
+    </Tabs.Root>
+  );
+}
+
+function DockToggle({ dock, onToggle }: { dock: ResponseDock; onToggle: () => void }) {
+  const { os } = usePlatform();
+  const shortcut = os === 'macos' ? '⌘⌥L' : 'Ctrl+Alt+L';
+  const label = `Move response to the ${dock === 'bottom' ? 'right' : 'bottom'} (${shortcut})`;
+  return (
+    <button
+      type="button"
+      data-testid="response-dock-toggle"
+      data-dock={dock}
+      aria-label={label}
+      title={label}
+      onClick={onToggle}
+      className={actionButton}
+    >
+      {dock === 'bottom' ? (
+        <PanelRight size={14} aria-hidden />
+      ) : (
+        <PanelBottom size={14} aria-hidden />
+      )}
+    </button>
+  );
+}
+
+function ResponseTab({
+  value,
+  testId,
+  children,
+}: {
+  value: string;
+  testId: string;
+  children: ReactNode;
+}) {
+  return (
+    <Tabs.Trigger
+      value={value}
+      data-testid={testId}
+      className="-mb-px inline-flex h-8 items-center gap-1.5 border-b-2 border-transparent px-2 text-sm text-fg-muted hover:text-fg data-[state=active]:border-accent data-[state=active]:text-fg"
+    >
+      {children}
+    </Tabs.Trigger>
   );
 }

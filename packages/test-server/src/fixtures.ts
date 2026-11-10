@@ -97,3 +97,36 @@ export const UNICODE = pretty({
   zeroWidth: 'a​b',
   'ключ 🔑': 'non-ASCII key',
 });
+
+/**
+ * `/html` body: a page whose script and inline event handler would change `#script-status` and
+ * set `window.pigeonScriptRan` (and the parent's), to prove previews never run scripts.
+ */
+export const HTML_PAGE = `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Pigeon test page</title></head>
+<body>
+<h1>Pigeon test page 🐦</h1>
+<p id="script-status">Scripts did not run.</p>
+<img src="data:," alt="" onerror="document.getElementById('script-status').textContent = 'Scripts ran.'; window.pigeonScriptRan = true">
+<form action="/echo" method="post"><input name="q" value="x"><button>Send</button></form>
+<pre>  kept   as   is
+  line two</pre>
+<script>
+  document.getElementById('script-status').textContent = 'Scripts ran.';
+  window.pigeonScriptRan = true;
+  try { window.parent.pigeonScriptRan = true; } catch (error) {}
+</script>
+</body>
+</html>
+`;
+
+/** `/xml` body, compact on purpose so a formatted view differs from the raw one. */
+export const XML_DOC =
+  '<?xml version="1.0" encoding="UTF-8"?><catalog><book id="1" lang="en"><title>Notes on the Analytical Engine</title><author>Ada Lovelace</author><tags><tag>math</tag><tag>computing</tag></tags></book><!-- more soon --><empty/></catalog>\n';
+
+/** `/image/png`: a 1×1 opaque red PNG. */
+export const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+  'base64',
+);

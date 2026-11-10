@@ -56,6 +56,32 @@ describe('/unicode', () => {
   });
 });
 
+describe('/html, /xml, /image/png', () => {
+  it('serves an HTML page whose scripts would mark it as run', async () => {
+    const res = await fetch(url('/html'));
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8');
+    const html = await res.text();
+    expect(html).toContain('<p id="script-status">Scripts did not run.</p>');
+    expect(html).toContain('window.pigeonScriptRan = true');
+  });
+
+  it('serves compact XML', async () => {
+    const res = await fetch(url('/xml'));
+    expect(res.headers.get('content-type')).toBe('application/xml; charset=utf-8');
+    expect(await res.text()).toMatch(
+      /^<\?xml version="1.0" encoding="UTF-8"\?><catalog>.*<\/catalog>\n$/,
+    );
+  });
+
+  it('serves a 1×1 PNG', async () => {
+    const res = await fetch(url('/image/png'));
+    expect(res.headers.get('content-type')).toBe('image/png');
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect([...bytes.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    expect(new DataView(bytes.buffer).getUint32(16)).toBe(1); // IHDR width
+  });
+});
+
 describe('/gzip', () => {
   it('sends a gzip-encoded body with identical bytes on every OS', async () => {
     const raw = await rawRequest(url('/gzip'));

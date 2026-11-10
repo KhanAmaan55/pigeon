@@ -60,6 +60,13 @@ Activity bar (left icons): Collections, Environments, Pending Changes, Runner, S
 ### 3.5 Response viewer
 - Summary line: status (coloured), time, size, transport badge (Native/Browser), comparison badge (✓ Pass / ⚠ Warn / ✗ Fail / — No baseline).
 - **Body**: Pretty (formatted JSON/XML/HTML with folding, search `Cmd/Ctrl+F`), Raw, Preview (HTML in sandboxed iframe with scripts disabled; images). Large bodies (> 2 MB) open in Raw with "Format anyway" button. Copy, Save to file, Save as example.
+  - The first view follows the content type: images → Preview; JSON, XML, HTML, JavaScript → Pretty (≤ 2 MB); everything else → Raw. Text types have no Pretty view; binary bodies that aren't images show size, type, a hex dump of the first 256 bytes and Save.
+  - Pretty re-indents JSON token by token (values such as `9007199254740993` stay as received; validation is skipped when `NormalizedResponse.json` exists) and puts XML/HTML one element per line (HTML `script`/`style`/`pre`/`textarea` kept verbatim). Bodies over 256 KB are formatted in a Web Worker. Pretty and Raw are read-only CodeMirror editors (search everywhere, folding in Pretty).
+  - Over 20 MB only the first 2 MB are shown, with "Show all" where the app can hold the rest (native transport) and "Save to file"; Pretty needs the whole body.
+  - HTML preview: `<iframe sandbox="" srcdoc>`: no scripts, forms, popups or same-origin access, and the app's CSP applies too (remote images and styles don't load). Images: an `<img>` of a blob URL of the exact bytes.
+  - Save suggests the `Content-Disposition` file name (`filename*` first), else the URL's last segment, plus an extension from the media type; the exact received (decoded) bytes are saved.
+- **Size** tooltip: exact decoded byte count; on web, that the browser decoded it and the wire size is not visible.
+- **Dock**: the response sits below the request or on its right (`Cmd/Ctrl+Alt+L` or the panel button); in memory until layout persistence lands.
 - **Headers**: table; web notice when headers are restricted.
 - **Compare**: see 3.7.
 - **Examples**: list for this request; open, set baseline, delete.

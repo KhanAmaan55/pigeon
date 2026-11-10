@@ -2,7 +2,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { gzipSync } from 'node:zlib';
 
 import { echo } from './echo.ts';
-import { JSON_SHAPES, UNICODE } from './fixtures.ts';
+import { HTML_PAGE, JSON_SHAPES, PNG_1X1, UNICODE, XML_DOC } from './fixtures.ts';
 import { graphqlHandler } from './graphql.ts';
 import type { Handler, Reply } from './reply.ts';
 import { error, intParam, json, JSON_TYPE } from './reply.ts';
@@ -128,6 +128,24 @@ export const routes: Route[] = [
         return error(400, `Size must be 0–${LIMITS.largeMb} MB`);
       return { headers: { 'Content-Type': JSON_TYPE }, body: largeJson(Math.ceil(mb * MIB)) };
     },
+  },
+
+  {
+    pattern: /^\/html$/,
+    handle: () => ({ headers: { 'Content-Type': 'text/html; charset=utf-8' }, body: HTML_PAGE }),
+  },
+
+  {
+    pattern: /^\/xml$/,
+    handle: () => ({
+      headers: { 'Content-Type': 'application/xml; charset=utf-8' },
+      body: XML_DOC,
+    }),
+  },
+
+  {
+    pattern: /^\/image\/png$/,
+    handle: () => ({ headers: { 'Content-Type': 'image/png' }, body: PNG_1X1 }),
   },
 
   {
