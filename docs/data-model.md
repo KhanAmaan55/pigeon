@@ -102,7 +102,7 @@ interface Request {
 
 interface Url {
   raw: string;                        // source of truth for host/path; e.g. "{{baseUrl}}/users/:id?x=1"
-  query: QueryParam[];                // kept in sync with raw by the editor
+  query: QueryParam[];                // kept in sync with raw by the editor; disabled params live only here
   pathVariables: KeyValue[];          // ":id" → { key: 'id', value: '42' }
   extra: Record<string, unknown>;     // e.g. hash, unknown keys
 }

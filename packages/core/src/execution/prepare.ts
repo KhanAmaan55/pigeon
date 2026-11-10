@@ -1,12 +1,12 @@
 /**
  * Request → `PreparedRequest` (docs/api-execution.md §1 steps 3–4). Pure: no I/O, no platform
- * APIs. Variables (PIGN-023), params (PIGN-008), more body modes (PIGN-009) and auth (PIGN-026)
- * plug in here.
+ * APIs. Variables (PIGN-023), more body modes (PIGN-009) and auth (PIGN-026) plug in here.
  */
 
-import type { PreparedBody, PreparedRequest } from '@pigeon/platform';
+import type { Capabilities, PreparedBody, PreparedRequest } from '@pigeon/platform';
 
 import type { Body, RawLanguage, Request } from '../model/request';
+import { buildRequestUrl } from '../model/url';
 import { PIGEON_VERSION } from '../version';
 import type { ExecutionContext, ExecutionError, Result } from './types';
 
@@ -35,7 +35,7 @@ export async function prepareRequest(
     return invalid('invalid-request', `"${request.method}" is not a valid HTTP method.`);
   }
 
-  const url = normalizeUrl(request.url.raw);
+  const url = normalizeUrl(buildRequestUrl(request.url));
   if (!url.ok) return url;
 
   const headers: Array<[string, string]> = [];
@@ -58,9 +58,7 @@ export async function prepareRequest(
     );
   }
 
-  addDefault(headers, 'User-Agent', `Pigeon/${PIGEON_VERSION}`);
-  addDefault(headers, 'Accept', '*/*');
-  if (encoded?.contentType) addDefault(headers, 'Content-Type', encoded.contentType);
+  for (const { name, value } of autoHeaders(request, ctx.capabilities)) headers.push([name, value]);
 
   const { preferences } = ctx;
   const { settings } = request;
@@ -71,7 +69,7 @@ export async function prepareRequest(
       method,
       url: url.value,
       headers,
-      ...(encoded ? { body: encoded.body } : {}),
+      ...(encoded ? { body: encoded } : {}),
       settings: {
         timeoutMs: settings.timeoutMs ?? preferences.timeoutMs,
         followRedirects: settings.followRedirects ?? preferences.followRedirects,
@@ -105,23 +103,62 @@ export function normalizeUrl(raw: string): Result<string, ExecutionError> {
   return { ok: true, value: url };
 }
 
-function encodeBody(body: Body): { body: PreparedBody; contentType?: string } | undefined {
+function encodeBody(body: Body): PreparedBody | undefined {
   if (body.disabled) return undefined;
   switch (body.mode) {
     case 'none':
       return undefined;
     case 'raw':
-      return {
-        body: { kind: 'bytes', bytes: encoder.encode(body.raw) },
-        contentType: RAW_CONTENT_TYPES[body.language],
-      };
+      return { kind: 'bytes', bytes: encoder.encode(body.raw) };
   }
 }
 
-/** Appends a header unless the user already set one with that name (case-insensitive). */
-function addDefault(headers: Array<[string, string]>, name: string, value: string): void {
-  const lower = name.toLowerCase();
-  if (!headers.some(([existing]) => existing.toLowerCase() === lower)) headers.push([name, value]);
+/** A header Pigeon adds unless the user set one with the same name (docs/api-execution.md §1). */
+export interface AutoHeader {
+  name: string;
+  value: string;
+  /** Why it is added, for the headers tab. */
+  reason: string;
+}
+
+/**
+ * Headers `prepareRequest` appends after the user's enabled headers, skipping any name the user
+ * set (case-insensitive). `User-Agent` only where the transport can set it: browsers send their
+ * own and would drop Pigeon's with a warning on every request.
+ */
+export function autoHeaders(
+  request: Pick<Request, 'headers' | 'body'>,
+  capabilities: Pick<Capabilities, 'canSetAnyHeader'>,
+): AutoHeader[] {
+  const candidates: AutoHeader[] = [];
+  if (capabilities.canSetAnyHeader) {
+    candidates.push({
+      name: 'User-Agent',
+      value: `Pigeon/${PIGEON_VERSION}`,
+      reason: 'Identifies Pigeon to the server.',
+    });
+  }
+  candidates.push({ name: 'Accept', value: '*/*', reason: 'Accepts any response type.' });
+  const contentType = bodyContentType(request.body);
+  if (contentType !== undefined) {
+    candidates.push({ name: 'Content-Type', value: contentType, reason: 'From the body type.' });
+  }
+  const userSet = new Set(
+    request.headers
+      .filter((header) => !header.disabled && header.key.trim() !== '')
+      .map((header) => header.key.trim().toLowerCase()),
+  );
+  return candidates.filter((header) => !userSet.has(header.name.toLowerCase()));
+}
+
+function bodyContentType(body: Body): string | undefined {
+  if (body.disabled) return undefined;
+  switch (body.mode) {
+    case 'none':
+      return undefined;
+    case 'raw':
+      return RAW_CONTENT_TYPES[body.language];
+  }
 }
 
 function invalid(

@@ -202,7 +202,7 @@ The web version uses `fetch()`. The browser, not Pigeon, decides what is allowed
 |---|---|---|
 | **CORS** — target must return `Access-Control-Allow-Origin` (and allow methods/headers via preflight) | Request fails with an opaque `TypeError`; the real status is invisible | Error classified as `cors-suspected`; panel explains CORS, suggests the desktop app, a CORS-enabled dev server, or (later) a self-hosted proxy (PIGN-052) |
 | Preflight (`OPTIONS`) for non-simple requests | Extra round trip; server must answer it | Mentioned in the CORS help |
-| **Forbidden request headers** (`Host`, `Cookie`, `Content-Length`, `Origin`, `Referer`, `Connection`, `Accept-Encoding`, `Sec-*`, `Proxy-*`, …) | Silently dropped or error | Header editor shows a warning icon on forbidden headers when `!canSetAnyHeader` |
+| **Forbidden request headers** (`Host`, `Cookie`, `Content-Length`, `Origin`, `Referer`, `Connection`, `Accept-Encoding`, `Sec-*`, `Proxy-*`, …) | Silently dropped or error | Header editor shows a warning icon on forbidden headers when `!canSetAnyHeader` (`isForbiddenHeader` in `@pigeon/platform`, the list FetchTransport drops) |
 | **Response headers** limited to CORS-safelisted + `Access-Control-Expose-Headers`; `Set-Cookie` never readable | Headers tab incomplete | Notice: "Some headers are hidden by the browser" |
 | Cookies managed by the browser (`credentials: 'include'` optional per request) | No cookie jar control | Cookie UI hidden/limited |
 | **Redirects** followed transparently; `redirect: 'manual'` yields an opaque response | No redirect chain; "follow redirects: off" unsupported | Setting disabled with tooltip |

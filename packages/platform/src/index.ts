@@ -22,6 +22,7 @@ export {
   joinProjectPath,
   parentPath,
 } from './paths';
+export { isForbiddenHeader, isForbiddenMethod } from './headers';
 export type { OperatingSystem, Platform, PlatformKind } from './platform';
 export type { ProjectLocator } from './projects';
 export type { SecretBackend, SecretStore } from './secrets';

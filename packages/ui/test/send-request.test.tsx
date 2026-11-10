@@ -56,6 +56,7 @@ describe('scratch request editor', () => {
 
     await user.selectOptions(screen.getByTestId('method-select'), 'POST');
     await user.type(screen.getByTestId('url-input'), 'localhost:4010/echo');
+    await user.click(screen.getByTestId('body-tab'));
     await user.type(screen.getByTestId('body-input'), 'hello pigeon');
     await user.keyboard('{Control>}{Enter}{/Control}');
 

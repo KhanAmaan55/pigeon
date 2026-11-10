@@ -4,7 +4,9 @@ import { createMemoryServices, defineCapabilities } from '@pigeon/platform';
 import { FetchTransport } from './fetch-transport';
 
 export type { FetchTransportOptions } from './fetch-transport';
-export { FetchTransport, isForbiddenHeader } from './fetch-transport';
+export { FetchTransport } from './fetch-transport';
+/** Re-exported for existing callers; the list lives in `@pigeon/platform`. */
+export { isForbiddenHeader } from '@pigeon/platform';
 
 /**
  * Browser capabilities (docs/platform.md §4) by feature detection, never by user agent.

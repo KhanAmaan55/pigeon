@@ -1,51 +1,7 @@
 /** `Transport` over the browser's `fetch` (docs/api-execution.md §7.2). */
 
 import type { PreparedRequest, RawResponse, Transport } from '@pigeon/platform';
-import { TransportError } from '@pigeon/platform';
-
-/** Request headers browsers refuse to set (Fetch spec "forbidden request-header"). */
-const FORBIDDEN_HEADERS = new Set([
-  'accept-charset',
-  'accept-encoding',
-  'access-control-request-headers',
-  'access-control-request-method',
-  'connection',
-  'content-length',
-  'cookie',
-  'cookie2',
-  'date',
-  'dnt',
-  'expect',
-  'host',
-  'keep-alive',
-  'origin',
-  'referer',
-  'set-cookie',
-  'te',
-  'trailer',
-  'transfer-encoding',
-  'upgrade',
-  'via',
-  // No longer forbidden by the spec, but Chromium still drops it silently.
-  'user-agent',
-]);
-const FORBIDDEN_PREFIXES = ['proxy-', 'sec-'];
-const METHOD_OVERRIDE_HEADERS = new Set([
-  'x-http-method',
-  'x-http-method-override',
-  'x-method-override',
-]);
-const FORBIDDEN_METHODS = new Set(['CONNECT', 'TRACE', 'TRACK']);
-
-export function isForbiddenHeader(name: string, value: string): boolean {
-  const lower = name.toLowerCase();
-  if (FORBIDDEN_HEADERS.has(lower)) return true;
-  if (FORBIDDEN_PREFIXES.some((prefix) => lower.startsWith(prefix))) return true;
-  return (
-    METHOD_OVERRIDE_HEADERS.has(lower) &&
-    value.split(',').some((method) => FORBIDDEN_METHODS.has(method.trim().toUpperCase()))
-  );
-}
+import { isForbiddenHeader, isForbiddenMethod, TransportError } from '@pigeon/platform';
 
 const CORS_HINT =
   'The browser blocked the request or could not reach the server, and does not say why. ' +
@@ -76,7 +32,7 @@ export class FetchTransport implements Transport {
     const fail = (kind: TransportError['kind'], message: string, opts = {}) =>
       new TransportError(kind, message, { ...opts, warnings });
 
-    if (FORBIDDEN_METHODS.has(req.method)) {
+    if (isForbiddenMethod(req.method)) {
       throw fail('invalid-request', `Browsers cannot send ${req.method} requests.`);
     }
     if ((req.method === 'GET' || req.method === 'HEAD') && req.body) {

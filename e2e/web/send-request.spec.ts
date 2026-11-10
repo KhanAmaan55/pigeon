@@ -20,6 +20,7 @@ test('GET /json/user shows status, time, size and the JSON body', async ({ page 
 test('POST /echo with a raw text body shows the echoed body', async ({ page }) => {
   await page.getByTestId('method-select').selectOption('POST');
   await page.getByTestId('url-input').fill(`${TEST_SERVER_URL}/echo`);
+  await page.getByTestId('body-tab').click();
   await page.getByTestId('body-input').fill('hello from pigeon');
   await page.getByTestId('body-input').press('ControlOrMeta+Enter');
 

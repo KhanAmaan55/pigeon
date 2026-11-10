@@ -20,8 +20,21 @@ export {
   UrlSchema,
 } from './model/request';
 
+export type { ParsedUrlRaw, UrlRawParts } from './model/url';
+export {
+  buildRequestUrl,
+  parseQueryString,
+  parseUrlRaw,
+  percentEncode,
+  splitUrlRaw,
+  substitutePathVariables,
+  syncQueryIntoRaw,
+  syncUrlFromRaw,
+} from './model/url';
+
 export { RequestExecutor, toExecutionError } from './execution/executor';
-export { normalizeUrl, prepareRequest } from './execution/prepare';
+export type { AutoHeader } from './execution/prepare';
+export { autoHeaders, normalizeUrl, prepareRequest } from './execution/prepare';
 export type { MediaType } from './execution/response';
 export { isJsonMediaType, normalizeResponse, parseMediaType } from './execution/response';
 export type {

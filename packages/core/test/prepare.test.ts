@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { RequestInit } from '../src/index';
 import {
+  autoHeaders,
   createExecutionContext,
   createRequest,
+  createUrl,
   normalizeUrl,
   PIGEON_VERSION,
   prepareRequest,
@@ -101,6 +103,35 @@ describe('prepareRequest', () => {
     ]);
   });
 
+  it('substitutes path variables and percent-encodes path and query on send', async () => {
+    const url = {
+      ...createUrl('localhost:4010/echo/users/:id/:name?q=hello world&n=Zoë&keep=%20#frag'),
+      pathVariables: [
+        { key: 'id', value: '42' },
+        { key: 'name', value: 'Ada Lovelace' },
+      ],
+    };
+    expect((await prepared({ url })).url).toBe(
+      'http://localhost:4010/echo/users/42/Ada%20Lovelace?q=hello%20world&n=Zo%C3%AB&keep=%20',
+    );
+  });
+
+  it('sends the query from the URL, not disabled table rows', async () => {
+    const url = {
+      ...createUrl('http://x/s?a=1'),
+      query: [
+        { key: 'a', value: '1' },
+        { key: 'b', value: '2', disabled: true },
+      ],
+    };
+    expect((await prepared({ url })).url).toBe('http://x/s?a=1');
+  });
+
+  it('skips the default User-Agent where the transport cannot set it', async () => {
+    const { headers } = await prepared({ url: 'http://x/' }, { canSetAnyHeader: false });
+    expect(headers).toEqual([['Accept', '*/*']]);
+  });
+
   it('encodes a raw body as UTF-8 bytes with a default Content-Type', async () => {
     const req = await prepared({
       method: 'POST',
@@ -164,6 +195,37 @@ describe('prepareRequest', () => {
     const result = await prepareRequest(request, { ...ctx(), projectId: 'project-1' });
     if (!result.ok) throw new Error('expected ok');
     expect(result.value.meta.projectId).toBe('project-1');
+  });
+});
+
+describe('autoHeaders', () => {
+  const body = { mode: 'raw', raw: '{}', language: 'json' } as const;
+
+  it('lists what prepareRequest adds, minus names the user set', () => {
+    const names = (headers: Array<{ key: string; value: string; disabled?: boolean }>) =>
+      autoHeaders({ headers, body }, { canSetAnyHeader: true }).map((h) => [h.name, h.value]);
+    expect(names([])).toEqual([
+      ['User-Agent', `Pigeon/${PIGEON_VERSION}`],
+      ['Accept', '*/*'],
+      ['Content-Type', 'application/json'],
+    ]);
+    expect(
+      names([
+        { key: ' content-type ', value: 'text/plain' },
+        { key: 'Accept', value: 'x', disabled: true },
+      ]),
+    ).toEqual([
+      ['User-Agent', `Pigeon/${PIGEON_VERSION}`],
+      ['Accept', '*/*'],
+    ]);
+  });
+
+  it('omits User-Agent in browsers and Content-Type without a body', () => {
+    const headers = autoHeaders(
+      { headers: [], body: { mode: 'none' } },
+      { canSetAnyHeader: false },
+    );
+    expect(headers.map((h) => h.name)).toEqual(['Accept']);
   });
 });
 

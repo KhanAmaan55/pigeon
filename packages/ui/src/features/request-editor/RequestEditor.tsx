@@ -1,13 +1,16 @@
 import { Send } from 'lucide-react';
-import type { KeyboardEvent } from 'react';
+import { Tabs } from 'radix-ui';
+import type { KeyboardEvent, ReactNode } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import { HeadersTab } from './HeadersTab';
 import { methodColorClass } from './methods';
+import { ParamsTab } from './ParamsTab';
 import { useScratchRequest } from './ScratchRequestProvider';
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 
-/** URL bar + raw text body for the scratch request (docs/ui-ux.md §4). */
+/** URL bar and Params / Headers / Body tabs for the scratch request (docs/ui-ux.md §3.3). */
 export function RequestEditor() {
   const method = useScratchRequest((s) => s.request.method);
   const url = useScratchRequest((s) => s.request.url.raw);
@@ -18,6 +21,13 @@ export function RequestEditor() {
   const setMethod = useScratchRequest((s) => s.setMethod);
   const setUrl = useScratchRequest((s) => s.setUrl);
   const setBodyText = useScratchRequest((s) => s.setBodyText);
+  const paramCount = useScratchRequest(
+    (s) =>
+      s.request.url.query.filter((p) => !p.disabled && (p.key !== '' || p.value !== '')).length,
+  );
+  const headerCount = useScratchRequest(
+    (s) => s.request.headers.filter((h) => !h.disabled && h.key.trim() !== '').length,
+  );
   const send = useScratchRequest((s) => s.send);
   const shortcut = usePlatform().os === 'macos' ? '⌘↵' : 'Ctrl+Enter';
 
@@ -76,19 +86,74 @@ export function RequestEditor() {
           {sending ? 'Sending…' : 'Send'}
         </button>
       </form>
-      <label className="flex min-h-0 flex-1 flex-col gap-1 p-2">
-        <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
-          Body (raw text)
-        </span>
-        <textarea
-          data-testid="body-input"
-          value={bodyText}
-          onChange={(event) => setBodyText(event.target.value)}
-          placeholder="No body"
-          spellCheck={false}
-          className="min-h-0 flex-1 resize-none rounded border border-border bg-bg p-2 font-mono text-sm text-fg placeholder:text-fg-muted"
-        />
-      </label>
+      <Tabs.Root defaultValue="params" className="flex min-h-0 flex-1 flex-col">
+        <Tabs.List
+          aria-label="Request sections"
+          className="flex shrink-0 gap-1 border-b border-border px-2"
+        >
+          <TabTrigger value="params" count={paramCount} testId="params-tab">
+            Params
+          </TabTrigger>
+          <TabTrigger value="headers" count={headerCount} testId="headers-tab">
+            Headers
+          </TabTrigger>
+          <TabTrigger value="body" testId="body-tab">
+            Body
+          </TabTrigger>
+        </Tabs.List>
+        <Tabs.Content value="params" className="min-h-0 flex-1 overflow-auto">
+          <ParamsTab />
+        </Tabs.Content>
+        <Tabs.Content value="headers" className="min-h-0 flex-1 overflow-auto">
+          <HeadersTab />
+        </Tabs.Content>
+        <Tabs.Content value="body" className="flex min-h-0 flex-1 flex-col">
+          <label className="flex min-h-0 flex-1 flex-col gap-1 p-2">
+            <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
+              Body (raw text)
+            </span>
+            <textarea
+              data-testid="body-input"
+              value={bodyText}
+              onChange={(event) => setBodyText(event.target.value)}
+              placeholder="No body"
+              spellCheck={false}
+              className="min-h-0 flex-1 resize-none rounded border border-border bg-bg p-2 font-mono text-sm text-fg placeholder:text-fg-muted"
+            />
+          </label>
+        </Tabs.Content>
+      </Tabs.Root>
     </div>
+  );
+}
+
+function TabTrigger({
+  value,
+  count,
+  testId,
+  children,
+}: {
+  value: string;
+  count?: number;
+  testId: string;
+  children: ReactNode;
+}) {
+  return (
+    <Tabs.Trigger
+      value={value}
+      data-testid={testId}
+      className="-mb-px inline-flex h-8 items-center gap-1.5 border-b-2 border-transparent px-2 text-sm text-fg-muted hover:text-fg data-[state=active]:border-accent data-[state=active]:text-fg"
+    >
+      {children}
+      {count !== undefined && count > 0 && (
+        <span
+          data-testid={`${testId}-count`}
+          aria-label={`(${count})`}
+          className="rounded-full bg-hover px-1.5 text-xs leading-4 text-fg"
+        >
+          {count}
+        </span>
+      )}
+    </Tabs.Trigger>
   );
 }

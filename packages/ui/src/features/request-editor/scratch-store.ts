@@ -1,5 +1,11 @@
-import type { ExecutionResult, Request } from '@pigeon/core';
-import { createExecutionContext, createRequest, RequestExecutor } from '@pigeon/core';
+import type { ExecutionResult, KeyValue, Request } from '@pigeon/core';
+import {
+  createExecutionContext,
+  createRequest,
+  RequestExecutor,
+  syncQueryIntoRaw,
+  syncUrlFromRaw,
+} from '@pigeon/core';
 import type { Platform } from '@pigeon/platform';
 import { createStore } from 'zustand';
 
@@ -10,7 +16,12 @@ export interface ScratchRequestState {
   /** Latest finished execution. */
   result: ExecutionResult | null;
   setMethod: (method: string) => void;
+  /** Typed URL; query and path variable rows follow it. */
   setUrl: (raw: string) => void;
+  /** Query table edit; the URL follows (disabled rows stay out of it). */
+  setQuery: (query: KeyValue[]) => void;
+  setPathVariables: (pathVariables: KeyValue[]) => void;
+  setHeaders: (headers: KeyValue[]) => void;
   /** Raw text body; an empty body means no body. */
   setBodyText: (text: string) => void;
   /** Sends the request; a send while one is in flight supersedes it. */
@@ -31,7 +42,13 @@ export function createScratchRequestStore(platform: Pick<Platform, 'transport' |
       status: 'idle',
       result: null,
       setMethod: (method) => update({ method: method.toUpperCase() }),
-      setUrl: (raw) => update({ url: { ...get().request.url, raw } }),
+      setUrl: (raw) => update({ url: syncUrlFromRaw(get().request.url, raw) }),
+      setQuery: (query) => {
+        const { url } = get().request;
+        update({ url: { ...url, raw: syncQueryIntoRaw(url.raw, query), query } });
+      },
+      setPathVariables: (pathVariables) => update({ url: { ...get().request.url, pathVariables } }),
+      setHeaders: (headers) => update({ headers }),
       setBodyText: (text) =>
         update({
           body: text === '' ? { mode: 'none' } : { mode: 'raw', raw: text, language: 'text' },

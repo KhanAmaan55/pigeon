@@ -11,7 +11,7 @@ Request (definition, with {{vars}})
    │  3. protocol handler: prepare (http | graphql)                             core/execution/protocols
    │     3a. effective auth (inheritance) → AuthHandler.apply()                 core/execution/auth
    │     3b. body encoding (json/text/urlencoded/multipart/file)                core/execution/body
-   │     3c. default headers (Content-Type, User-Agent: Pigeon/<v>, Accept: */*)
+   │     3c. default headers (Content-Type, User-Agent: Pigeon/<v> where the transport can set it, Accept: */*)
    │  4. validate against capabilities (e.g. GET+body on web)                   core/execution/validate
    ▼
 PreparedRequest ──▶ Transport.send(prepared, { signal })                          platform-*
@@ -112,8 +112,10 @@ interface ExecutionError {
 - Applied to: URL raw, query keys/values, path variable values, header keys/values, body raw text, urlencoded/form-data keys & text values, GraphQL query & variables, auth fields.
 - Not applied to: file paths in form-data (to avoid surprises) — **exception**: resolved if the whole value is a single `{{var}}`.
 - Unresolved `{{x}}` remains literally in the output and is listed in `meta.unresolved`; the UI shows a warning (not a blocking error).
-- Path variables: `:name` segments in the URL path are replaced by `url.pathVariables` values (after resolution). Unknown `:name` → left as is.
-- URL encoding: query keys/values are percent-encoded (RFC 3986 unreserved kept; existing valid `%XX` sequences preserved). Path segments are encoded except `/`. The raw URL typed by the user is otherwise preserved.
+- Raw URL parsing (`core/model/url.ts`): `URL` can't parse `{{baseUrl}}/users/:id`, so a tolerant splitter cuts on `#`, then `?`, `&` and `=` and never looks inside `{{…}}`. The path starts at the first `/` after `scheme://` (or after the first segment when there is no scheme), so a port (`host:8080`) is never a path variable.
+- Query: `raw` is the source of truth for what is sent. The editor keeps `url.query` in sync both ways: typing in the URL re-reads the enabled params (disabled rows stay in `query` where they were, descriptions are kept), and editing the table rewrites only the query part of `raw` (`syncQueryIntoRaw`; disabled rows left out, the `?` dropped when none is enabled, `#hash` kept). `?flag` (no `=`) is `{ value: '', extra: { valueNull: true } }` and stays `flag` on write. Values are shown and stored as typed, never decoded; writing a table value into `raw` escapes only `&`, `#` (and `=` in keys) so the URL still splits the same way.
+- Path variables: `:name` segments (whole segment) in the URL path are replaced by `url.pathVariables` values (after resolution). Unknown names and empty values → left as is. Path variable rows follow the URL: values are kept by name, and a renamed segment keeps the value of the row it replaces.
+- URL encoding happens only on send (`buildRequestUrl`): query keys and values are percent-encoded as UTF-8 except characters RFC 3986 allows in a query (unreserved, sub-delims, `:@/?`), minus `&` (and `=` in keys); `+` is kept as typed. Path (path variable values included) is encoded except RFC 3986 `pchar` and `/`. Valid `%XX` sequences are preserved and a stray `%` becomes `%25`. The `#hash` is not sent. Scheme and host are left as typed.
 - `secretValues` collects resolved values of secret variables so logs/results can mask them.
 
 ## 4. Auth handlers
@@ -178,7 +180,7 @@ Implemented in `apps/desktop/src-tauri/src/http.rs` (Rust) and `packages/platfor
 
 ### 7.2 Web — `FetchTransport`
 - `fetch(url, { method, headers, body, redirect: 'follow', signal, credentials: 'omit' | 'include' (per-request setting, default omit), cache: 'no-store' })`.
-- Forbidden headers are removed before calling fetch; each removal becomes a warning (`RawResponse.warnings` / `TransportError.warnings`). `User-Agent` is always dropped: Chromium ignores it although the Fetch spec no longer forbids it.
+- Forbidden headers (list in `@pigeon/platform` `headers.ts`, shared with the header editor) are removed before calling fetch; each removal becomes a warning (`RawResponse.warnings` / `TransportError.warnings`). `User-Agent` is always dropped: Chromium ignores it although the Fetch spec no longer forbids it. `prepareRequest` therefore adds no default `User-Agent` when `!canSetAnyHeader`, so only headers the user added are reported.
 - GET/HEAD with body → validation error before sending.
 - Error classification (fetch only gives `TypeError`):
   - `AbortError` → `aborted` or `timeout` (Pigeon's own timer).

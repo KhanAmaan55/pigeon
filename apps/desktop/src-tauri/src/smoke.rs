@@ -18,7 +18,8 @@ const TIMEOUT: Duration = Duration::from_secs(60);
 const PROBE: &str = include_str!("smoke.js");
 /// Replaced in [`PROBE`] with the URL of [`serve_probe_target`].
 const URL_PLACEHOLDER: &str = "__SMOKE_HTTP_URL__";
-const PROBE_BODY: &str = "{\"smoke\":\"native-ok\"}\n";
+/// First line of every probe target answer; the request head it received follows.
+const PROBE_MARKER: &str = "native-ok";
 
 pub fn requested(args: impl IntoIterator<Item = String>) -> bool {
     args.into_iter().skip(1).any(|arg| arg == FLAG)
@@ -43,8 +44,10 @@ pub fn install(builder: Builder<Wry>) -> Builder<Wry> {
         })
 }
 
-/// A one-route HTTP server for the probe's request. It sends no CORS headers, so only the native
-/// transport (not the webview's fetch) can read the answer.
+/// A tiny HTTP server for the probe's request. It answers `native-ok` followed by the request
+/// line and headers exactly as received (so the probe can check path variables and duplicate
+/// headers end to end), and sends no CORS headers, so only the native transport (not the
+/// webview's fetch) can read the answer.
 fn serve_probe_target() -> io::Result<String> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let url = format!("http://{}/smoke", listener.local_addr()?);
@@ -59,15 +62,18 @@ fn serve_probe_target() -> io::Result<String> {
 fn answer(mut stream: TcpStream) -> io::Result<()> {
     // Read the request head; the probe sends no body.
     let mut reader = BufReader::new(stream.try_clone()?);
+    let mut body = format!("{PROBE_MARKER}\n");
     let mut line = String::new();
     while reader.read_line(&mut line)? > 2 {
+        body.push_str(line.trim_end());
+        body.push('\n');
         line.clear();
     }
     write!(
         stream,
-        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\
-         Connection: close\r\n\r\n{PROBE_BODY}",
-        PROBE_BODY.len()
+        "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\n\
+         Connection: close\r\n\r\n{body}",
+        body.len()
     )
 }
 
@@ -124,12 +130,13 @@ mod tests {
         let address = url.trim_start_matches("http://").trim_end_matches("/smoke");
         let mut stream = TcpStream::connect(address).unwrap();
         stream
-            .write_all(b"GET /smoke HTTP/1.1\r\nHost: x\r\n\r\n")
+            .write_all(b"GET /smoke/42 HTTP/1.1\r\nHost: x\r\nX-Dup: a\r\nX-Dup: b\r\n\r\n")
             .unwrap();
         let mut response = String::new();
         stream.read_to_string(&mut response).unwrap();
         assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
-        assert!(response.ends_with(PROBE_BODY));
+        assert!(response
+            .ends_with("\r\n\r\nnative-ok\nGET /smoke/42 HTTP/1.1\nHost: x\nX-Dup: a\nX-Dup: b\n"));
         assert!(!response.to_lowercase().contains("access-control"));
     }
 }
