@@ -818,6 +818,49 @@ async fn unresolvable_hosts_are_dns_errors() {
 }
 
 #[tokio::test]
+async fn self_signed_certificates_fail_as_tls_errors_when_strict() {
+    let failure = fail(request(
+        "GET",
+        &format!("{}/json/user", test_server::https_url()),
+    ))
+    .await;
+    assert_eq!(failure.kind, ErrorKind::Tls, "{failure:?}");
+    assert!(
+        failure
+            .detail
+            .as_deref()
+            .is_some_and(|detail| detail.to_lowercase().contains("certificate")),
+        "{failure:?}"
+    );
+}
+
+#[tokio::test]
+async fn strict_ssl_off_accepts_self_signed_certificates() {
+    let base = test_server::https_url();
+    // The certificate names 127.0.0.1 and localhost; any name is accepted with strictSSL off.
+    for url in [
+        format!("{base}/json/user"),
+        format!("{}/json/user", base.replace("127.0.0.1", "localhost")),
+    ] {
+        let mut req = request("GET", &url);
+        req.settings.strict_ssl = false;
+        let res = send(req).await;
+        assert_eq!(res.status, 200);
+        assert_eq!(json_body(&res)["id"], 1);
+    }
+}
+
+#[tokio::test]
+async fn redirects_are_followed_over_tls() {
+    let mut req = request("GET", &format!("{}/redirect/2", test_server::https_url()));
+    req.settings.strict_ssl = false;
+    let res = send(req).await;
+    assert_eq!(res.status, 200);
+    assert_eq!(res.redirects.len(), 2);
+    assert!(res.url.starts_with("https://"));
+}
+
+#[tokio::test]
 async fn invalid_urls_are_rejected() {
     assert_eq!(
         fail(request("GET", "not a url")).await.kind,

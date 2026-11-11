@@ -123,7 +123,64 @@ describe('FetchTransport', () => {
       detail: 'Failed to fetch',
       warnings: ['Header "Cookie" was not sent: browsers do not allow setting it.'],
     });
-    expect((error as TransportError).hint).toContain('CORS');
+    // The wording (CORS explanation, mixed content) is added by core's classifyError.
+    expect((error as TransportError).hint).toBeUndefined();
+  });
+
+  /** A fetch that never settles until its signal aborts, like a slow server. */
+  const hangingFetch = () =>
+    vi.fn<typeof fetch>(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          );
+        }),
+    );
+
+  it('fails with timeout after settings.timeoutMs, and clears the timer', async () => {
+    vi.useFakeTimers();
+    try {
+      const transport = new FetchTransport({ fetch: hangingFetch() });
+      const pending = transport
+        .send(prepared({ settings: { ...prepared().settings, timeoutMs: 1000 } }), {
+          signal: signal(),
+        })
+        .catch((e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      const error = await pending;
+      expect(error).toBeInstanceOf(TransportError);
+      expect(error).toMatchObject({ kind: 'timeout', message: expect.stringContaining('1000 ms') });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('sets no timer when timeoutMs is 0', async () => {
+    vi.useFakeTimers();
+    try {
+      const transport = new FetchTransport({ fetch: fakeFetch(() => new Response('ok')) });
+      const pending = transport.send(
+        prepared({ settings: { ...prepared().settings, timeoutMs: 0 } }),
+        { signal: signal() },
+      );
+      expect(vi.getTimerCount()).toBe(0);
+      await expect(pending).resolves.toMatchObject({ status: 200 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a cancel during the timeout window is an abort, not a timeout', async () => {
+    const controller = new AbortController();
+    const transport = new FetchTransport({ fetch: hangingFetch() });
+    const pending = transport.send(prepared(), { signal: controller.signal });
+    const reason = new Error('user cancelled');
+    controller.abort(reason);
+    await expect(pending).rejects.toBe(reason);
   });
 
   it('rejects with the abort reason when aborted', async () => {

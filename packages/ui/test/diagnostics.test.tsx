@@ -3,6 +3,7 @@ import { cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { PlatformProvider, useCapabilities, usePlatform } from '../src/app/PlatformProvider';
+import { PreferencesProvider } from '../src/app/preferences';
 import { Sidebar } from '../src/app/Sidebar';
 import { StatusBar } from '../src/app/StatusBar';
 import { Diagnostics } from '../src/features/settings/Diagnostics';
@@ -53,7 +54,9 @@ describe('Diagnostics', () => {
     const platform = createMemoryPlatform({ os: 'macos' });
     render(
       <PlatformProvider platform={platform}>
-        <Sidebar view="settings" />
+        <PreferencesProvider>
+          <Sidebar view="settings" />
+        </PreferencesProvider>
         <StatusBar />
       </PlatformProvider>,
     );

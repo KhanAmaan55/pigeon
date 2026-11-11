@@ -1,7 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createServer } from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
 import type { AddressInfo } from 'node:net';
 
+import { TEST_SERVER_CERT, TEST_SERVER_KEY } from './https.ts';
 import type { Reply, RequestContext } from './reply.ts';
 import { error } from './reply.ts';
 import type { CorsMode, Route } from './routes.ts';
@@ -15,10 +17,15 @@ export interface TestServerOptions {
   /** `0` (the default) picks a free port. */
   port?: number;
   host?: string;
+  /**
+   * Serve over HTTPS with the committed self-signed certificate (`TEST_SERVER_CERT`), for TLS
+   * tests. Same endpoints; the URL starts with `https://`.
+   */
+  https?: boolean;
 }
 
 export interface TestServer {
-  /** Base URL without a trailing slash, e.g. `http://127.0.0.1:51234`. */
+  /** Base URL without a trailing slash, e.g. `http://127.0.0.1:51234` (`https://` with `https`). */
   url: string;
   port: number;
   /** Stops listening and drops open connections (including pending `/delay` requests). */
@@ -27,13 +34,16 @@ export interface TestServer {
 
 export async function startTestServer(options: TestServerOptions = {}): Promise<TestServer> {
   const host = options.host ?? DEFAULT_HOST;
-  const server = createServer((req, res) => {
+  const listener = (req: IncomingMessage, res: ServerResponse) => {
     handle(req, res).catch((err: unknown) => {
       if (!res.headersSent && !res.destroyed) {
         write(req, res, 'permissive', error(500, err instanceof Error ? err.message : String(err)));
       }
     });
-  });
+  };
+  const server = options.https
+    ? createHttpsServer({ cert: TEST_SERVER_CERT, key: TEST_SERVER_KEY }, listener)
+    : createServer(listener);
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -45,7 +55,7 @@ export async function startTestServer(options: TestServerOptions = {}): Promise<
 
   const { port } = server.address() as AddressInfo;
   return {
-    url: `http://${host.includes(':') ? `[${host}]` : host}:${port}`,
+    url: `${options.https ? 'https' : 'http'}://${host.includes(':') ? `[${host}]` : host}:${port}`,
     port,
     close: () =>
       new Promise<void>((resolve, reject) => {

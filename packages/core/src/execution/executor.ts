@@ -4,12 +4,13 @@ import type { FileRef, PreparedRequest, Transport } from '@pigeon/platform';
 import { TransportError } from '@pigeon/platform';
 
 import type { Request } from '../model/request';
+import { toExecutionError } from './errors';
+import { maskHeaders, maskSecrets } from './mask';
 import { prepareRequest } from './prepare';
 import { normalizeResponse } from './response';
-import type { ExecutionContext, ExecutionError, ExecutionResult } from './types';
+import type { ExecutionContext, ExecutionResult } from './types';
 
 const BODY_PREVIEW_CHARS = 10_000;
-const SECRET_MASK = '••••••';
 
 export class RequestExecutor {
   readonly #transport: Transport;
@@ -57,38 +58,24 @@ export class RequestExecutor {
     } catch (error) {
       return {
         ...summary,
-        error: toExecutionError(error, signal),
+        error: toExecutionError(error, signal, {
+          url: req.url,
+          timeoutMs: req.settings.timeoutMs,
+          ...(ctx.pageOrigin === undefined ? {} : { pageOrigin: ctx.pageOrigin }),
+        }),
         warnings: [...prepareWarnings, ...(error instanceof TransportError ? error.warnings : [])],
       };
     }
   }
 }
 
-export function toExecutionError(error: unknown, signal?: AbortSignal): ExecutionError {
-  if (signal?.aborted) return { kind: 'aborted', message: 'The request was cancelled.' };
-  if (error instanceof TransportError) {
-    return {
-      kind: error.kind,
-      message: error.message,
-      ...(error.detail === undefined ? {} : { detail: error.detail }),
-      ...(error.hint === undefined ? {} : { hint: error.hint }),
-    };
-  }
-  const detail = error instanceof Error ? error.message : String(error);
-  return { kind: 'unknown', message: 'The request failed.', detail };
-}
-
 /** The request as shown in results: secret values masked, body truncated. */
 function summarize(req: PreparedRequest): ExecutionResult['request'] {
-  const mask = (text: string) =>
-    req.meta.secretValues.reduce(
-      (masked, secret) => (secret === '' ? masked : masked.split(secret).join(SECRET_MASK)),
-      text,
-    );
+  const mask = (text: string) => maskSecrets(text, req.meta.secretValues);
   const summary: ExecutionResult['request'] = {
     method: req.method,
     url: mask(req.url),
-    headers: req.headers.map(([name, value]) => [name, mask(value)]),
+    headers: maskHeaders(req.headers, req.meta.secretValues),
   };
   const preview = bodyPreview(req.body);
   if (preview !== undefined) {

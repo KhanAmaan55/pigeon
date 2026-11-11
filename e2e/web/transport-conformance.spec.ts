@@ -14,9 +14,7 @@ import { TEST_SERVER_URL } from '../test-server';
  */
 
 /** Case id → story that makes it pass. They run as expected failures (`test.fail`). */
-const EXPECTED_FAILURES: Record<string, string> = {
-  timeout: 'PIGN-011', // FetchTransport ignores settings.timeoutMs until then
-};
+const EXPECTED_FAILURES: Record<string, string> = {};
 
 // Transport capabilities don't depend on the browser's feature set (only folder access does).
 const cases = transportConformanceCases(detectWebCapabilities({}));

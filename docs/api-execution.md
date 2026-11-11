@@ -180,7 +180,7 @@ Implemented in `apps/desktop/src-tauri/src/http.rs` (Rust) and `packages/platfor
 - Decompression (gzip, br, deflate — zlib or raw —, zstd, chained codings) is done in `http.rs`, not by reqwest, because reqwest strips `Content-Encoding`/`Content-Length` from the response: headers stay exactly as the server sent them. `Accept-Encoding: gzip, deflate, br, zstd` is sent unless the request sets its own. An unknown or corrupt coding keeps the body as received, with a warning.
 - Request headers are sent as given (duplicates as separate lines, UTF-8 values as raw bytes); custom `Host`, `Cookie`, `Origin`, … reach the server. HTTP/1.1 header names go out lowercased (hyper). Response headers come back in order per name with duplicates kept.
 - Timeout (`timeoutMs`, `0` = none) via `tokio::time::timeout` over the whole exchange (all hops + body); cancellation via `http_cancel(id)` using an abort-handle map (`State<HttpState>`). A cancel that arrives before its send still aborts it. `NativeTransport` rejects with `signal.reason` as soon as the signal aborts and sends `http_cancel` in the background.
-- Errors: coarse reqwest classification into `timeout`, `connection-refused`, `dns`, `tls`, `network`, `invalid-url`, `invalid-request` (PIGN-011 refines wording and hints).
+- Errors: coarse reqwest classification into `timeout`, `connection-refused`, `dns`, `tls`, `network`, `invalid-url`, `invalid-request`, with the reqwest error chain as `detail`. Titles and hints are added by core (§7.5). TLS is covered by `cargo test` against the test server's self-signed HTTPS endpoint (`tls` when strict, success with `strictSSL: false`).
 - Timings: `ttfbMs` (headers of the final response received, redirect hops included) and `totalMs`; `httpVersion` as `HTTP/1.1`, `HTTP/2`, …; `statusText` is the server's reason phrase.
 - Max response size 100 MB (decoded; becomes a preference later); beyond → truncated + warning.
 - Permissions: `build.rs` declares the app commands, so `capabilities/default.json` grants exactly `allow-http-send`, `allow-http-cancel`, `allow-save-file` and `allow-smoke-report`.
@@ -213,6 +213,14 @@ undici with manual redirects; mirrors the Rust behaviour; used by the conformanc
 | Files by path | ✅ | project folder (fs-access) or re-pick |
 | http:// from https:// | n/a | blocked (mixed content) |
 | Proxy | preference (later) | browser/system only |
+
+### 7.5 Error wording — `core/execution/errors.ts`
+Transports report a coarse `kind`, a message and the raw `detail`; `classifyError(failure, { url, pageOrigin, timeoutMs })` adds everything shared by web and desktop:
+- `ERROR_TITLES[kind]` (the error card heading) and a default message when the transport gave none.
+- `cors-suspected` + `isMixedContent(pageOrigin, url)` → `mixed-content`. `ExecutionContext.pageOrigin` is set by the UI for the `fetch` transport only.
+- `timeout` names the limit that applied ("timed out after 1 s").
+- A standard hint per kind (CORS in three sentences suggesting the desktop app or enabling CORS; mixed content suggesting Pigeon web on localhost or the desktop app; TLS pointing at "Verify TLS certificates"; …) unless the transport gave a more specific one.
+- An aborted signal is always `aborted`, whatever the transport threw. The UI shows it as a quiet "Cancelled", not an error card.
 
 ## 8. Cancellation, timeouts, concurrency
 

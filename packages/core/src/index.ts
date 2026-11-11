@@ -36,7 +36,17 @@ export {
   syncUrlFromRaw,
 } from './model/url';
 
-export { RequestExecutor, toExecutionError } from './execution/executor';
+export { RequestExecutor } from './execution/executor';
+export type { ErrorContext, RawFailure } from './execution/errors';
+export {
+  classifyError,
+  CORS_HINT,
+  ERROR_TITLES,
+  isMixedContent,
+  MIXED_CONTENT_HINT,
+  toExecutionError,
+} from './execution/errors';
+export { maskHeaders, maskSecrets, SECRET_MASK } from './execution/mask';
 export type { BodyEncoding, EncodedBody } from './execution/body';
 export {
   encodeBody,

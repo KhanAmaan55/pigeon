@@ -1,6 +1,7 @@
 import type {
   Body,
   BodyMode,
+  ExecutionPreferences,
   ExecutionResult,
   KeyValue,
   Request,
@@ -9,6 +10,7 @@ import type {
 import {
   createExecutionContext,
   createRequest,
+  DEFAULT_PREFERENCES,
   emptyBody,
   RequestExecutor,
   syncQueryIntoRaw,
@@ -40,13 +42,25 @@ export interface ScratchRequestState {
   setBodyMode: (mode: BodyMode) => void;
   /** `undefined` resets a setting to the preference default. */
   setSettings: (patch: Partial<RequestSettings>) => void;
-  /** Sends the request; a send while one is in flight supersedes it. */
+  /** Sends the request; a send while one is in flight cancels and supersedes it. */
   send: () => Promise<void>;
+  /** Cancels the in-flight request; its result becomes a quiet "Cancelled". */
+  cancel: () => void;
 }
 
 export type ScratchRequestStore = ReturnType<typeof createScratchRequestStore>;
 
-export function createScratchRequestStore(platform: Pick<Platform, 'transport' | 'capabilities'>) {
+export interface ScratchRequestEnvironment {
+  /** Current app preferences (default timeout, …); `DEFAULT_PREFERENCES` when absent. */
+  preferences?: () => ExecutionPreferences | undefined;
+  /** Origin of the page requests are sent from, for error classification (mixed content). */
+  pageOrigin?: () => string | undefined;
+}
+
+export function createScratchRequestStore(
+  platform: Pick<Platform, 'transport' | 'capabilities'>,
+  env: ScratchRequestEnvironment = {},
+) {
   const executor = new RequestExecutor(platform.transport);
   let inFlight: AbortController | null = null;
 
@@ -88,11 +102,20 @@ export function createScratchRequestStore(platform: Pick<Platform, 'transport' |
         const controller = new AbortController();
         inFlight = controller;
         set({ status: 'sending' });
-        const ctx = createExecutionContext({ capabilities: platform.capabilities });
+        const pageOrigin =
+          platform.capabilities.transport === 'fetch' ? env.pageOrigin?.() : undefined;
+        const ctx = createExecutionContext({
+          capabilities: platform.capabilities,
+          preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
+          ...(pageOrigin === undefined ? {} : { pageOrigin }),
+        });
         const result = await executor.execute(get().request, ctx, { signal: controller.signal });
         if (inFlight !== controller) return; // superseded by a newer send
         inFlight = null;
         set({ status: 'idle', result });
+      },
+      cancel: () => {
+        inFlight?.abort(new DOMException('The request was cancelled.', 'AbortError'));
       },
     };
   });

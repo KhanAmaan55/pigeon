@@ -10,12 +10,6 @@ import type {
 } from '@pigeon/platform';
 import { isForbiddenHeader, isForbiddenMethod, TransportError } from '@pigeon/platform';
 
-const CORS_HINT =
-  'The browser blocked the request or could not reach the server, and does not say why. ' +
-  'Likely causes: the server does not allow cross-origin requests (CORS), the network or ' +
-  'server is down, the host name does not resolve, or the TLS certificate is not trusted. ' +
-  'The desktop app is not subject to CORS.';
-
 export interface FetchTransportOptions {
   /** Defaults to the global `fetch`. */
   fetch?: typeof fetch;
@@ -92,6 +86,20 @@ export class FetchTransport implements Transport {
         break;
     }
 
+    // One signal for fetch: the caller's cancel or Pigeon's own timeout (`0` = none).
+    const timeoutMs = req.settings.timeoutMs;
+    const controller = new AbortController();
+    let timedOut = false;
+    const onAbort = () => controller.abort(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    const timer =
+      timeoutMs > 0
+        ? setTimeout(() => {
+            timedOut = true;
+            controller.abort(new DOMException('The request timed out.', 'TimeoutError'));
+          }, timeoutMs)
+        : undefined;
+
     const startedAt = Date.now();
     const start = this.#now();
     let response: Response;
@@ -101,7 +109,7 @@ export class FetchTransport implements Transport {
         method: req.method,
         headers,
         ...(body === undefined ? {} : { body }),
-        signal,
+        signal: controller.signal,
         redirect: 'follow',
         cache: 'no-store',
         credentials: 'omit',
@@ -109,15 +117,21 @@ export class FetchTransport implements Transport {
       bytes = new Uint8Array(await response.arrayBuffer());
     } catch (error) {
       if (signal.aborted) throw signal.reason;
-      // fetch reports every network-level failure as a bare TypeError (PIGN-011 refines this).
+      if (timedOut) {
+        throw fail('timeout', `The request timed out after ${timeoutMs} ms.`, { cause: error });
+      }
+      // fetch reports every network-level failure as a bare TypeError: CORS, DNS, refused
+      // connections, untrusted certificates and mixed content look the same. Core refines it.
       if (error instanceof TypeError) {
         throw fail('cors-suspected', 'The request was blocked or could not reach the server.', {
           detail: error.message,
-          hint: CORS_HINT,
           cause: error,
         });
       }
       throw fail('unknown', 'The request failed.', { detail: String(error), cause: error });
+    } finally {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
     }
     const totalMs = Math.max(0, this.#now() - start);
 

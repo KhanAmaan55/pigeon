@@ -28,6 +28,11 @@ export interface ExecutionContext {
   environmentId: Id | null;
   preferences: ExecutionPreferences;
   capabilities: Readonly<Capabilities>;
+  /**
+   * Origin of the page requests are sent from, when that matters (web: an https page cannot
+   * call http APIs). Used to classify errors only.
+   */
+  pageOrigin?: string;
 }
 
 export function createExecutionContext(
@@ -38,6 +43,7 @@ export function createExecutionContext(
     environmentId: init.environmentId ?? null,
     preferences: init.preferences ?? { ...DEFAULT_PREFERENCES },
     capabilities: init.capabilities,
+    ...(init.pageOrigin === undefined ? {} : { pageOrigin: init.pageOrigin }),
   };
 }
 

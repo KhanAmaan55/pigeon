@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MainArea } from '../src/app/MainArea';
 import { PlatformProvider } from '../src/app/PlatformProvider';
+import { TooltipProvider } from '../src/components/Tooltip';
 import { RequestEditor } from '../src/features/request-editor/RequestEditor';
 import { ScratchRequestProvider } from '../src/features/request-editor/ScratchRequestProvider';
 import { ResponseViewer } from '../src/features/response-viewer/ResponseViewer';
@@ -26,10 +27,12 @@ async function respond(reply: MockResponseInit, capabilities: Partial<Capabiliti
   const platform = createMemoryPlatform({ transport, capabilities, os: 'linux' });
   render(
     <PlatformProvider platform={platform}>
-      <ScratchRequestProvider>
-        <RequestEditor />
-        <ResponseViewer />
-      </ScratchRequestProvider>
+      <TooltipProvider>
+        <ScratchRequestProvider>
+          <RequestEditor />
+          <ResponseViewer />
+        </ScratchRequestProvider>
+      </TooltipProvider>
     </PlatformProvider>,
   );
   const user = userEvent.setup();
@@ -260,10 +263,12 @@ describe('response dock', () => {
     const transport = new MockTransport().on(() => true, { body: 'ok' });
     render(
       <PlatformProvider platform={createMemoryPlatform({ transport, os: 'macos' })}>
-        <ScratchRequestProvider>
-          <RequestEditor />
-          <ResponseViewer dock="right" onToggleDock={onToggleDock} />
-        </ScratchRequestProvider>
+        <TooltipProvider>
+          <ScratchRequestProvider>
+            <RequestEditor />
+            <ResponseViewer dock="right" onToggleDock={onToggleDock} />
+          </ScratchRequestProvider>
+        </TooltipProvider>
       </PlatformProvider>,
     );
     const user = userEvent.setup();

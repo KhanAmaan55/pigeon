@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-011 | 1 — First request | MVP | Todo | PIGN-007, PIGN-010 |
+| PIGN-011 | 1 — First request | MVP | Done | PIGN-007, PIGN-010 |
 
 ## Goal
 Robust request lifecycle: cancel in-flight requests, timeouts, redirect settings, and clear, platform-aware error messages (especially CORS and mixed content on web).
@@ -28,12 +28,12 @@ As a developer, I want to cancel slow requests and understand why a request fail
 - Proxy settings, client certificates, retry policies.
 
 ## Acceptance criteria
-- [ ] `/delay/5000` can be cancelled; result shows "Cancelled", no error card spam.
-- [ ] Timeout of 1000 ms on `/delay/3000` shows a `timeout` error on web and desktop.
-- [ ] Desktop: `followRedirects=false` on `/redirect/1` shows the 302 response with `Location`; `maxRedirects=2` on `/redirect/5` shows a "too many redirects" error.
-- [ ] Desktop: self-signed HTTPS fails with `tls` error; succeeds with `strictSSL=false`.
-- [ ] Web: `/cors/none` shows CORS card with hint; a simulated mixed-content case is classified correctly (unit test with injected origin).
-- [ ] Settings tab disables redirect/TLS controls on web with an explanatory tooltip.
+- [x] `/delay/5000` can be cancelled; result shows "Cancelled", no error card spam.
+- [x] Timeout of 1000 ms on `/delay/3000` shows a `timeout` error on web and desktop.
+- [x] Desktop: `followRedirects=false` on `/redirect/1` shows the 302 response with `Location`; `maxRedirects=2` on `/redirect/5` shows a "too many redirects" error.
+- [x] Desktop: self-signed HTTPS fails with `tls` error; succeeds with `strictSSL=false`.
+- [x] Web: `/cors/none` shows CORS card with hint; a simulated mixed-content case is classified correctly (unit test with injected origin).
+- [x] Settings tab disables redirect/TLS controls on web with an explanatory tooltip.
 
 ## Technical notes
 - Classification lives in `core/execution/errors.ts` (inputs: transport error code + context) so web/desktop share wording.

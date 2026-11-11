@@ -1,6 +1,6 @@
-import type { ExecutionError, ExecutionResult, NormalizedResponse } from '@pigeon/core';
+import type { ExecutionResult, NormalizedResponse } from '@pigeon/core';
 import {
-  CircleAlert,
+  CircleSlash,
   Copy,
   FileDown,
   LoaderCircle,
@@ -16,8 +16,10 @@ import { usePlatform } from '../../app/PlatformProvider';
 import { useScratchRequest } from '../request-editor/ScratchRequestProvider';
 import { suggestFileName } from './body-view';
 import { CopyButton } from './CopyButton';
+import { ErrorCard } from './ErrorCard';
 import { HeadersTable } from './HeadersTable';
 import { StatusLine } from './StatusLine';
+import { TimelineTab } from './TimelineTab';
 
 export type ResponseDock = 'bottom' | 'right';
 
@@ -25,8 +27,8 @@ export type ResponseDock = 'bottom' | 'right';
 const BodyView = lazy(async () => ({ default: (await import('./BodyView')).BodyView }));
 
 /**
- * The latest result (docs/ui-ux.md §3.5): status line, warnings, error card, and Body / Headers
- * tabs with copy, save and the dock toggle.
+ * The latest result (docs/ui-ux.md §3.5): status line, warnings, error card (or a quiet
+ * "Cancelled"), and Body / Headers / Timeline tabs with copy, save and the dock toggle.
  */
 export function ResponseViewer({
   dock = 'bottom',
@@ -65,8 +67,14 @@ export function ResponseViewer({
           {result.response && (
             <StatusLine response={result.response} transport={result.transport} />
           )}
-          {result.warnings.length > 0 && <Warnings warnings={result.warnings} />}
-          {result.error && <ErrorCard error={result.error} />}
+          {result.error?.kind === 'aborted' ? (
+            <Cancelled />
+          ) : (
+            <>
+              {result.warnings.length > 0 && <Warnings warnings={result.warnings} />}
+              {result.error && <ErrorCard error={result.error} />}
+            </>
+          )}
           {result.response && (
             <ResponseTabs
               key={result.id}
@@ -99,29 +107,16 @@ function Warnings({ warnings }: { warnings: string[] }) {
   );
 }
 
-function ErrorCard({ error }: { error: ExecutionError }) {
+/** A cancel is the user's own doing: a muted note, not an error card. */
+function Cancelled() {
   return (
-    <div className="p-3">
-      <div
-        role="alert"
-        data-testid="response-error"
-        data-kind={error.kind}
-        className="flex flex-col gap-1.5 rounded border border-fail/40 bg-bg p-3 text-sm"
-      >
-        <div className="flex items-center gap-2 font-semibold text-fail">
-          <CircleAlert size={16} aria-hidden />
-          <span>{error.message}</span>
-        </div>
-        <code data-testid="response-error-kind" className="font-mono text-xs text-fg-muted">
-          {error.kind}
-        </code>
-        {error.hint && <p className="text-fg-muted">{error.hint}</p>}
-        {error.detail && (
-          <pre className="font-mono text-xs break-all whitespace-pre-wrap text-fg-muted">
-            {error.detail}
-          </pre>
-        )}
-      </div>
+    <div
+      role="status"
+      data-testid="response-cancelled"
+      className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5 text-sm text-fg-muted"
+    >
+      <CircleSlash size={14} aria-hidden />
+      Cancelled
     </div>
   );
 }
@@ -200,6 +195,9 @@ function ResponseTabs({
               {response.headers.length}
             </span>
           </ResponseTab>
+          <ResponseTab value="timeline" testId="response-timeline-tab">
+            Timeline
+          </ResponseTab>
         </Tabs.List>
         <div className="ml-auto flex items-center gap-1">
           {saveState.kind !== 'idle' && (
@@ -249,6 +247,12 @@ function ResponseTabs({
         className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
       >
         <HeadersTable headers={response.headers} restricted={response.headersRestricted} />
+      </Tabs.Content>
+      <Tabs.Content
+        value="timeline"
+        className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+      >
+        <TimelineTab result={result} response={response} />
       </Tabs.Content>
     </Tabs.Root>
   );

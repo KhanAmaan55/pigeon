@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { PlatformProvider } from '../src/app/PlatformProvider';
+import { TooltipProvider } from '../src/components/Tooltip';
 import { RequestEditor } from '../src/features/request-editor/RequestEditor';
 import { ScratchRequestProvider } from '../src/features/request-editor/ScratchRequestProvider';
 import { ResponseViewer } from '../src/features/response-viewer/ResponseViewer';
@@ -28,10 +29,12 @@ function renderEditor(capabilities: Partial<Capabilities> = {}) {
   const platform = createMemoryPlatform({ transport, capabilities });
   render(
     <PlatformProvider platform={platform}>
-      <ScratchRequestProvider>
-        <RequestEditor />
-        <ResponseViewer />
-      </ScratchRequestProvider>
+      <TooltipProvider>
+        <ScratchRequestProvider>
+          <RequestEditor />
+          <ResponseViewer />
+        </ScratchRequestProvider>
+      </TooltipProvider>
     </PlatformProvider>,
   );
   const user = userEvent.setup();

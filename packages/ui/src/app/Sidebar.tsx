@@ -1,4 +1,5 @@
 import { Diagnostics } from '../features/settings/Diagnostics';
+import { RequestDefaults } from '../features/settings/RequestDefaults';
 import type { SidebarView } from './views';
 import { SIDEBAR_VIEW_TITLES } from './views';
 
@@ -15,6 +16,7 @@ export function Sidebar({ view }: { view: SidebarView }) {
       </header>
       {view === 'settings' ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
+          <RequestDefaults />
           <Diagnostics />
         </div>
       ) : (

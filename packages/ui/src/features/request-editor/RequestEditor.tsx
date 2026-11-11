@@ -1,6 +1,7 @@
-import { Send } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 import { Tabs } from 'radix-ui';
 import type { KeyboardEvent, ReactNode } from 'react';
+import { useEffect } from 'react';
 
 import { hasBody } from '@pigeon/core';
 
@@ -30,7 +31,20 @@ export function RequestEditor() {
     (s) => s.request.headers.filter((h) => !h.disabled && h.key.trim() !== '').length,
   );
   const send = useScratchRequest((s) => s.send);
+  const cancel = useScratchRequest((s) => s.cancel);
   const shortcut = usePlatform().os === 'macos' ? '⌘↵' : 'Ctrl+Enter';
+
+  // Esc cancels the in-flight request, unless something else (a menu, a dialog) handled it.
+  useEffect(() => {
+    if (!sending) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      event.preventDefault();
+      cancel();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [sending, cancel]);
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -77,15 +91,34 @@ export function RequestEditor() {
           autoCapitalize="off"
           className="h-8 min-w-0 flex-1 rounded border border-border bg-bg px-2 font-mono text-sm text-fg placeholder:text-fg-muted"
         />
-        <button
-          type="submit"
-          data-testid="send-button"
-          title={`Send (${shortcut})`}
-          className="inline-flex h-8 items-center gap-1.5 rounded bg-accent px-3 text-sm font-semibold text-accent-fg hover:opacity-90 disabled:opacity-60"
-        >
-          <Send size={14} aria-hidden />
-          {sending ? 'Sending…' : 'Send'}
-        </button>
+        {/*
+          Distinct keys: reusing one element would let a Cancel click that settles the request
+          synchronously turn into a submit (and a new send) before its default action runs.
+        */}
+        {sending ? (
+          <button
+            key="cancel"
+            type="button"
+            data-testid="cancel-button"
+            title="Cancel (Esc)"
+            onClick={cancel}
+            className="inline-flex h-8 items-center gap-1.5 rounded border border-border bg-surface px-3 text-sm font-semibold text-fg hover:bg-hover"
+          >
+            <X size={14} aria-hidden />
+            Cancel
+          </button>
+        ) : (
+          <button
+            key="send"
+            type="submit"
+            data-testid="send-button"
+            title={`Send (${shortcut})`}
+            className="inline-flex h-8 items-center gap-1.5 rounded bg-accent px-3 text-sm font-semibold text-accent-fg hover:opacity-90 disabled:opacity-60"
+          >
+            <Send size={14} aria-hidden />
+            Send
+          </button>
+        )}
       </form>
       <Tabs.Root defaultValue="params" className="flex min-h-0 flex-1 flex-col">
         <Tabs.List

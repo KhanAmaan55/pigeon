@@ -14,7 +14,7 @@ await fetch(`${server.url}/echo`);
 await server.close(); // also drops open connections, e.g. a pending /delay
 ```
 
-As a process (E2E, Rust `cargo test`): `pnpm --filter @pigeon/test-server start` serves on `http://127.0.0.1:4010` until stopped. To override, set `PIGEON_TEST_SERVER_PORT` (`0` = any free port) and `PIGEON_TEST_SERVER_HOST`. With `PIGEON_TEST_SERVER_EXIT_ON_STDIN_END=1` it also exits when its stdin closes, so a parent process that spawns it (Rust `cargo test` does) can't leave it running. The script runs the TypeScript sources directly with Node's type stripping, so there's no build step. Playwright starts it as a `webServer` (see `playwright.config.ts`).
+As a process (E2E, Rust `cargo test`): `pnpm --filter @pigeon/test-server start` serves on `http://127.0.0.1:4010` until stopped. To override, set `PIGEON_TEST_SERVER_PORT` (`0` = any free port) and `PIGEON_TEST_SERVER_HOST`; set `PIGEON_TEST_SERVER_HTTPS_PORT` to also serve HTTPS (see [HTTPS](#https)). With `PIGEON_TEST_SERVER_EXIT_ON_STDIN_END=1` it also exits when its stdin closes, so a parent process that spawns it (Rust `cargo test` does) can't leave it running. The script runs the TypeScript sources directly with Node's type stripping, so there's no build step. Playwright starts it as a `webServer` (see `playwright.config.ts`).
 
 ## Conventions
 
@@ -98,4 +98,8 @@ type Query {
 
 Introspection works. GraphQL errors (syntax, validation, resolver) come back as `200` with an `errors` array. A malformed HTTP request (bad JSON, missing `query`) gets `400`, and any method other than `GET`/`POST` gets `405`. The users are exported as `USERS`, and the error message as `GRAPHQL_ERROR_MESSAGE`.
 
-HTTPS endpoints are out of scope for now (PIGN-011 adds them if TLS tests need them).
+## HTTPS
+
+`startTestServer({ https: true })` serves the same endpoints over TLS (`https://127.0.0.1:<port>`) with a committed self-signed certificate (`src/https.ts`, ECDSA P-256, valid for `localhost`, `127.0.0.1` and `::1` until 2126). Nothing trusts it, so a strict client fails with a certificate error, which is what TLS tests check; a client that disables verification (`strictSSL: false`), or trusts `TEST_SERVER_CERT` as a CA, gets normal responses.
+
+The CLI also starts it when `PIGEON_TEST_SERVER_HTTPS_PORT` is set (`0` = any free port), printing a second `Pigeon test server listening on https://…` line. Rust `cargo test` uses this.

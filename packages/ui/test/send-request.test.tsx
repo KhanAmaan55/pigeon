@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { PlatformProvider } from '../src/app/PlatformProvider';
+import { TooltipProvider } from '../src/components/Tooltip';
 import { RequestEditor } from '../src/features/request-editor/RequestEditor';
 import { ScratchRequestProvider } from '../src/features/request-editor/ScratchRequestProvider';
 import { ResponseViewer } from '../src/features/response-viewer/ResponseViewer';
@@ -21,10 +22,12 @@ function renderEditor(
   const platform = createMemoryPlatform({ transport, os, capabilities });
   render(
     <PlatformProvider platform={platform}>
-      <ScratchRequestProvider>
-        <RequestEditor />
-        <ResponseViewer />
-      </ScratchRequestProvider>
+      <TooltipProvider>
+        <ScratchRequestProvider>
+          <RequestEditor />
+          <ResponseViewer />
+        </ScratchRequestProvider>
+      </TooltipProvider>
     </PlatformProvider>,
   );
   return userEvent.setup();
@@ -126,7 +129,9 @@ describe('scratch request editor', () => {
 
     await user.type(screen.getByTestId('url-input'), 'http://localhost/slow{enter}');
     expect(await screen.findByTestId('response-loading')).toBeTruthy();
-    expect(screen.getByTestId('send-button').textContent).toContain('Sending…');
+    // Send turns into Cancel while in flight.
+    expect(screen.queryByTestId('send-button')).toBeNull();
+    expect(screen.getByTestId('cancel-button').textContent).toContain('Cancel');
 
     finish?.();
     expect((await screen.findByTestId('response-status')).textContent).toContain('204 No Content');
