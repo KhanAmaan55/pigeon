@@ -78,8 +78,14 @@
     if (text('response-error')) throw new Error(`native request failed: ${text('response-error')}`);
     if (text('response-status') !== '200 OK') throw new Error(`status: ${text('response-status')}`);
     if (text('response-transport') !== 'Native') throw new Error('transport badge is not Native');
-    // The probe target echoes the request head it received.
-    const echoed = text('response-body') ?? '';
+    // The probe target echoes the request head it received. The body view is a lazy chunk that
+    // renders after the status line, so wait for its text.
+    // CodeMirror renders one element per line, so `textContent` would run them together.
+    const echoed = await waitFor('response body', () =>
+      [...(find('response-body')?.querySelectorAll('.cm-line') ?? [])]
+        .map((line) => line.textContent)
+        .join('\n'),
+    );
     const lines = echoed.split('\n').map((line) => line.toLowerCase());
     if (lines[0] !== 'native-ok') throw new Error(`unexpected response body: ${echoed}`);
     if (lines[1] !== 'get /smoke/42 http/1.1') throw new Error(`path variable not sent: ${echoed}`);
