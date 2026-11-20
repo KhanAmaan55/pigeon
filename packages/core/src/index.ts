@@ -78,6 +78,16 @@ export {
 export type { ImportReport } from '@pigeon/formats';
 export { statusText } from './execution/status';
 export type {
+  RunDeps,
+  RunEntry,
+  RunEvent,
+  RunOptions,
+  RunOutcome,
+  RunReport,
+  RunTarget,
+} from './runner/runner';
+export { rememberRunReport, RUN_REPORTS_LIMIT, runRegression, runTargets } from './runner/runner';
+export type {
   BodyComparisonInput,
   BodyComparisonSettings,
   ComparisonOutcome,

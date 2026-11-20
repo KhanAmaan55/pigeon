@@ -339,6 +339,38 @@ interface Finding {
 }
 ```
 
+### 7.3 Run reports (local, PIGN-038)
+
+A regression run (`core/runner`) produces a `RunReport`. Reports are local state (`runReports`, newest first, last 20); **Export report (JSON)** writes the same object. Entries carry finding counts, not findings; URLs are masked (an entry whose URL had a secret too short to mask has no `url`).
+
+```ts
+type RunOutcome = 'pass' | 'warn' | 'fail' | 'no-baseline' | 'error' | 'skipped';
+interface RunReport {
+  pigeonRunReport: 1;                  // format version
+  id: Id;
+  scope: { kind: 'collection' | 'folder'; id: Id; name: string };
+  environment: { id: Id; name: string } | null;
+  transport: 'native' | 'fetch' | 'node' | string;
+  startedAt: string; finishedAt: string; // ISO 8601
+  durationMs: number;
+  options: { stopOnFail: boolean; onlyWithBaseline: boolean };
+  cancelled: boolean;                  // Cancel: the rest is "skipped"
+  stoppedOnFail: boolean;              // stopped after the first fail/error: the rest is "skipped"
+  totals: Record<RunOutcome, number>;
+  entries: RunEntry[];                 // explorer order
+}
+interface RunEntry {
+  requestId: Id; name: string; method: string;
+  folders: string[];                   // folder names from the scope down to the request
+  outcome: RunOutcome;                 // no-baseline also covers comparison off / pinned example missing
+  url?: string;                        // as sent, secrets masked
+  status?: number; timeMs?: number;
+  exampleId?: Id; exampleName?: string; // the baseline compared with
+  counts?: { fail: number; warn: number; info: number; ignored: number };
+  message?: string;                    // error message, or why nothing was compared
+}
+```
+
 ## 8. Execution
 
 `PreparedRequest`, `RawResponse`, `ExecutionResult` — see [api-execution.md](api-execution.md). `ExecutionResult` is local state only.
@@ -358,7 +390,7 @@ interface LocalProjectState {
   layout: { responsePanel: 'bottom' | 'right' };
   lastResults: Record<Id /* requestId */, StoredExecutionResult>; // bounded, see file-format.md
   lastComparisons: Record<Id, ComparisonResult>;
-  runReports: RunReportSummary[];     // bounded (last 20)
+  runReports: RunReport[];           // newest first, bounded (last 20), see §7.3
   conflicts: Conflict[];
 }
 

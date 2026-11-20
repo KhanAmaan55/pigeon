@@ -2326,3 +2326,141 @@ describe('accepting baselines (PIGN-037)', () => {
     expect(within(row('200 OK')).queryByTestId('explorer-baseline')).toBeNull();
   });
 });
+
+describe('regression runs (PIGN-038)', () => {
+  it('runs a collection, opens a row, accepts selected baselines, re-runs and exports', async () => {
+    let reply: unknown = { id: 1, name: 'Ada' };
+    const transport = new MockTransport().on({ url: /./ }, () => ({
+      headers: [['Content-Type', 'application/json']],
+      body: JSON.stringify(reply),
+    }));
+    const { platform } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await user.dblClick(screen.getByText('List users'));
+    await user.click(screen.getByTestId('send-button'));
+    await user.click(await screen.findByTestId('save-as-example'));
+    await waitFor(() =>
+      expect(screen.getByTestId('comparison-badge').getAttribute('data-outcome')).toBe('pass'),
+    );
+
+    reply = { id: 1, fullName: 'Ada' };
+    fireEvent.contextMenu(screen.getByText('Users API'));
+    fireEvent.click(await screen.findByTestId('menu-run'));
+    const dialog = await screen.findByTestId('run-dialog');
+    expect((within(dialog).getByTestId('run-scope') as HTMLSelectElement).value).toBe(
+      'users-collection',
+    );
+    fireEvent.click(within(dialog).getByTestId('run-start'));
+
+    const rows = () => screen.getAllByTestId('run-row');
+    await waitFor(() =>
+      expect(screen.getByTestId('run-status').getAttribute('data-status')).toBe('done'),
+    );
+    expect(tabNames()).toContain('Runner');
+    expect(rows().map((row) => within(row).getByTestId('run-row-name').textContent)).toEqual([
+      'List users',
+      'Admin / Delete user',
+      'Admin / Nested / Get audit log',
+      'Create user',
+    ]);
+    expect(rows().map((row) => row.getAttribute('data-outcome'))).toEqual([
+      'fail',
+      'no-baseline',
+      'no-baseline',
+      'error',
+    ]);
+    // Create user posts a body file that isn't in the project.
+    expect(rows()[3]!.querySelector('[title]')?.getAttribute('title')).toBe(
+      'The project file "fixtures/avatar.png" cannot be read.',
+    );
+    expect(screen.getByTestId('run-total-fail').textContent).toBe('1 fail');
+    expect(screen.getByTestId('run-total-error').textContent).toBe('1 error');
+    expect(transport.requests).toHaveLength(4);
+
+    // A row opens the request with the run's result and comparison.
+    fireEvent.click(within(rows()[0]!).getByTestId('run-row-name'));
+    await waitFor(() =>
+      expect(screen.getByTestId('comparison-badge').getAttribute('data-outcome')).toBe('fail'),
+    );
+    expect(transport.requests).toHaveLength(4);
+
+    // Accept selected as baselines, then the re-run passes.
+    fireEvent.click(screen.getByText('Runner'));
+    fireEvent.click(await screen.findByTestId('run-row-select'));
+    fireEvent.click(screen.getByTestId('run-accept'));
+    expect(await screen.findByTestId('run-accepted')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('run-again'));
+    await waitFor(() => expect(transport.requests).toHaveLength(7));
+    await waitFor(() =>
+      expect(screen.getByTestId('run-status').getAttribute('data-status')).toBe('done'),
+    );
+    expect(rows()[0]!.getAttribute('data-outcome')).toBe('pass');
+
+    fireEvent.click(screen.getByTestId('run-export'));
+    await waitFor(() => expect(platform.files.saved).toHaveLength(1));
+    const saved = platform.files.saved[0]!;
+    expect(saved.name).toMatch(/^run-Users-API-.*\.json$/);
+    const report = JSON.parse(saved.data as string);
+    expect(report).toMatchObject({
+      pigeonRunReport: 1,
+      scope: { kind: 'collection', id: 'users-collection', name: 'Users API' },
+      totals: { pass: 1, 'no-baseline': 2, error: 1 },
+    });
+
+    // Both runs are listed in the Runner view; the older one opens as a stored report.
+    await user.click(screen.getByTestId('activity-runner'));
+    const reports = await screen.findAllByTestId('runner-report');
+    expect(reports).toHaveLength(2);
+    fireEvent.click(reports[1]!);
+    await waitFor(() => expect(rows()[0]!.getAttribute('data-outcome')).toBe('fail'));
+    expect(screen.queryByTestId('run-accept')).toBeNull();
+  });
+});
+
+describe('long regression runs (PIGN-038)', () => {
+  it('runs 200 requests while the event loop keeps running', async () => {
+    const transport = new MockTransport().on({ url: /./ }, () => ({
+      headers: [['Content-Type', 'application/json']],
+      body: '{"ok":true}',
+    }));
+    const { platform } = await fixturePlatform(transport);
+    const appStore = createAppStore(platform);
+    render(<PigeonApp platform={platform} appStore={appStore} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    const session = appStore.getState().project!.session;
+    act(() => {
+      session.apply({ type: 'createCollection', id: 'many', name: 'Many' });
+      for (let i = 0; i < 200; i++) {
+        session.apply({
+          type: 'createRequest',
+          id: `many-${i}`,
+          parentId: 'many',
+          name: `Request ${i}`,
+          request: {
+            url: { raw: `http://api.test/${i}`, query: [], pathVariables: [], extra: {} },
+          },
+        });
+      }
+    });
+
+    // Timer ticks keep arriving during the run (the run yields between requests).
+    let ticks = 0;
+    const timer = setInterval(() => (ticks += 1), 0);
+    fireEvent.contextMenu(await screen.findByText('Many'));
+    fireEvent.click(await screen.findByTestId('menu-run'));
+    fireEvent.click(await screen.findByTestId('run-start'));
+    await waitFor(
+      () => expect(screen.getByTestId('run-status').getAttribute('data-status')).toBe('done'),
+      { timeout: 30_000 },
+    );
+    clearInterval(timer);
+    expect(screen.getAllByTestId('run-row')).toHaveLength(200);
+    expect(screen.getByTestId('run-total-no-baseline').textContent).toBe('200 no baseline');
+    expect(ticks).toBeGreaterThan(50);
+  }, 60_000);
+});

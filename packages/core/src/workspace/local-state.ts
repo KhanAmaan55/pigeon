@@ -7,6 +7,7 @@
  */
 
 import type { ComparisonResult } from '../comparison/comparison-service';
+import type { RunReport } from '../runner/runner';
 import type { AppStateNamespace, AppStateStore } from '@pigeon/platform';
 
 import { z } from '../model/zod';
@@ -31,6 +32,8 @@ export interface LocalProjectState {
   selectedEnvironmentId?: string | null;
   /** Variable current values by scope (`env:<id>`, `collection:<id>`, `globals`); never in files. */
   currentValues?: Record<string, Record<string, string>>;
+  /** Regression run reports, newest first (PIGN-038), at most 20; never in files. */
+  runReports?: RunReport[];
   /** Latest comparison per request (PIGN-034), bounded; never in files. */
   lastComparisons?: Record<string, ComparisonResult>;
   /** Keys added by later stories, preserved as they are. */

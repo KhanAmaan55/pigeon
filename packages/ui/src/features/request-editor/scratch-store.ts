@@ -148,6 +148,12 @@ export interface ScratchRequestState {
     overrides: () => ComparisonOverrides;
     setOverrides: (patch: ComparisonOverrides) => void;
   } | null;
+  /** Shows a result produced elsewhere (a run) as the latest one, with its comparison. */
+  showResult: (
+    result: ExecutionResult,
+    comparison: ComparisonOutcome | undefined,
+    secrets: readonly string[],
+  ) => void;
   /** Sends the request; a send while one is in flight cancels and supersedes it. */
   send: () => Promise<void>;
   /** Cancels the in-flight request; its result becomes a quiet "Cancelled". */
@@ -303,6 +309,10 @@ export function createScratchRequestStore(
           if (value === undefined) delete settings[key];
         }
         update({ settings: settings as RequestSettings });
+      },
+      showResult: (result, comparison, secrets) => {
+        lastSecrets = secrets;
+        set({ result, comparison: comparison ? { status: 'done', outcome: comparison } : null });
       },
       send: async () => {
         inFlight?.abort();

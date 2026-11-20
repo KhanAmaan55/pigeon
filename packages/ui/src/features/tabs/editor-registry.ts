@@ -5,20 +5,16 @@
 
 import type { ProjectRequest, ProjectSession, Request, VariableScopes } from '@pigeon/core';
 import {
-  bodyComparisonInput,
   buildScopes,
-  comparisonResult,
-  effectiveComparison,
   inheritedAuth,
   projectRules,
-  resolveBaseline,
   scriptsNotRun,
   uniqueExampleName,
   upsertRule,
   withBaseline,
 } from '@pigeon/core';
 import { isEmptyComparison } from '@pigeon/formats';
-import { runBodyComparison } from '../compare/run-compare';
+import { compareRequestResult } from '../compare/compare-request';
 import type { Platform } from '@pigeon/platform';
 
 import type { ScratchRequestEnvironment } from '../request-editor/scratch-store';
@@ -88,18 +84,7 @@ export function getTabEditor(
         projectStore.getState().pinTab(requestId);
       },
       skippedScripts: () => scriptsNotRun(session.getWorkingModel(), requestId),
-      compare: async (result) => {
-        const request = session.findRequest(requestId);
-        if (!request || !result.response) return undefined;
-        const effective = effectiveComparison(session.getWorkingModel(), request);
-        const resolved = resolveBaseline(request, effective.baseline, result.response.status);
-        if (!('example' in resolved)) return resolved;
-        const { example } = resolved;
-        const findings = await runBodyComparison(bodyComparisonInput(example, result), effective);
-        const comparison = comparisonResult(requestId, example, result, findings);
-        projectStore.getState().setComparison(comparison);
-        return { kind: 'compared', result: comparison };
-      },
+      compare: (result) => compareRequestResult(session, projectStore, requestId, result),
       rules: () => ({
         request: session.findRequest(requestId)?.comparison?.rules ?? [],
         project: projectRules(session.getWorkingModel()),

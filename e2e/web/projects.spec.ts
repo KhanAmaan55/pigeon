@@ -973,6 +973,78 @@ test.describe('Postman export', () => {
   });
 });
 
+test.describe('regression runs', () => {
+  test('runs a folder against the test server, opens a row and exports the report', async ({
+    page,
+    browserName,
+  }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Run API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    const items = page.getByTestId('explorer-item');
+    await items.filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-folder').click();
+    await page.getByTestId('explorer-rename-input').fill('V1');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    const url = page.getByTestId('url-input');
+    const badge = page.getByTestId('comparison-badge');
+    const newRequest = async (path: string, example: boolean) => {
+      await items.filter({ hasText: 'V1' }).click({ button: 'right' });
+      await page.getByTestId('menu-new-request').click();
+      await expect(url).toBeFocused();
+      await url.fill(`${TEST_SERVER_URL}${path}`);
+      if (!example) return;
+      await page.getByTestId('send-button').click();
+      await expect(badge).toHaveAttribute('data-outcome', 'none');
+      await page.getByTestId('save-as-example').click();
+      await expect(badge).toHaveAttribute('data-outcome', 'pass');
+    };
+    await newRequest('/json/user', true);
+    await newRequest('/json/user', true);
+    // The second one changes shape since its example was saved.
+    await url.fill(`${TEST_SERVER_URL}/json/user-v2`);
+    await newRequest('/html', false);
+
+    await items.filter({ hasText: 'V1' }).click({ button: 'right' });
+    await page.getByTestId('menu-run').click();
+    await page.getByTestId('run-start').click();
+    await expect(page.getByTestId('run-status')).toHaveAttribute('data-status', 'done');
+    const rows = page.getByTestId('run-row');
+    await expect(rows).toHaveCount(3);
+    expect(await rows.evaluateAll((all) => all.map((r) => r.getAttribute('data-outcome')))).toEqual(
+      ['pass', 'fail', 'no-baseline'],
+    );
+    await expect(page.getByTestId('run-total-fail')).toHaveText('1 fail');
+
+    await rows.nth(1).getByTestId('run-row-name').click();
+    await expect(url).toHaveValue(`${TEST_SERVER_URL}/json/user-v2`);
+    await expect(badge).toHaveAttribute('data-outcome', 'fail');
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+
+    await page.getByTestId('request-tab').filter({ hasText: 'Runner' }).click();
+    // Chromium saves through the native save picker, which can't be automated.
+    if (browserName === 'chromium') return;
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('run-export').click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/^run-V1-.*\.json$/);
+    const report = JSON.parse(readFileSync((await download.path())!, 'utf8')) as Record<
+      string,
+      unknown
+    >;
+    expect(report).toMatchObject({
+      pigeonRunReport: 1,
+      scope: { kind: 'folder', name: 'V1' },
+      totals: { pass: 1, fail: 1, 'no-baseline': 1 },
+    });
+  });
+});
+
 test.describe('browser workspaces', () => {
   test('creates a workspace that survives a reload', async ({ page, browserName }) => {
     await gotoApp(page);

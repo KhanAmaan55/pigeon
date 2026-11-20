@@ -19,6 +19,8 @@ import { getTabEditor, projectScopes } from '../features/tabs/editor-registry';
 import { VariablesProvider } from '../components/VariableInput';
 import { ExampleView } from '../features/examples/ExampleView';
 import { RequestTabs } from '../features/tabs/RequestTabs';
+import { RunDialog, RunnerView } from '../features/runner/Runner';
+import { RUNNER_TAB_ID } from '../features/runner/tab';
 import type { OpenProject } from '../stores/app-store';
 import { useAppStore, useProjectState } from '../stores/AppStoreProvider';
 import { usePlatform } from './PlatformProvider';
@@ -105,7 +107,9 @@ function ProjectTabs({ project, split }: { project: OpenProject; split: React.Re
   const example = activeTabId && !request ? project.session.findExample(activeTabId) : undefined;
 
   let content: React.ReactNode;
-  if (activeTabId && example) {
+  if (activeTabId === RUNNER_TAB_ID) {
+    content = <RunnerView />;
+  } else if (activeTabId && example) {
     content = (
       <ExampleView session={project.session} store={project.store} exampleId={activeTabId} />
     );
@@ -147,6 +151,7 @@ function ProjectTabs({ project, split }: { project: OpenProject; split: React.Re
     <VariablesProvider scopes={scopes}>
       <RequestTabs project={project} />
       {content}
+      <RunDialog />
     </VariablesProvider>
   );
 }

@@ -27,6 +27,7 @@ import { locationLabel } from '../../stores/locations';
 import { methodColorClass } from '../request-editor/methods';
 import { isEmptyComparison } from '@pigeon/formats';
 import { statusClass } from '../examples/ExamplesTab';
+import { useRunner } from '../runner/Runner';
 import { ExportDialog } from '../import-export/ExportDialog';
 import { disposeTabEditor } from '../tabs/editor-registry';
 import type { DropPosition } from './actions';
@@ -82,6 +83,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<TreeRow | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
+  const runner = useRunner();
   const [drop, setDrop] = useState<{ id: string; position: DropPosition } | null>(null);
   const dragged = useRef<string | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -428,6 +430,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
                   onDelete={() => askDelete(row)}
                   onVariables={() => store.getState().openTab(row.id, { pin: true })}
                   onExport={() => setExporting(row.id)}
+                  onRun={() => runner?.getState().openDialog(row.id)}
                   onBaseline={(pin) =>
                     edit(() => {
                       const requestId = row.parentId!;
@@ -510,6 +513,7 @@ function RowMenu({
   onVariables,
   onExport,
   onBaseline,
+  onRun,
 }: {
   row: TreeRow;
   readOnly: boolean;
@@ -525,6 +529,8 @@ function RowMenu({
   onExport: () => void;
   /** Examples: pin as the request's baseline, or back to auto (PIGN-037). */
   onBaseline: (pin: boolean) => void;
+  /** Collections and folders: the run dialog for it (PIGN-038). */
+  onRun: () => void;
 }) {
   const item = (label: string, onSelect: () => void, testId: string, shortcut?: string) => (
     <ContextMenu.Item
@@ -563,6 +569,15 @@ function RowMenu({
               {item('New GraphQL request', onNewGraphql, 'menu-new-graphql')}
               {item('New folder', onNewFolder, 'menu-new-folder')}
               <ContextMenu.Separator className="my-1 h-px bg-border" />
+              {row.kind !== 'request' && !row.broken && (
+                <ContextMenu.Item
+                  data-testid="menu-run"
+                  onSelect={onRun}
+                  className="flex cursor-default items-center rounded px-2 py-1 outline-none select-none data-[highlighted]:bg-hover"
+                >
+                  Run {row.kind === 'folder' ? 'folder' : 'collection'}…
+                </ContextMenu.Item>
+              )}
               {row.kind !== 'request' && item('Variables', onVariables, 'menu-variables')}
               {row.kind !== 'request' && !row.broken && (
                 <ContextMenu.Item

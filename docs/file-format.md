@@ -261,9 +261,10 @@ Desktop layout:
   app.json                               # AppState
   projects/<projectId>/state.json        # LocalProjectState (drafts, tabs, current values, ...)
   projects/<projectId>/results/<requestId>.json   # last response per request (bounded)
-  projects/<projectId>/runs/<runId>.json          # run reports (last 20)
   logs/pigeon.log
 ```
+Run reports (last 20) are part of `state.json` (`runReports`, data-model.md §7.3): they hold counts, not findings, so they stay small.
+
 Limits (defaults): last-response bodies stored up to 1 MB each, 50 MB per project on desktop, 20 MB on web; older entries evicted LRU. State files have `schemaVersion` and are migrated forward; unreadable state is backed up (`state.json.bak-<ts>`) and reset — project files are unaffected.
 
 Keying: local state is keyed by `projectId` from `pigeon.json`. If two folders have the same id (copied project), the second opened gets a local-state key of `<projectId>@<hash(location)>` and a warning suggesting "Regenerate project id".

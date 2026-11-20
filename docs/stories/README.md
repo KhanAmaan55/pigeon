@@ -66,7 +66,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-035](PIGN-035-field-rules.md) | Field rules: optional / ignore / nullable / dynamic | 7 Comparison | MVP | 034 | Done |
 | [PIGN-036](PIGN-036-status-headers-values.md) | Status, headers & value-mode comparison | 7 Comparison | MVP | 035 | Done |
 | [PIGN-037](PIGN-037-accept-baseline.md) | Accept new baseline & baseline selection | 7 Comparison | MVP | 035 | Done |
-| [PIGN-038](PIGN-038-regression-run.md) | Collection/folder regression run & report | 7 Comparison | MVP | 037 | Todo |
+| [PIGN-038](PIGN-038-regression-run.md) | Collection/folder regression run & report | 7 Comparison | MVP | 037 | Done |
 | [PIGN-039](PIGN-039-web-deployment.md) | Web deployment & browser-limitation UX | 8 Hardening | MVP | 015, 011 | Todo |
 | [PIGN-040](PIGN-040-cross-os-filesystem.md) | Cross-OS filesystem conformance | 8 Hardening | MVP | 020 | Todo |
 | [PIGN-041](PIGN-041-desktop-packaging.md) | Desktop packaging & release builds | 8 Hardening | MVP | 040 | Todo |

@@ -1,4 +1,4 @@
-import { Bookmark, AlertTriangle, ChevronDown, Save, Variable, X } from 'lucide-react';
+import { Bookmark, AlertTriangle, ChevronDown, Play, Save, Variable, X } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { Dialog } from 'radix-ui';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,7 @@ import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { methodLabel } from '../explorer/tree';
 import { methodColorClass } from '../request-editor/methods';
 import { disposeTabEditor } from './editor-registry';
+import { RUNNER_TAB_ID } from '../runner/tab';
 
 const NO_TABS: never[] = [];
 
@@ -146,9 +147,11 @@ export function RequestTabs({ project }: { project: OpenProject }) {
               example?.name ??
               (tab.id === GLOBALS_ENTITY_ID
                 ? 'Globals'
-                : container
-                  ? `${container.name} variables`
-                  : tab.id);
+                : tab.id === RUNNER_TAB_ID
+                  ? 'Runner'
+                  : container
+                    ? `${container.name} variables`
+                    : tab.id);
             const active = tab.id === activeTabId;
             const dirty = unsaved?.[tab.id] === true;
             return (
@@ -169,7 +172,9 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                   active ? 'bg-bg text-fg' : 'text-fg-muted hover:bg-hover'
                 }`}
               >
-                {environment || container || tab.id === GLOBALS_ENTITY_ID ? (
+                {tab.id === RUNNER_TAB_ID ? (
+                  <Play size={12} className="shrink-0 text-fg-muted" aria-hidden />
+                ) : environment || container || tab.id === GLOBALS_ENTITY_ID ? (
                   <Variable size={12} className="shrink-0 text-fg-muted" aria-hidden />
                 ) : example ? (
                   <Bookmark size={12} className="shrink-0 text-fg-muted" aria-hidden />

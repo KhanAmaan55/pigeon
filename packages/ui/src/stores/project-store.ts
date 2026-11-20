@@ -12,6 +12,8 @@ import type {
   ComparisonResult,
 } from '@pigeon/core';
 import { findContainer, GLOBALS_ENTITY_ID, rememberComparison } from '@pigeon/core';
+
+import { RUNNER_TAB_ID } from '../features/runner/tab';
 import { createStore } from 'zustand';
 
 /** An open request tab. An unpinned tab is the *preview* tab (at most one, replaced by the next preview). */
@@ -96,6 +98,7 @@ export function createProjectStore(session: ProjectSession) {
   const saved = session.localState;
   const tabExists = (id: string) =>
     id === GLOBALS_ENTITY_ID ||
+    id === RUNNER_TAB_ID ||
     !!(
       session.findRequest(id) ??
       session.findEnvironment(id) ??

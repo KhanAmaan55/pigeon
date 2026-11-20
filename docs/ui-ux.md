@@ -100,6 +100,7 @@ Activity bar (left icons): Collections, Environments, Pending Changes, Runner, S
 - Run dialog: scope, environment, stop on first failure, only requests with baselines.
 - Live list with per-request status, time, outcome; click opens the comparison.
 - Summary with totals; **Accept selected as baselines**; export report JSON.
+- Opened from the explorer menu (**Run collection… / Run folder…**) or the Runner view (**New run…**); results show in a **Runner** tab. The Runner view lists recent runs (last 20); a past run opens read-only (no results kept, so no accept).
 
 ## 4. Keyboard shortcuts (defaults)
 
