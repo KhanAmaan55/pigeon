@@ -1,8 +1,9 @@
 import type { ProjectSession } from '@pigeon/core';
-import { findContainer, GLOBALS_ENTITY_ID, inheritedAuth } from '@pigeon/core';
+import { findContainer, GLOBALS_ENTITY_ID, hasScripts, inheritedAuth } from '@pigeon/core';
 
 import { useProjectState } from '../../stores/AppStoreProvider';
 import { AuthEditor } from '../auth/AuthEditor';
+import { ScriptsEditor } from '../scripts/ScriptsEditor';
 import { moveToSecret } from '../tabs/editor-registry';
 import { VariablesEditor } from './EnvironmentEditor';
 
@@ -75,6 +76,19 @@ export function ContainerSettings({
           readOnly={readOnly}
         />
       </section>
+      <details data-testid="container-scripts" className="shrink-0 border-b border-border">
+        <summary className="cursor-default px-3 py-1.5 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+          Scripts{hasScripts(container.events) ? ' ·  JS' : ''}
+        </summary>
+        <ScriptsEditor
+          events={container.events}
+          onChange={(events) =>
+            session.apply({ type: 'setContainerEvents', id: containerId, events })
+          }
+          readOnly={readOnly}
+          editorClassName="h-32"
+        />
+      </details>
       <div className="min-h-0 flex-1">
         <VariablesEditor
           session={session}

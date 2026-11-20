@@ -1,6 +1,7 @@
 /** Flattens the project tree into the rows the virtualized explorer renders. */
 
 import type { Collection, Problem, ProjectItem, ProjectModel } from '@pigeon/core';
+import { hasScripts } from '@pigeon/core';
 
 import { fuzzyMatch } from './actions';
 
@@ -15,6 +16,8 @@ export interface TreeRow {
   exampleCount?: number;
   /** Examples only: the status code. */
   code?: number;
+  /** Has pre-request or test scripts (PIGN-031). */
+  scripts?: boolean;
   hasChildren: boolean;
   expanded: boolean;
   broken: boolean;
@@ -144,6 +147,7 @@ export function flattenTree(
           // A broken file has no meaningful method.
           ...(item.broken ? {} : { method: item.method }),
           ...(item.examples.length > 0 ? { exampleCount: item.examples.length } : {}),
+          ...(hasScripts(item.events) ? { scripts: true } : {}),
           hasChildren: item.examples.length > 0,
           expanded: examplesShown,
           broken: item.broken === true,
@@ -180,6 +184,7 @@ export function flattenTree(
         kind: 'folder',
         name: item.name,
         depth,
+        ...(hasScripts(item.events) ? { scripts: true } : {}),
         hasChildren: item.children.length > 0,
         expanded: isExpanded,
         broken: item.broken === true,
@@ -218,6 +223,7 @@ function collectionRow(
     kind: 'collection',
     name: collection.name,
     depth: 0,
+    ...(hasScripts(collection.events) ? { scripts: true } : {}),
     hasChildren: collection.children.length > 0,
     expanded: expanded[collection.id] === true,
     broken: collection.broken === true,

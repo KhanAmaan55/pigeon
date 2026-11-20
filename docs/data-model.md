@@ -173,6 +173,7 @@ interface ScriptEvent {
 }
 ```
 MVP: stored, displayed, editable; **not executed** (PIGN-031). Execution: PIGN-043/044.
+Implementation: events stay the Postman objects read from the file (`events: unknown[]`), so `script.id`, `type`, `name`, `src` and unknown keys survive untouched; `readScript` / `writeScript` / `hasScripts` (`formats/src/postman/events.ts`) read and edit one script (`exec` joined with `\n`; edits normalize CRLF and split into lines, so a one-line edit is a one-line diff).
 
 ## 5. Variables and environments
 

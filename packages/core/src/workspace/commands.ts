@@ -77,6 +77,8 @@ export type EditCommand =
   | { type: 'setEnvironmentValues'; id: string; values: ProjectEnvVariable[] }
   /** Collection or folder variables (PIGN-024): a change of the container's file. */
   | { type: 'setContainerVariables'; id: string; values: ProjectEnvVariable[] }
+  /** Collection or folder scripts (`event[]`, PIGN-031). */
+  | { type: 'setContainerEvents'; id: string; events: unknown[] }
   /** Collection or folder auth (PIGN-026); `undefined` = inherit (a collection: no auth). */
   | { type: 'setContainerAuth'; id: string; auth: ProjectAuth | undefined }
   /** Project globals; the first edit creates them (and the globals file on commit). */
@@ -160,6 +162,7 @@ export function touchedIds(model: ProjectModel, command: EditCommand): string[] 
       return [command.newId];
     case 'setContainerVariables':
     case 'setContainerAuth':
+    case 'setContainerEvents':
       return [command.id];
     case 'setGlobals':
       return [GLOBALS_ENTITY_ID];
@@ -461,6 +464,15 @@ export function applyCommand(
       return updateContainer(model, command.id, (container) => ({
         ...container,
         variables: command.values,
+      }));
+
+    case 'setContainerEvents':
+      if (!findContainer(model, command.id)) {
+        throw new CommandError(`No collection or folder with id "${command.id}"`);
+      }
+      return updateContainer(model, command.id, (container) => ({
+        ...container,
+        events: command.events,
       }));
 
     case 'setContainerAuth':

@@ -44,6 +44,8 @@ export interface ExecutionContext {
   generators?: DynamicGenerators;
   /** Auth from the request's ancestors, used when the request has none (PIGN-026). */
   inheritedAuth?: Auth;
+  /** Where scripts exist that this send does not run (PIGN-031): a warning on the result. */
+  skippedScripts?: string[];
 }
 
 export function createExecutionContext(
@@ -59,6 +61,7 @@ export function createExecutionContext(
     ...(init.scopes === undefined ? {} : { scopes: init.scopes }),
     ...(init.generators === undefined ? {} : { generators: init.generators }),
     ...(init.inheritedAuth === undefined ? {} : { inheritedAuth: init.inheritedAuth }),
+    ...(init.skippedScripts === undefined ? {} : { skippedScripts: init.skippedScripts }),
   };
 }
 

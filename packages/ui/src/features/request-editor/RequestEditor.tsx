@@ -3,12 +3,14 @@ import { Tabs } from 'radix-ui';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
 
-import { hasBody } from '@pigeon/core';
+import { hasBody, hasScripts } from '@pigeon/core';
 
 import { usePlatform } from '../../app/PlatformProvider';
 import { VariableInput } from '../../components/VariableInput';
+import { useProjectState } from '../../stores/AppStoreProvider';
 import { takeUrlFocus } from '../explorer/actions';
 import { AuthTab } from './AuthTab';
+import { ScriptsTab } from './ScriptsTab';
 import { BodyTab } from './BodyTab';
 import { HeadersTab } from './HeadersTab';
 import { methodColorClass } from './methods';
@@ -23,6 +25,11 @@ export function RequestEditor() {
   const method = useScratchRequest((s) => s.request.method);
   const url = useScratchRequest((s) => s.request.url.raw);
   const auth = useScratchRequest((s) => s.request.auth);
+  const scripts = useScratchRequest((s) => s.scripts);
+  const hasScriptsTab = scripts !== null;
+  // Re-render with the model so the indicator follows script edits.
+  useProjectState((s) => s.model, null);
+  const withScripts = scripts !== null && hasScripts(scripts.read());
   const withBody = useScratchRequest((s) => hasBody(s.request.body));
   const sending = useScratchRequest((s) => s.status === 'sending');
   const setMethod = useScratchRequest((s) => s.setMethod);
@@ -165,6 +172,18 @@ export function RequestEditor() {
               />
             )}
           </TabTrigger>
+          {hasScriptsTab && (
+            <TabTrigger value="scripts" testId="scripts-tab">
+              Scripts
+              {withScripts && (
+                <span
+                  data-testid="scripts-tab-indicator"
+                  aria-label="(has scripts)"
+                  className="size-1.5 rounded-full bg-accent"
+                />
+              )}
+            </TabTrigger>
+          )}
           <TabTrigger value="settings" testId="settings-tab">
             Settings
           </TabTrigger>
@@ -181,6 +200,11 @@ export function RequestEditor() {
         <Tabs.Content value="body" className="flex min-h-0 flex-1 flex-col overflow-auto">
           <BodyTab />
         </Tabs.Content>
+        {hasScriptsTab && (
+          <Tabs.Content value="scripts" className="min-h-0 flex-1 overflow-auto">
+            <ScriptsTab />
+          </Tabs.Content>
+        )}
         <Tabs.Content value="settings" className="min-h-0 flex-1 overflow-auto">
           <SettingsTab />
         </Tabs.Content>

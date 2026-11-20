@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-031 | 5 — Examples & Postman | MVP | Todo | PIGN-028 |
+| PIGN-031 | 5 — Examples & Postman | MVP | Done | PIGN-028 |
 
 ## Goal
 Show and edit Postman pre-request and test scripts at collection, folder, and request level, stored as Postman `event[]` — without executing them yet.
@@ -25,10 +25,10 @@ As a Postman user with scripts, I want to see and keep editing them in Pigeon, s
 - Execution (PIGN-043/044), `pm` autocomplete.
 
 ## Acceptance criteria
-- [ ] Scripts fixture round-trips unchanged through import → edit nothing → commit → export.
-- [ ] Editing one line of a script produces a one-line Git diff (golden test).
-- [ ] Disabled flag toggles and persists.
-- [ ] Warning appears on send for requests with scripts.
+- [x] Scripts fixture round-trips unchanged through import → edit nothing → commit → export.
+- [x] Editing one line of a script produces a one-line Git diff (golden test).
+- [x] Disabled flag toggles and persists.
+- [x] Warning appears on send for requests with scripts.
 
 ## Technical notes
 - Normalize CRLF in pasted scripts to LF before splitting.
@@ -43,3 +43,9 @@ As a Postman user with scripts, I want to see and keep editing them in Pigeon, s
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+- Model: scripts stay the `event[]` objects as read (lossless: ids, types, names, `src`, unknown keys). `formats/src/postman/events.ts`: `readScript(events, 'prerequest' | 'test')` (exec array or string, joined with LF), `writeScript(events, listen, text, disabled)` (CRLF → LF, one `exec` entry per line, other keys kept; unchanged text keeps the same object; an emptied script that holds only what Pigeon creates is removed; a new one gets `type: "text/javascript"`), `hasScripts` (an enabled, non-blank script). Core command `setContainerEvents` for collections and folders; requests use `updateRequest { events }`.
+- Send: `scriptsNotRun(model, requestId)` lists the collection, folders and request with scripts; the request editor passes it as `ExecutionContext.skippedScripts` and the result shows "Scripts were not run (not supported yet): …".
+- UI: shared `ScriptsEditor` (Pre-request and Tests JavaScript editors, line counts, Enabled toggles, "Scripts are saved and exported but not executed yet"); request **Scripts** tab (project requests, dot when it has scripts); a collapsible **Scripts** section in collection/folder settings; explorer `JS` badge on items with scripts. Tests that read explorer rows now use the method and name (badges left out); the E2E fixture tree includes the `JS` badges.
+- Tests: helpers (split/join, preservation, toggles), a one-line edit is a one-line change of `collection.json`, disabled persists through Save for Commit, the warning on send; the scripts fixture round-trips through import → files → export (PIGN-029 round-trip suite); E2E edits a test script, commits it, and sees the warning on send.

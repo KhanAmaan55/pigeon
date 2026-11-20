@@ -22,9 +22,10 @@ function fixtureFiles(name = 'basic'): Record<string, string> {
   return files;
 }
 
+/** Row texts: method + name, then badges (`JS`: the collection and List users have scripts). */
 const FIXTURE_TREE = [
-  'Users API',
-  'GETList users',
+  'Users APIJS',
+  'GETList usersJS',
   'Admin',
   'POSTCreate user',
   'Billing API',
@@ -656,6 +657,41 @@ test.describe('Postman environments', () => {
     await page.getByTestId('explorer-item').filter({ hasText: 'Get user' }).click();
     await page.getByTestId('send-button').click();
     await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+  });
+});
+
+test.describe('scripts', () => {
+  test('edits a test script and commits it', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Scripts API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    const collection = page.getByTestId('explorer-item').filter({ hasText: 'Users' });
+    await collection.click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    await page.getByTestId('url-input').fill(`${TEST_SERVER_URL}/json/user`);
+
+    await page.getByTestId('scripts-tab').click();
+    await expect(page.getByTestId('scripts-not-run')).toBeVisible();
+    await page.getByTestId('script-test-editor').click();
+    await page.keyboard.type("pm.test('ok', () => {});");
+    await expect(page.getByTestId('script-test-lines')).toHaveText('1 line');
+    await page.keyboard.press('ControlOrMeta+Shift+s');
+    await expect(page.getByTestId('toast')).toContainText('Wrote');
+    await expect(
+      page
+        .getByTestId('explorer-item')
+        .filter({ hasText: 'New Request' })
+        .getByTestId('explorer-scripts'),
+    ).toHaveText('JS');
+
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-panel')).toContainText(
+      'Scripts were not run (not supported yet): this request.',
+    );
   });
 });
 

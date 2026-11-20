@@ -4,7 +4,7 @@
  */
 
 import type { ProjectRequest, ProjectSession, Request, VariableScopes } from '@pigeon/core';
-import { buildScopes, inheritedAuth } from '@pigeon/core';
+import { buildScopes, inheritedAuth, scriptsNotRun } from '@pigeon/core';
 import type { Platform } from '@pigeon/platform';
 
 import type { ScratchRequestEnvironment } from '../request-editor/scratch-store';
@@ -68,6 +68,12 @@ export function getTabEditor(
       scopes: () => projectScopes(session, requestId),
       moveToSecret: (suggestedName, value) => moveToSecret(session, suggestedName, value),
       inheritedAuth: () => inheritedAuth(session.getWorkingModel(), requestId),
+      events: () => session.findRequest(requestId)?.events ?? [],
+      setEvents: (events) => {
+        session.apply({ type: 'updateRequest', id: requestId, patch: { events } });
+        projectStore.getState().pinTab(requestId);
+      },
+      skippedScripts: () => scriptsNotRun(session.getWorkingModel(), requestId),
       createExample: (example) => {
         session.apply({ type: 'createExample', requestId, example });
         projectStore.getState().pinTab(requestId);

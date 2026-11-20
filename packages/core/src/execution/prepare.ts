@@ -13,6 +13,7 @@ import { buildRequestUrl } from '../model/url';
 import { PIGEON_VERSION } from '../version';
 import type { EncodedBody } from './body';
 import { applyAuth, resolveAuth } from './auth/index';
+import { scriptsNotRunWarning } from './scripts';
 import { encodeBody } from './body';
 import type { ExecutionContext, ExecutionError, Result } from './types';
 import { prunesBody, validateBody } from './validate';
@@ -145,7 +146,9 @@ export async function prepareRequest(
   const checked = validateBody(method, encoding.encoded, request.settings, ctx.capabilities);
   if (!checked.ok) return checked;
   const { encoded } = checked.value;
+  const scriptWarning = scriptsNotRunWarning(ctx.skippedScripts ?? []);
   const warnings = [
+    ...(scriptWarning ? [scriptWarning] : []),
     ...variableWarnings,
     ...authWarnings,
     ...encoding.warnings,

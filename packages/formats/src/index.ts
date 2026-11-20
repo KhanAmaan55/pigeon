@@ -22,6 +22,8 @@ export {
   importPostmanEnvironment,
   importPostmanGlobals,
 } from './postman/environment-io';
+export type { ScriptListen, ScriptView } from './postman/events';
+export { hasScripts, readScript, writeScript } from './postman/events';
 export type { UrlParts } from './postman/url';
 export { decomposeUrl } from './postman/url';
 export { collectionFromPostman, folderFromPostman } from './postman/collection';

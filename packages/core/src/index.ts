@@ -75,6 +75,9 @@ export {
 } from './import/import-service';
 export type { ImportReport } from '@pigeon/formats';
 export { statusText } from './execution/status';
+export { scriptsNotRun, scriptsNotRunWarning } from './execution/scripts';
+export type { ScriptListen, ScriptView } from '@pigeon/formats';
+export { hasScripts, readScript, writeScript } from '@pigeon/formats';
 export type { ExampleFromResponseOptions } from './examples/save';
 export {
   DEFAULT_VOLATILE_HEADERS,

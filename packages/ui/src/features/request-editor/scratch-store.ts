@@ -50,6 +50,11 @@ export interface RequestBinding {
   inheritedAuth?: () => EffectiveAuth;
   /** Adds an example to the request (PIGN-027). */
   createExample?: (example: NewExample) => void;
+  /** The request's scripts (`event[]`) and their editing (PIGN-031). */
+  events?: () => unknown[];
+  setEvents?: (events: unknown[]) => void;
+  /** Where scripts exist that a send skips (the request, its folders, its collection). */
+  skippedScripts?: () => string[];
 }
 
 export interface ScratchRequestState {
@@ -61,6 +66,8 @@ export interface ScratchRequestState {
   moveToSecret: ((suggestedName: string, value: string) => string | null) | null;
   /** See `RequestBinding.inheritedAuth`; `null` for the scratch request (nothing to inherit). */
   inheritedAuth: (() => EffectiveAuth) | null;
+  /** Scripts of a project request (`null` for the scratch request, which has none). */
+  scripts: { read: () => unknown[]; write: (events: unknown[]) => void } | null;
   status: 'idle' | 'sending';
   /** Latest finished execution. */
   result: ExecutionResult | null;
@@ -129,6 +136,10 @@ export function createScratchRequestStore(
       projectFs: binding?.projectFs ?? null,
       moveToSecret: binding?.moveToSecret ?? null,
       inheritedAuth: binding?.inheritedAuth ?? null,
+      scripts:
+        binding?.events && binding.setEvents
+          ? { read: binding.events, write: binding.setEvents }
+          : null,
       saveAsExample: binding?.createExample
         ? ({ volatileHeaders }) => {
             const response = get().result?.response;
@@ -188,6 +199,7 @@ export function createScratchRequestStore(
           ...(binding ? { projectFs: binding.projectFs, projectId: binding.projectId } : {}),
           ...(binding?.scopes ? { scopes: binding.scopes() } : {}),
           ...(inherited === undefined ? {} : { inheritedAuth: inherited }),
+          ...(binding?.skippedScripts ? { skippedScripts: binding.skippedScripts() } : {}),
         });
         let secrets: readonly string[] = [];
         const result = await executor.execute(get().request, ctx, {

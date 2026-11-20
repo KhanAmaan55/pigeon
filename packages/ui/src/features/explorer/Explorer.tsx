@@ -726,6 +726,16 @@ function ExplorerRow({
           {row.name}
         </span>
       )}
+      {row.scripts && !renaming && (
+        <span
+          data-testid="explorer-scripts"
+          title="Has scripts (kept, not run yet)"
+          aria-label="(has scripts)"
+          className="shrink-0 rounded bg-hover px-1 font-mono text-[9px] leading-4 font-bold text-fg-muted"
+        >
+          JS
+        </span>
+      )}
       {row.exampleCount !== undefined && !renaming && (
         <button
           type="button"

@@ -54,8 +54,13 @@ async function fixturePlatform(
   return { platform, fs };
 }
 
+/** Method + name of each explorer row (badges such as JS or example counts left out). */
 const names = () =>
-  screen.queryAllByTestId('explorer-item').map((item) => item.textContent?.trim());
+  screen
+    .queryAllByTestId('explorer-item')
+    .map((item) =>
+      `${item.querySelector('[data-testid="explorer-method"]')?.textContent ?? ''}${item.querySelector('[data-testid="explorer-item-name"]')?.textContent ?? ''}`.trim(),
+    );
 const tabNames = () => screen.queryAllByTestId('request-tab-name').map((tab) => tab.textContent);
 
 describe('opening a project', () => {
@@ -1871,5 +1876,62 @@ describe('Postman environments import/export (PIGN-030)', () => {
       _postman_exported_using: expect.stringMatching(/^Pigeon\//),
     });
     expect(JSON.stringify(data)).not.toContain('staging-secret-token');
+  });
+});
+
+describe('scripts tab (PIGN-031)', () => {
+  it('shows, toggles and keeps scripts, and warns on send that they did not run', async () => {
+    const transport = new MockTransport().on({ url: /./ }, { body: 'ok' });
+    const { platform, fs } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    const listUsers = screen
+      .getAllByTestId('explorer-item')
+      .find((row) => row.textContent?.includes('List users'))!;
+    expect(within(listUsers).getByTestId('explorer-scripts').textContent).toBe('JS');
+
+    await user.dblClick(screen.getByText('List users'));
+    expect(screen.getByTestId('scripts-tab-indicator')).toBeTruthy();
+    await act(async () => screen.getByTestId('scripts-tab').focus());
+    const pre = await screen.findByTestId('script-prerequest');
+    expect(screen.getByTestId('scripts-not-run').textContent).toContain('not executed yet');
+    expect(within(pre).getByTestId('script-prerequest-lines').textContent).toBe('1 line');
+    expect((await within(pre).findByTestId('script-prerequest-editor')).textContent).toContain(
+      "pm.variables.set('run', 'yes');",
+    );
+    fireEvent.click(within(pre).getByTestId('script-prerequest-enabled'));
+    expect((within(pre).getByTestId('script-prerequest-enabled') as HTMLInputElement).checked).toBe(
+      false,
+    );
+
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(1));
+    expect((await screen.findByTestId('response-panel')).textContent).toContain(
+      'Scripts were not run (not supported yet): collection Users API.',
+    );
+
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(async () =>
+      expect(
+        JSON.parse(await fs.readText('collections/users-api/list-users.request.json')).event[0],
+      ).toMatchObject({ listen: 'prerequest', disabled: true }),
+    );
+  });
+
+  it('edits collection scripts from the collection settings', async () => {
+    const { platform } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    fireEvent.contextMenu(screen.getByText('Billing API'));
+    fireEvent.click(await screen.findByTestId('menu-variables'));
+    const section = await screen.findByTestId('container-scripts');
+    expect(within(section).getByTestId('script-prerequest-lines').textContent).toBe('0 lines');
+    expect(
+      (within(section).getByTestId('script-prerequest-enabled') as HTMLInputElement).disabled,
+    ).toBe(true);
   });
 });
