@@ -1,6 +1,7 @@
-import { ChevronDown, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 
 import { IconButton } from '../components/IconButton';
+import { EnvironmentSelector } from '../features/environments/EnvironmentSelector';
 import { ProjectTabs } from './ProjectTabs';
 import { useTheme } from './theme';
 
@@ -15,15 +16,7 @@ export function TopBar() {
     >
       <span className="font-semibold tracking-tight">Pigeon</span>
       <ProjectTabs />
-      <button
-        type="button"
-        disabled
-        data-testid="environment-selector"
-        className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 text-sm text-fg-muted disabled:opacity-60"
-      >
-        No environment
-        <ChevronDown size={14} />
-      </button>
+      <EnvironmentSelector />
       <IconButton
         label={`Switch to ${nextTheme} theme`}
         icon={resolved === 'dark' ? <Sun size={16} /> : <Moon size={16} />}

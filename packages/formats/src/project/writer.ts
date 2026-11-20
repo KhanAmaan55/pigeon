@@ -9,6 +9,7 @@
 import type { ProjectPath } from '@pigeon/platform';
 
 import { stringifyCanonical } from '../canonical-json';
+import { environmentToPostman } from '../postman/environment';
 import { requestToPostmanItem } from '../postman/item';
 import { asObject, nonEmpty, type JsonObject } from '../postman/json';
 import { PROJECT_KEY_ORDERS, type ProjectFileKind } from './key-order';
@@ -28,6 +29,14 @@ export function serializeProject(model: ProjectModel): Map<ProjectPath, Uint8Arr
         encodeFile('collection', collectionToFile(collection)),
       );
     for (const child of collection.children) writeItem(files, directory, child);
+  }
+  for (const environment of model.environments) {
+    if (!environment.broken) {
+      files.set(
+        `environments/${environment.fileKey}.postman_environment.json`,
+        encodeFile('environment', environmentToPostman(environment)),
+      );
+    }
   }
   return files;
 }

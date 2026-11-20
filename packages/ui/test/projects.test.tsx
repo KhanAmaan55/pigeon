@@ -1087,3 +1087,102 @@ describe('multiple projects (PIGN-021)', () => {
     expect(screen.getByTestId('welcome')).toBeTruthy();
   });
 });
+
+describe('environments (PIGN-022)', () => {
+  async function openFixture() {
+    const { platform, fs } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    fireEvent.click(screen.getByTestId('activity-environments'));
+    await screen.findByTestId('environments-view');
+    return { platform, fs, user };
+  }
+  const typeInto = async (
+    user: ReturnType<typeof userEvent.setup>,
+    element: HTMLElement,
+    text: string,
+  ) => {
+    await act(async () => element.focus());
+    await user.keyboard(text);
+  };
+
+  it('creates an environment, edits shared and current values, and commits only shared ones', async () => {
+    const { fs, user } = await openFixture();
+    fireEvent.click(screen.getByTestId('new-environment'));
+    await typeInto(
+      user,
+      await screen.findByTestId('environment-rename-input'),
+      '{Control>}a{/Control}Local{Enter}',
+    );
+    expect(screen.getByTestId('request-tab-name').textContent).toBe('Local');
+
+    const table = await screen.findByTestId('env-variables');
+    await typeInto(user, within(table).getAllByLabelText('Key').at(-1)!, 'baseUrl');
+    await typeInto(
+      user,
+      within(table).getAllByLabelText('Shared value')[0]!,
+      'http://localhost:3000',
+    );
+    await typeInto(user, screen.getAllByTestId('env-current-value')[0]!, 'http://localhost:4010');
+    expect(screen.getByTestId('request-tab-unsaved')).toBeTruthy();
+
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(() => expect(screen.getByTestId('toast').textContent).toContain('Wrote 1 file'));
+    const file = await fs.readText('environments/local.postman_environment.json');
+    expect(file).toContain('"value": "http://localhost:3000"');
+    expect(file).not.toContain('4010');
+  });
+
+  it('selects an environment from the top bar, remembered per project', async () => {
+    const { platform, fs, user } = await openFixture();
+    await fs.writeFileAtomic(
+      'environments/staging.postman_environment.json',
+      '{"id":"stg","name":"Staging","values":[]}',
+    );
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 400));
+    });
+    await waitFor(() =>
+      expect(screen.getAllByTestId('environment-item').map((e) => e.textContent)).toContain(
+        'Staging',
+      ),
+    );
+    expect(screen.getByTestId('environment-selector').textContent).toBe('No environment');
+
+    await user.keyboard('{Meta>}e{/Meta}');
+    await user.click(
+      (await screen.findAllByTestId('environment-option')).find(
+        (o) => o.textContent === 'Staging',
+      )!,
+    );
+    expect(screen.getByTestId('environment-selector').textContent).toBe('Staging');
+    expect(
+      (
+        await platform.appState.get<{ selectedEnvironmentId: string }>(
+          'project:project-basic',
+          'state',
+        )
+      )?.selectedEnvironmentId,
+    ).toBe('stg');
+  });
+
+  it('shows a deleted environment as D until committed', async () => {
+    const { fs, user } = await openFixture();
+    await fs.writeFileAtomic(
+      'environments/dev.postman_environment.json',
+      '{"id":"dev","name":"Dev","values":[]}',
+    );
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    const item = await screen.findByText('Dev', {}, { timeout: 2000 });
+    fireEvent.contextMenu(item);
+    fireEvent.click(await screen.findByTestId('env-menu-delete'));
+    await act(async () => screen.getByTestId('save-menu').focus());
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByTestId('save-all'));
+    await waitFor(() => expect(screen.getByTestId('environment-badge').textContent).toBe('D'));
+    expect(await fs.exists('environments/dev.postman_environment.json')).toBe(true);
+  });
+});

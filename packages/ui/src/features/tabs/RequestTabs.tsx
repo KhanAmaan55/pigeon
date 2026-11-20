@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronDown, Save, X } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Save, Variable, X } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { Dialog } from 'radix-ui';
 import { useEffect, useState } from 'react';
@@ -108,7 +108,9 @@ export function RequestTabs({ project }: { project: OpenProject }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, session]);
 
-  const pending = confirming ? session.findRequest(confirming) : undefined;
+  const pending = confirming
+    ? (session.findRequest(confirming) ?? session.findEnvironment(confirming))
+    : undefined;
   return (
     <>
       <div className="flex h-tabbar shrink-0 items-stretch border-b border-border bg-surface">
@@ -124,6 +126,7 @@ export function RequestTabs({ project }: { project: OpenProject }) {
           {tabs.map((tab) => {
             // `model` in the dependency list keeps names current after edits.
             const request = model ? session.findRequest(tab.id) : undefined;
+            const environment = model && !request ? session.findEnvironment(tab.id) : undefined;
             const active = tab.id === activeTabId;
             const dirty = unsaved?.[tab.id] === true;
             return (
@@ -134,7 +137,7 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                 data-testid="request-tab"
                 data-pinned={tab.pinned}
                 data-unsaved={dirty || undefined}
-                title={request?.name}
+                title={request?.name ?? environment?.name}
                 onClick={() => store.getState().activateTab(tab.id)}
                 onDoubleClick={() => store.getState().pinTab(tab.id)}
                 onAuxClick={(event) => {
@@ -144,7 +147,9 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                   active ? 'bg-bg text-fg' : 'text-fg-muted hover:bg-hover'
                 }`}
               >
-                {request?.broken ? (
+                {environment ? (
+                  <Variable size={12} className="shrink-0 text-fg-muted" aria-hidden />
+                ) : request?.broken ? (
                   <AlertTriangle size={12} className="shrink-0 text-warn" aria-hidden />
                 ) : (
                   <span
@@ -157,7 +162,7 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                   data-testid="request-tab-name"
                   className={`truncate ${tab.pinned ? '' : 'italic'}`}
                 >
-                  {request?.name ?? tab.id}
+                  {request?.name ?? environment?.name ?? tab.id}
                 </span>
                 <span className="relative flex size-5 shrink-0 items-center justify-center">
                   {dirty && (

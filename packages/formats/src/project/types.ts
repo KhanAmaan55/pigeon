@@ -116,11 +116,33 @@ export interface Collection extends BrokenFlag {
   extra: ExtraFields;
 }
 
+/** A variable as environments store it (data-model.md §5). `value` is the shared value. */
+export interface ProjectEnvVariable {
+  key: string;
+  value: string;
+  /** `default` | `secret` (Postman environment types). */
+  type: string;
+  enabled: boolean;
+  description?: Description;
+  extra?: ExtraFields;
+}
+
+export interface ProjectEnvironment extends BrokenFlag {
+  id: string;
+  fileKey: string;
+  name: string;
+  /** In file order. */
+  values: ProjectEnvVariable[];
+  extra: ExtraFields;
+}
+
 export interface ProjectModel {
   id: string;
   name: string;
   formatVersion: number;
   collections: Collection[];
+  /** `environments/*.postman_environment.json`, ordered by file key (PIGN-022). */
+  environments: ProjectEnvironment[];
   /** `pigeon.json` `comparison`, preserved until PIGN-035 models it. */
   comparison?: unknown;
   extra: ExtraFields;

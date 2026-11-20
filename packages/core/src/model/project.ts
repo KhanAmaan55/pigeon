@@ -10,6 +10,8 @@ export type {
   Problem,
   ProjectItem,
   ProjectModel,
+  ProjectEnvironment,
+  ProjectEnvVariable,
   ProjectReadResult,
   ProjectRequest,
 } from '@pigeon/formats';

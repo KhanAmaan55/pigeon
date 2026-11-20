@@ -21,6 +21,10 @@ export interface ProjectState {
   unsaved: Readonly<Record<string, true>>;
   /** Non-clean entities: unsaved edits or saved drafts (data-model.md §10). */
   changes: Readonly<Record<string, Exclude<ChangeState, 'clean'>>>;
+  /** Selected environment (PIGN-022); `null` = No environment. */
+  selectedEnvironmentId: string | null;
+  /** Current values by scope (local only). */
+  currentValues: Readonly<Record<string, Readonly<Record<string, string>>>>;
   /** Unsaved entities whose file changed on disk ("Reload or keep editing?"). */
   external: Readonly<Record<string, true>>;
   /** Entities deleted by a saved draft (still in the files), for the explorer. */
@@ -55,6 +59,8 @@ export interface ProjectState {
   refresh: () => Promise<void>;
 }
 
+const NO_VALUES: Readonly<Record<string, Readonly<Record<string, string>>>> = {};
+
 export type ProjectStore = ReturnType<typeof createProjectStore> & { dispose: () => void };
 
 export function createProjectStore(session: ProjectSession) {
@@ -72,13 +78,16 @@ export function createProjectStore(session: ProjectSession) {
       readOnly: session.readOnly,
       unsaved: Object.fromEntries(session.unsavedIds().map((id) => [id, true as const])),
       changes,
+      selectedEnvironmentId: session.selectedEnvironmentId,
+      currentValues: session.localState?.currentValues ?? NO_VALUES,
       external: Object.fromEntries(session.externallyChanged().map((id) => [id, true as const])),
       deleted: session.deletedEntities(),
     };
   };
   // Restore UI state from local state (PIGN-018), dropping tabs of requests that are gone.
   const saved = session.localState;
-  const restoredTabs = (saved?.tabs.open ?? []).filter((tab) => session.findRequest(tab.id));
+  const tabExists = (id: string) => !!(session.findRequest(id) ?? session.findEnvironment(id));
+  const restoredTabs = (saved?.tabs.open ?? []).filter((tab) => tabExists(tab.id));
   const restoredActive =
     saved?.tabs.activeId && restoredTabs.some((t) => t.id === saved.tabs.activeId)
       ? saved.tabs.activeId
@@ -161,7 +170,7 @@ export function createProjectStore(session: ProjectSession) {
     // Tabs of requests that no longer exist (deleted, or gone on disk) close.
     const { tabs } = store.getState();
     for (const tab of tabs) {
-      if (!session.findRequest(tab.id)) store.getState().closeTab(tab.id);
+      if (!tabExists(tab.id)) store.getState().closeTab(tab.id);
     }
   });
   // Persist UI state (debounced in core) whenever tabs, expansion or layout change.

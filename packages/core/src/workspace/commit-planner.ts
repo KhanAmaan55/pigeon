@@ -191,8 +191,8 @@ export async function planCommit(input: PlanInput): Promise<CommitPlan> {
   for (const write of writes) remaining.add(write.path);
   const candidates = new Set<string>();
   for (const path of deletes) {
-    for (let dir = parentOf(path); dir !== '' && dir !== 'collections'; dir = parentOf(dir))
-      candidates.add(dir);
+    // The top-level directories (collections/, environments/, examples/) always stay.
+    for (let dir = parentOf(path); dir.includes('/'); dir = parentOf(dir)) candidates.add(dir);
   }
   const rmdirs: string[] = [];
   const warnings: string[] = [];
@@ -243,7 +243,10 @@ function pathOwners(model: ProjectModel): Map<ProjectPath, string> {
 }
 
 function pathEntries(model: ProjectModel): Array<[ProjectPath, string]> {
-  const entries: Array<[ProjectPath, string]> = [];
+  const entries: Array<[ProjectPath, string]> = model.environments.map((e) => [
+    `environments/${e.fileKey}.postman_environment.json`,
+    e.id,
+  ]);
   const visit = (items: readonly ProjectItem[], dir: string) => {
     for (const item of items) {
       if (item.kind === 'request') entries.push([`${dir}/${item.fileKey}.request.json`, item.id]);

@@ -28,6 +28,8 @@ export type {
   Collection,
   Folder,
   Problem,
+  ProjectEnvironment,
+  ProjectEnvVariable,
   ProjectItem,
   ProjectModel,
   ProjectReadResult,

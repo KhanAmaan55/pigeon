@@ -1,6 +1,6 @@
 import type { KeyOrderPath, KeyOrderSpec } from '../canonical-json';
 
-export type ProjectFileKind = 'pigeon' | 'collection' | 'folder' | 'request';
+export type ProjectFileKind = 'pigeon' | 'collection' | 'folder' | 'request' | 'environment';
 
 const KINDS = {
   pigeon: ['pigeon', 'id', 'name', 'collections', 'comparison'],
@@ -20,6 +20,8 @@ const KINDS = {
   script: ['id', 'type', 'exec', 'src', 'name'],
   variable: ['key', 'value', 'type', 'enabled', 'disabled', 'description'],
   protocolProfileBehavior: ['followRedirects', 'maxRedirects', 'strictSSL'],
+  environment: ['id', 'name', 'values', '_postman_variable_scope'],
+  envVariable: ['key', 'value', 'type', 'enabled', 'description'],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 const PATH_KINDS: Readonly<Record<ProjectFileKind, Readonly<Record<string, keyof typeof KINDS>>>> =
@@ -45,6 +47,10 @@ const PATH_KINDS: Readonly<Record<ProjectFileKind, Readonly<Record<string, keyof
       'event.script': 'script',
       variable: 'variable',
     },
+    environment: {
+      '': 'environment',
+      values: 'envVariable',
+    },
     request: {
       '': 'item',
       request: 'request',
@@ -64,6 +70,7 @@ export const PROJECT_KEY_ORDERS: Readonly<Record<ProjectFileKind, KeyOrderSpec>>
   collection: createProjectKeyOrder('collection'),
   folder: createProjectKeyOrder('folder'),
   request: createProjectKeyOrder('request'),
+  environment: createProjectKeyOrder('environment'),
 };
 
 /** Returns the canonical ordering specification for a particular project file. */
@@ -72,6 +79,7 @@ export function createProjectKeyOrder(fileKind: ProjectFileKind): KeyOrderSpec {
   return {
     kinds: KINDS,
     kindForPath(path: KeyOrderPath): string | undefined {
+      if (fileKind === 'environment') return pathKinds[path.join('.')];
       if (path.at(-2) === 'auth') return 'header';
       if (['header', 'query', 'variable', 'urlencoded', 'formdata'].includes(path.at(-1) ?? '')) {
         return 'header';

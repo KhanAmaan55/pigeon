@@ -19,6 +19,7 @@ export function createEmptyProject(name: string): EmptyProject {
     name,
     formatVersion: 1,
     collections: [],
+    environments: [],
     extra: {},
   };
   const files = serializeProject(model);

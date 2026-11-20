@@ -8,6 +8,7 @@
 import type { ProjectFileSystem, ProjectPath } from '@pigeon/platform';
 
 import { sha256Hex } from '../hash';
+import { environmentFromPostman } from '../postman/environment';
 import { requestFromPostmanItem } from '../postman/item';
 import {
   asArray,
@@ -28,6 +29,7 @@ import {
   RequestFileSchema,
 } from './schemas';
 import type {
+  ProjectEnvironment,
   Collection,
   Folder,
   Problem,
@@ -88,7 +90,49 @@ export async function readProject(fs: ProjectFileSystem): Promise<ProjectReadRes
     'pigeon.json',
     context.problems,
   );
+  model.environments = await readEnvironments(context);
   return result(model, model.formatVersion > CURRENT_FORMAT_VERSION);
+}
+
+const ENVIRONMENT_SUFFIX = '.postman_environment.json';
+
+/** `environments/*.postman_environment.json`, by file key (file-format.md §1, §2.5). */
+async function readEnvironments(context: ReadContext): Promise<ProjectEnvironment[]> {
+  if ((await context.fs.stat('environments'))?.kind !== 'dir') return [];
+  const environments: ProjectEnvironment[] = [];
+  for (const entry of await context.fs.list('environments')) {
+    const name = entry.path.slice('environments/'.length);
+    if (entry.kind !== 'file' || !name.endsWith(ENVIRONMENT_SUFFIX) || name === ENVIRONMENT_SUFFIX)
+      continue;
+    const fileKey = name.slice(0, -ENVIRONMENT_SUFFIX.length);
+    const raw = await readJson(context, entry.path);
+    const valid =
+      raw !== undefined && Array.isArray(raw['values']) && typeof raw['name'] === 'string';
+    if (raw !== undefined && !valid) {
+      context.problems.push(
+        error(entry.path, 'schema', 'An environment needs a "name" and a "values" array'),
+      );
+    }
+    if (!valid) {
+      environments.push({
+        id:
+          typeof raw?.['id'] === 'string' && raw['id'] !== ''
+            ? raw['id']
+            : `broken:environment:${fileKey}`,
+        fileKey,
+        name: typeof raw?.['name'] === 'string' ? raw['name'] : fileKey,
+        values: [],
+        extra: {},
+        broken: true,
+      });
+      continue;
+    }
+    const environment = environmentFromPostman(raw, fileKey);
+    // Hand-written files may lack an id: a stable one from the file name.
+    if (environment.id === '') environment.id = `environment:${fileKey}`;
+    environments.push(environment);
+  }
+  return environments.sort((a, b) => compareStrings(a.fileKey, b.fileKey));
 }
 
 async function readCollection(context: ReadContext, fileKey: string): Promise<Collection> {
@@ -269,6 +313,7 @@ function projectFromFile(raw: JsonObject): ProjectModel {
     name: asString(raw['name']),
     formatVersion: pigeon['formatVersion'] as number,
     collections: [],
+    environments: [],
     ...(raw['comparison'] === undefined ? {} : { comparison: raw['comparison'] }),
     extra,
   };
@@ -320,7 +365,14 @@ function brokenIdentity(
 }
 
 function placeholderProject(): ProjectModel {
-  return { id: '', name: '', formatVersion: CURRENT_FORMAT_VERSION, collections: [], extra: {} };
+  return {
+    id: '',
+    name: '',
+    formatVersion: CURRENT_FORMAT_VERSION,
+    collections: [],
+    environments: [],
+    extra: {},
+  };
 }
 
 function stringArray(value: unknown): string[] {

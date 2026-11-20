@@ -17,6 +17,8 @@ import {
 export interface KeyValueColumn<T extends KeyValue> {
   id: string;
   header: string;
+  /** Tooltip of the column header. */
+  headerTitle?: string;
   render: (row: T, update: (next: T) => void, isDraft: boolean) => ReactNode;
 }
 
@@ -39,6 +41,9 @@ export interface KeyValueTableProps<T extends KeyValue = KeyValue> {
   /** Replaces the value input of a row when it returns something (e.g. a file picker). */
   renderValue?: (row: T, update: (next: T) => void) => ReactNode;
   extraColumns?: ReadonlyArray<KeyValueColumn<T>>;
+  /** Header of the value column (default "Value") and its tooltip. */
+  valueHeader?: string;
+  valueHeaderTitle?: string;
   /** The row the empty row turns into, and bulk/pasted rows are completed with. */
   newRow?: () => T;
   testId?: string;
@@ -65,6 +70,8 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
   keyAdornment,
   renderValue,
   extraColumns = [],
+  valueHeader = 'Value',
+  valueHeaderTitle,
   newRow = () => ({ key: '', value: '' }) as T,
   testId,
 }: KeyValueTableProps<T>) {
@@ -215,9 +222,11 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
               </th>
             )}
             <th className="py-1 pl-1.5">Key</th>
-            <th className="py-1 pl-1.5">Value</th>
+            <th className="py-1 pl-1.5" title={valueHeaderTitle}>
+              {valueHeader}
+            </th>
             {extraColumns.map((column) => (
-              <th key={column.id} className="w-40 py-1 pl-1.5">
+              <th key={column.id} className="w-40 py-1 pl-1.5" title={column.headerTitle}>
                 {column.header}
               </th>
             ))}
@@ -321,7 +330,7 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
                 <td className="py-0.5">
                   {customValue ?? (
                     <input
-                      aria-label="Value"
+                      aria-label={valueHeader}
                       value={current.value}
                       placeholder={isDraft || fixedKeys ? valuePlaceholder : ''}
                       spellCheck={false}

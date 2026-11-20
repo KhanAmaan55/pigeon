@@ -6,6 +6,13 @@ export { sha256Hex } from './hash';
 export { PROJECT_KEY_ORDERS, createProjectKeyOrder } from './project/key-order';
 export type { ProjectFileKind } from './project/key-order';
 export {
+  environmentFromPostman,
+  environmentToPostman,
+  variableFromPostman,
+  variableToPostman,
+  VOLATILE_ENVIRONMENT_KEYS,
+} from './postman/environment';
+export {
   bodyFromPostman,
   bodyToPostman,
   keyValueFromPostman,
@@ -29,6 +36,8 @@ export type {
   Problem,
   ProjectAuth,
   ProjectBody,
+  ProjectEnvironment,
+  ProjectEnvVariable,
   ProjectEvent,
   ProjectFormDataParam,
   ProjectItem,

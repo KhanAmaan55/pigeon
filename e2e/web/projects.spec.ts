@@ -305,6 +305,38 @@ test.describe('save for commit', () => {
   });
 });
 
+test.describe('environments', () => {
+  test('create, edit values, select and commit; selection survives a reload', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Env API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('activity-environments').click();
+    await page.getByTestId('new-environment').click();
+    await page.getByTestId('environment-rename-input').fill('Local');
+    await page.getByTestId('environment-rename-input').press('Enter');
+
+    const table = page.getByTestId('env-variables');
+    await table.getByLabel('Key').last().fill('baseUrl');
+    await table.getByLabel('Shared value').first().fill('http://localhost:3000');
+    await page.getByTestId('env-current-value').first().fill('http://127.0.0.1:4010');
+    await page.getByTestId('url-input').or(table).first().press('ControlOrMeta+Shift+s');
+    await expect(page.getByTestId('toast')).toHaveText(/Wrote 1 file/);
+
+    await page.keyboard.press('ControlOrMeta+e');
+    await page.getByTestId('environment-option').filter({ hasText: 'Local' }).click();
+    await expect(page.getByTestId('environment-selector')).toHaveText('Local');
+
+    await page.reload();
+    await expect(page.getByTestId('environment-selector')).toHaveText('Local');
+    await page.getByTestId('activity-environments').click();
+    await page.getByTestId('environment-item').filter({ hasText: 'Local' }).click();
+    await expect(page.getByTestId('env-current-value').first()).toHaveValue(
+      'http://127.0.0.1:4010',
+    );
+  });
+});
+
 test.describe('browser workspaces', () => {
   test('creates a workspace that survives a reload', async ({ page, browserName }) => {
     await gotoApp(page);

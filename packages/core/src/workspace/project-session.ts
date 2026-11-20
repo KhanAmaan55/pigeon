@@ -7,7 +7,7 @@
  * state) → clean again after Save for Commit (PIGN-019) or Discard.
  */
 
-import type { ProjectReadResult } from '@pigeon/formats';
+import type { ProjectEnvironment, ProjectReadResult } from '@pigeon/formats';
 import {
   createEmptyProject,
   isManagedPath,
@@ -190,6 +190,58 @@ export class ProjectSession {
     void this.#local?.update(patch);
   }
 
+  /** The selected environment (PIGN-022), if it still exists; `null` = No environment. */
+  get selectedEnvironmentId(): string | null {
+    const id = this.#local?.state.selectedEnvironmentId ?? null;
+    return id && this.#working.environments.some((e) => e.id === id) ? id : null;
+  }
+
+  selectEnvironment(id: string | null): void {
+    void this.#local?.update({ selectedEnvironmentId: id }, { immediate: true });
+    this.#emit();
+  }
+
+  /** Current values of a scope (`env:<id>`, `collection:<id>`, `globals`): local only, never drafts. */
+  currentValues(scope: string): Readonly<Record<string, string>> {
+    return this.#local?.state.currentValues?.[scope] ?? {};
+  }
+
+  /** Sets (or with `undefined` clears) a current value; written at once, never to files. */
+  setCurrentValue(scope: string, key: string, value: string | undefined): void {
+    const all = { ...this.#local?.state.currentValues };
+    const values = { ...all[scope] };
+    if (value === undefined) delete values[key];
+    else values[key] = value;
+    if (Object.keys(values).length === 0) delete all[scope];
+    else all[scope] = values;
+    void this.#local?.update({ currentValues: all }, { immediate: true });
+    this.#emit();
+  }
+
+  /** "Reset current values": back to the shared values. */
+  resetCurrentValues(scope: string): void {
+    const all = { ...this.#local?.state.currentValues };
+    delete all[scope];
+    void this.#local?.update({ currentValues: all }, { immediate: true });
+    this.#emit();
+  }
+
+  /**
+   * "Persist current as shared": copies an environment's current values into its shared values
+   * as an unsaved edit (to be saved / committed like any change) and clears the current values.
+   */
+  persistCurrentAsShared(environmentId: string): void {
+    const environment = this.#working.environments.find((e) => e.id === environmentId);
+    if (!environment) return;
+    const scope = `env:${environmentId}`;
+    const current = this.currentValues(scope);
+    const values = environment.values.map((v) =>
+      v.key in current ? { ...v, value: current[v.key]! } : v,
+    );
+    this.apply({ type: 'setEnvironmentValues', id: environmentId, values });
+    this.resetCurrentValues(scope);
+  }
+
   /** Writes pending UI state now (e.g. before the project closes). */
   flushLocalState(): Promise<void> {
     return this.#local?.flush() ?? Promise.resolve();
@@ -271,13 +323,19 @@ export class ProjectSession {
   deletedEntities(): Array<{
     id: string;
     name: string;
-    kind: Exclude<Draft['ref']['kind'], 'project'>;
+    kind: Exclude<Draft['ref']['kind'], 'project' | 'environment'>;
     parentId: string | null;
     method?: string;
   }> {
     const deleted = [];
     for (const draft of this.#drafts.values()) {
-      if (draft.op !== 'delete' || draft.ref.kind === 'project') continue;
+      if (
+        draft.op !== 'delete' ||
+        draft.ref.kind === 'project' ||
+        draft.ref.kind === 'environment'
+      ) {
+        continue;
+      }
       const found = locateEntity(this.#read.model, draft.ref.id);
       if (!found) continue;
       deleted.push({
@@ -399,8 +457,9 @@ export class ProjectSession {
     const add = async (path: ProjectPath) =>
       disk.set(path, isManagedPath(path) ? await sha256Hex(await this.fs.readFile(path)) : null);
     if ((await this.fs.stat('pigeon.json'))?.kind === 'file') await add('pigeon.json');
-    if ((await this.fs.stat('collections'))?.kind === 'dir') {
-      for (const entry of await this.fs.list('collections', { recursive: true })) {
+    for (const dir of ['collections', 'environments', 'examples']) {
+      if ((await this.fs.stat(dir))?.kind !== 'dir') continue;
+      for (const entry of await this.fs.list(dir, { recursive: true })) {
         if (entry.kind === 'file') await add(entry.path);
       }
     }
@@ -484,6 +543,10 @@ export class ProjectSession {
   /** Problems reported for one file. */
   problemsFor(path: ProjectPath): Problem[] {
     return this.#read.problems.filter((problem) => problem.path === path);
+  }
+
+  findEnvironment(id: string): ProjectEnvironment | undefined {
+    return this.getWorkingModel().environments.find((e) => e.id === id);
   }
 
   findRequest(id: string): ProjectRequest | undefined {
@@ -634,7 +697,9 @@ export class ProjectSession {
     const unsubscribe = this.fs.watch((events) => {
       if (
         !events.some(
-          (event) => event.path === 'pigeon.json' || event.path.startsWith('collections'),
+          (event) =>
+            event.path === 'pigeon.json' ||
+            /^(collections|environments|examples)(\/|$)/.test(event.path),
         )
       )
         return;
@@ -657,7 +722,9 @@ export class ProjectSession {
     const base = this.#read.model;
     for (const draft of [...this.#drafts.values(), ...this.#staleDrafts]) {
       if (draft.op === 'create' || !draft.baseHash) continue;
-      const found = locateEntity(base, draft.ref.id);
+      const environment = base.environments.find((e) => e.id === draft.ref.id);
+      const found =
+        locateEntity(base, draft.ref.id) ?? (environment ? { entity: environment } : undefined);
       const name =
         found?.entity.name ??
         (typeof draft.data?.['name'] === 'string' ? draft.data['name'] : draft.ref.id);
@@ -704,6 +771,17 @@ export class ProjectSession {
  */
 function restoreFromBase(working: ProjectModel, base: ProjectModel, id: string): ProjectModel {
   if (id === PROJECT_ENTITY_ID) return { ...working, id: base.id, name: base.name };
+  const baseEnvironment = base.environments.find((e) => e.id === id);
+  if (baseEnvironment || working.environments.some((e) => e.id === id)) {
+    const others = working.environments.filter((e) => e.id !== id);
+    const environments = baseEnvironment ? [...others, baseEnvironment] : others;
+    return {
+      ...working,
+      environments: environments.sort((a, b) =>
+        a.fileKey < b.fileKey ? -1 : a.fileKey > b.fileKey ? 1 : 0,
+      ),
+    };
+  }
   const baseCollection = base.collections.find((c) => c.id === id);
   const workingCollection = working.collections.find((c) => c.id === id);
   if (baseCollection || workingCollection) {
@@ -753,6 +831,8 @@ function restoreFromBase(working: ProjectModel, base: ProjectModel, id: string):
 /** The file of a collection, folder or request in `model`. */
 function filePathIn(model: ProjectModel, id: string): ProjectPath | undefined {
   if (id === PROJECT_ENTITY_ID) return 'pigeon.json';
+  const environment = model.environments.find((e) => e.id === id);
+  if (environment) return `environments/${environment.fileKey}.postman_environment.json`;
   const collection = model.collections.find((c) => c.id === id);
   if (collection) return `collections/${collection.fileKey}/collection.json`;
   for (const c of model.collections) {

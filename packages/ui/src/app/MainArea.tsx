@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Group, Panel } from 'react-resizable-panels';
 
 import { ResizeHandle } from '../components/ResizeHandle';
+import { EnvironmentEditor } from '../features/environments/EnvironmentEditor';
 import { BrokenFilePanel } from '../features/explorer/BrokenFilePanel';
 import { RequestEditor } from '../features/request-editor/RequestEditor';
 import {
@@ -83,9 +84,12 @@ function ProjectTabs({ project, split }: { project: OpenProject; split: React.Re
   // Re-render when the working model changes (e.g. the request became broken on reload).
   useProjectState((s) => s.model, null);
   const request = activeTabId ? project.session.findRequest(activeTabId) : undefined;
+  const environment = activeTabId ? project.session.findEnvironment(activeTabId) : undefined;
 
   let content: React.ReactNode;
-  if (!activeTabId || !request) {
+  if (activeTabId && environment) {
+    content = <EnvironmentEditor session={project.session} environmentId={activeTabId} />;
+  } else if (!activeTabId || !request) {
     content = (
       <div
         data-testid="no-tab"

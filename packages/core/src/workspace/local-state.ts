@@ -26,12 +26,19 @@ export interface LocalProjectState {
   tabs: { open: TabState[]; activeId: string | null };
   explorer: { expanded: string[] };
   layout: { responsePanel: 'bottom' | 'right' };
+  /** Selected environment (PIGN-022); `null` = No environment. */
+  selectedEnvironmentId?: string | null;
+  /** Variable current values by scope (`env:<id>`, `collection:<id>`, `globals`); never in files. */
+  currentValues?: Record<string, Record<string, string>>;
   /** Keys added by later stories, preserved as they are. */
   [key: string]: unknown;
 }
 
 const DraftSchema = z.object({
-  ref: z.object({ kind: z.enum(['project', 'collection', 'folder', 'request']), id: z.string() }),
+  ref: z.object({
+    kind: z.enum(['project', 'collection', 'folder', 'request', 'environment']),
+    id: z.string(),
+  }),
   op: z.enum(['create', 'update', 'delete']),
   data: z.record(z.string(), z.unknown()).optional(),
   parentId: z.string().nullable().optional(),

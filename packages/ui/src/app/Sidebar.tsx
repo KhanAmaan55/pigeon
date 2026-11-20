@@ -1,3 +1,4 @@
+import { EnvironmentsView } from '../features/environments/EnvironmentsView';
 import { Explorer } from '../features/explorer/Explorer';
 import { PendingChanges } from '../features/pending-changes/PendingChanges';
 import { Welcome } from '../features/projects/Welcome';
@@ -24,6 +25,8 @@ export function Sidebar({ view }: { view: SidebarView }) {
           <RequestDefaults />
           <Diagnostics />
         </div>
+      ) : view === 'environments' ? (
+        <EnvironmentsView />
       ) : view === 'pending' ? (
         <PendingChanges />
       ) : view === 'collections' ? (

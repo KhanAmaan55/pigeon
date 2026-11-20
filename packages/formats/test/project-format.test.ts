@@ -212,7 +212,7 @@ describe('readProject tolerance', () => {
     expect(result.model.collections.map((c) => c.fileKey)).toEqual(['api', 'aa', 'zz']);
   });
 
-  it('ignores environments, examples and unmanaged files', async () => {
+  it('reads environments and ignores examples and unmanaged files', async () => {
     const fs = await minimalProject();
     await fs.writeFileAtomic(
       'environments/local.postman_environment.json',
@@ -226,7 +226,12 @@ describe('readProject tolerance', () => {
     const result = await readProject(fs);
     expect(result.problems).toEqual([]);
     expect(result.model.collections[0]!.children).toEqual([]);
-    expect([...result.files.keys()]).toEqual(['pigeon.json', 'collections/api/collection.json']);
+    expect([...result.files.keys()]).toEqual([
+      'pigeon.json',
+      'collections/api/collection.json',
+      'environments/local.postman_environment.json',
+    ]);
+    expect(result.model.environments.map((e) => e.name)).toEqual(['Local']);
   });
 
   it('flags a missing or invalid pigeon.json and newer format versions', async () => {

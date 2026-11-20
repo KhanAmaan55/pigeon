@@ -12,7 +12,7 @@ const decoder = new TextDecoder();
 interface PendingEntity {
   id: string;
   name: string;
-  kind: 'project' | 'collection' | 'folder' | 'request';
+  kind: 'project' | 'collection' | 'folder' | 'request' | 'environment';
   state: 'unsaved' | 'created' | 'updated' | 'deleted' | 'conflict';
 }
 
@@ -28,6 +28,18 @@ function pendingEntities(
         id,
         name: 'Project (pigeon.json)',
         kind: 'project',
+        state: state as PendingEntity['state'],
+      });
+      continue;
+    }
+    const environment =
+      session.getWorkingModel().environments.find((e) => e.id === id) ??
+      session.getBaseModel().environments.find((e) => e.id === id);
+    if (environment) {
+      entities.push({
+        id,
+        name: environment.name,
+        kind: 'environment',
         state: state as PendingEntity['state'],
       });
       continue;

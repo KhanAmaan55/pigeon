@@ -8,6 +8,7 @@
  * folders share one namespace) gets `-2`, `-3`, …
  */
 
+import type { ProjectEnvironment, ProjectEnvVariable } from '@pigeon/formats';
 import { allocateSlug, slugify } from '@pigeon/formats';
 
 import type {
@@ -54,7 +55,14 @@ export type EditCommand =
   | { type: 'moveItem'; id: string; parentId: string; index: number }
   | { type: 'moveCollection'; id: string; index: number }
   /** `pigeon.json` identity (e.g. "Regenerate project id" for a copied project folder). */
-  | { type: 'setProjectInfo'; id?: string; name?: string };
+  | { type: 'setProjectInfo'; id?: string; name?: string }
+  // Environments (PIGN-022): one file each, ordered by file key.
+  | { type: 'createEnvironment'; id: string; name: string; values?: ProjectEnvVariable[] }
+  | { type: 'renameEnvironment'; id: string; name: string }
+  | { type: 'duplicateEnvironment'; id: string; newId: string }
+  | { type: 'deleteEnvironment'; id: string }
+  /** Replaces the variables (add, edit, remove, reorder) of an environment. */
+  | { type: 'setEnvironmentValues'; id: string; values: ProjectEnvVariable[] };
 
 /** Pseudo entity id of the project itself (`pigeon.json`) in drafts and unsaved tracking. */
 export const PROJECT_ENTITY_ID = '$project';
@@ -110,7 +118,49 @@ export function touchedIds(model: ProjectModel, command: EditCommand): string[] 
       return [command.id];
     case 'setProjectInfo':
       return [PROJECT_ENTITY_ID];
+    case 'createEnvironment':
+    case 'renameEnvironment':
+    case 'deleteEnvironment':
+    case 'setEnvironmentValues':
+      return [command.id];
+    case 'duplicateEnvironment':
+      return [command.newId];
   }
+}
+
+/** Environments sorted by file key (how the reader orders them). */
+function sortEnvironments(environments: ProjectEnvironment[]): ProjectEnvironment[] {
+  return environments.sort((a, b) => (a.fileKey < b.fileKey ? -1 : a.fileKey > b.fileKey ? 1 : 0));
+}
+
+function environmentKey(model: ProjectModel, name: string, id: string): string {
+  return allocateSlug(
+    slugify(name, { kind: 'environment', id }),
+    new Set(model.environments.filter((e) => e.id !== id).map((e) => e.fileKey)),
+  );
+}
+
+function updateEnvironment(
+  model: ProjectModel,
+  id: string,
+  update: (environment: ProjectEnvironment) => ProjectEnvironment,
+): ProjectModel {
+  const environment = model.environments.find((e) => e.id === id);
+  if (!environment) throw new CommandError(`No environment with id "${id}"`);
+  assertEditable(environment);
+  return {
+    ...model,
+    environments: sortEnvironments(model.environments.map((e) => (e.id === id ? update(e) : e))),
+  };
+}
+
+/** A collection, folder, request or environment by id. */
+export function entityExists(model: ProjectModel, id: string): boolean {
+  return (
+    model.collections.some((c) => c.id === id) ||
+    model.environments.some((e) => e.id === id) ||
+    findItem(model, id) !== undefined
+  );
 }
 
 export function applyCommand(
@@ -295,6 +345,54 @@ export function applyCommand(
       };
     }
 
+    case 'createEnvironment': {
+      assertNewId(model, command.id);
+      const name = command.name.trim();
+      if (name === '') throw new CommandError('A name cannot be empty.');
+      const environment: ProjectEnvironment = {
+        id: command.id,
+        fileKey: environmentKey(model, name, command.id),
+        name,
+        values: command.values ?? [],
+        extra: {},
+      };
+      return { ...model, environments: sortEnvironments([...model.environments, environment]) };
+    }
+
+    case 'renameEnvironment': {
+      const name = command.name.trim();
+      if (name === '') throw new CommandError('A name cannot be empty.');
+      return updateEnvironment(model, command.id, (e) => ({
+        ...e,
+        name,
+        fileKey: environmentKey(model, name, e.id),
+      }));
+    }
+
+    case 'duplicateEnvironment': {
+      assertNewId(model, command.newId);
+      const original = model.environments.find((e) => e.id === command.id);
+      if (!original) throw new CommandError(`No environment with id "${command.id}"`);
+      assertEditable(original);
+      const name = `${original.name} copy`;
+      const copy: ProjectEnvironment = {
+        ...structuredClone(original),
+        id: command.newId,
+        name,
+        fileKey: environmentKey(model, name, command.newId),
+      };
+      return { ...model, environments: sortEnvironments([...model.environments, copy]) };
+    }
+
+    case 'deleteEnvironment':
+      if (!model.environments.some((e) => e.id === command.id)) {
+        throw new CommandError(`No environment with id "${command.id}"`);
+      }
+      return { ...model, environments: model.environments.filter((e) => e.id !== command.id) };
+
+    case 'setEnvironmentValues':
+      return updateEnvironment(model, command.id, (e) => ({ ...e, values: command.values }));
+
     case 'moveCollection': {
       const index = model.collections.findIndex((c) => c.id === command.id);
       if (index === -1) throw new CommandError(`No collection with id "${command.id}"`);
@@ -453,7 +551,7 @@ function assertEditable(entity: { broken?: true; name: string }): void {
 }
 
 function assertNewId(model: ProjectModel, id: string): void {
-  if (model.collections.some((c) => c.id === id) || findItem(model, id)) {
+  if (entityExists(model, id)) {
     throw new CommandError(`An entity with id "${id}" already exists`);
   }
 }

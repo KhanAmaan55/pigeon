@@ -6,7 +6,14 @@ import { applyCommand, createDraft, planCommit } from '../src/index';
 
 /** A project with `count` requests in 50 folders. */
 function bigModel(count: number): ProjectModel {
-  let model: ProjectModel = { id: 'p', name: 'Big', formatVersion: 1, collections: [], extra: {} };
+  let model: ProjectModel = {
+    id: 'p',
+    name: 'Big',
+    formatVersion: 1,
+    collections: [],
+    environments: [],
+    extra: {},
+  };
   model = applyCommand(model, { type: 'createCollection', id: 'c', name: 'Big' });
   for (let f = 0; f < 50; f++)
     model = applyCommand(model, {

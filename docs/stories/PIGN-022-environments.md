@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-022 | 3 — Variables | MVP | Todo | PIGN-019 |
+| PIGN-022 | 3 — Variables | MVP | Done | PIGN-019 |
 
 ## Goal
 Create, edit, delete, and select environments stored as Postman environment files in `environments/`, with shared values (committed) vs current values (local).
@@ -29,11 +29,11 @@ As a developer, I want Local/Staging/Production environments with shared default
 - Variable resolution in requests (PIGN-023), globals/collection vars (PIGN-024), import/export (PIGN-030).
 
 ## Acceptance criteria
-- [ ] Creating "Local" with `baseUrl` and Save for Commit writes `environments/local.postman_environment.json` matching file-format §2.5 exactly.
-- [ ] Editing a current value never creates a draft or changes files.
-- [ ] Selected environment persists per project across restarts and doesn't affect other open projects.
-- [ ] Deleting an environment is a draft (**D**) until committed.
-- [ ] A hand-written Postman environment file dropped into `environments/` appears after reload.
+- [x] Creating "Local" with `baseUrl` and Save for Commit writes `environments/local.postman_environment.json` matching file-format §2.5 exactly.
+- [x] Editing a current value never creates a draft or changes files.
+- [x] Selected environment persists per project across restarts and doesn't affect other open projects.
+- [x] Deleting an environment is a draft (**D**) until committed.
+- [x] A hand-written Postman environment file dropped into `environments/` appears after reload.
 
 ## Technical notes
 - Environment files are top-level Postman objects — reuse canonical JSON with an `environment` key-order spec.
@@ -48,3 +48,9 @@ As a developer, I want Local/Staging/Production environments with shared default
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+- Formats: `ProjectEnvironment` / `ProjectEnvVariable` (in `formats/src/project/types.ts`, re-exported by core), `postman/environment.ts` (volatile `_postman_exported_*` keys dropped, `_postman_variable_scope` always written as `environment`, unknown keys kept on the environment and per variable), `environment` + `envVariable` key orders. `ProjectModel.environments` is ordered by file key; the reader validates `name` + `values` (otherwise broken, never written) and gives a hand-written file without `id` the stable id `environment:<fileKey>`. Variables always write `key, value, type, enabled` (as Postman does).
+- Core: commands `createEnvironment`, `renameEnvironment` (re-slugs), `duplicateEnvironment`, `deleteEnvironment`, `setEnvironmentValues` (add/edit/remove/reorder as one array). Drafts, discard, conflicts and the commit planner handle `environment` entities (file `environments/<fileKey>.postman_environment.json`). `scanDisk` / the watcher now cover `environments/` and `examples/`. Save for Commit never removes the top-level `collections/`, `environments/`, `examples/` directories.
+- Local state: `selectedEnvironmentId` and `currentValues['env:<id>']` (written immediately; never drafts). Session API: `selectedEnvironmentId`, `selectEnvironment`, `currentValues`, `setCurrentValue`, `resetCurrentValues`, `persistCurrentAsShared` (an unsaved edit; clears the current values).
+- UI: environment selector in the top bar (per project, Cmd/Ctrl+E opens it), Environments view (list with A/M/D/!, deleted ones struck through until committed, context menu: use, rename, duplicate, delete, discard), environments open as tabs with a variables table (Enabled, Key, Shared value, Current value, Type, Description; header tooltips explain Git vs local). Secret rows use password inputs; real secret storage is PIGN-025.

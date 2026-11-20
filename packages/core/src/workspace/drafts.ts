@@ -7,10 +7,12 @@
  * or parent is gone) come back as `stale` instead of failing the load.
  */
 
+import type { ProjectEnvironment } from '@pigeon/formats';
+
 import type { Collection, Folder, ProjectItem, ProjectModel } from '../model/project';
 import { findContainer, findItem, placementOf, PROJECT_ENTITY_ID, replaceItem } from './commands';
 
-export type DraftEntityKind = 'project' | 'collection' | 'folder' | 'request';
+export type DraftEntityKind = 'project' | 'collection' | 'folder' | 'request' | 'environment';
 
 export interface Draft {
   ref: { kind: DraftEntityKind; id: string };
@@ -30,6 +32,15 @@ export interface Draft {
 export type DraftData = Record<string, unknown> & { childOrder?: string[] };
 
 type Entity = Collection | ProjectItem;
+
+/** An environment and its position (environments have no parent). */
+export function locateEnvironment(
+  model: ProjectModel,
+  id: string,
+): { environment: ProjectEnvironment; index: number } | undefined {
+  const index = model.environments.findIndex((e) => e.id === id);
+  return index === -1 ? undefined : { environment: model.environments[index]!, index };
+}
 
 /** The collection, folder or request `id` and where it sits. */
 export function locateEntity(
@@ -68,6 +79,16 @@ export function createDraft(
     const data = { id: working.id, name: working.name };
     if (sameJson({ id: base.id, name: base.name }, data)) return null;
     return { ref: { kind: 'project', id }, op: 'update', data, baseHash: hashOf(id), savedAt: now };
+  }
+  const envBefore = locateEnvironment(base, id)?.environment;
+  const envAfter = locateEnvironment(working, id)?.environment;
+  if (envBefore || envAfter) {
+    const ref = { kind: 'environment' as const, id };
+    if (!envAfter) return { ref, op: 'delete', baseHash: hashOf(id), savedAt: now };
+    const data = structuredClone(envAfter) as unknown as DraftData;
+    if (!envBefore) return { ref, op: 'create', data, baseHash: null, savedAt: now };
+    if (sameJson(envBefore, envAfter)) return null;
+    return { ref, op: 'update', data, baseHash: hashOf(id), savedAt: now };
   }
   const before = locateEntity(base, id);
   const after = locateEntity(working, id);
@@ -124,7 +145,29 @@ export function applyDrafts(base: ProjectModel, drafts: readonly Draft[]): Appli
       ...(typeof name === 'string' ? { name } : {}),
     };
   }
-  let pending = drafts.filter((draft) => draft.op !== 'delete' && draft.ref.kind !== 'project');
+  // Environments: no parents, so they apply directly.
+  for (const draft of drafts) {
+    if (draft.ref.kind !== 'environment') continue;
+    const exists = model.environments.some((e) => e.id === draft.ref.id);
+    if (draft.op === 'delete') {
+      model = { ...model, environments: model.environments.filter((e) => e.id !== draft.ref.id) };
+    } else if (!draft.data || (draft.op === 'update' && !exists)) {
+      stale.push(draft);
+    } else {
+      const environment = draft.data as unknown as ProjectEnvironment;
+      const others = model.environments.filter((e) => e.id !== draft.ref.id);
+      model = {
+        ...model,
+        environments: [...others, environment].sort((a, b) =>
+          a.fileKey < b.fileKey ? -1 : a.fileKey > b.fileKey ? 1 : 0,
+        ),
+      };
+    }
+  }
+  let pending = drafts.filter(
+    (draft) =>
+      draft.op !== 'delete' && draft.ref.kind !== 'project' && draft.ref.kind !== 'environment',
+  );
 
   // Creates and updates, repeated until no progress: a child may wait for its created parent.
   for (let progress = true; progress && pending.length > 0;) {
@@ -144,7 +187,8 @@ export function applyDrafts(base: ProjectModel, drafts: readonly Draft[]): Appli
   stale.push(...pending);
 
   for (const draft of drafts) {
-    if (draft.op === 'delete') model = removeEntity(model, draft.ref.id);
+    if (draft.op === 'delete' && draft.ref.kind !== 'environment')
+      model = removeEntity(model, draft.ref.id);
   }
   for (const draft of drafts) {
     const order = draft.op !== 'delete' ? draft.data?.childOrder : undefined;
