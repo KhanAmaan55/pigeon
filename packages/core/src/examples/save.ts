@@ -138,3 +138,28 @@ export function exampleFromResponse(
 
 /** Example lookup helpers for the UI. */
 export type { ProjectExample };
+
+/**
+ * "Accept as new baseline" (response-comparison.md §6): the example's response becomes the
+ * actual response (volatile headers dropped, secrets masked, JSON pretty-printed) and its
+ * `originalRequest` the current request definition. Same capture as "Save as example"; the
+ * example keeps its id, name and file key.
+ */
+export function acceptedExamplePatch(
+  definition: Parameters<typeof exampleFromResponse>[0],
+  response: NormalizedResponse,
+  options: Omit<ExampleFromResponseOptions, 'id' | 'name'> = {},
+): Pick<ProjectExample, 'request' | 'response'> {
+  const captured = exampleFromResponse(definition, response, options);
+  return {
+    ...(captured.request ? { request: captured.request } : {}),
+    response: captured.response,
+  };
+}
+
+/** `name`, or `name (2)`, `name (3)`, … when an example of the request already has it. */
+export function uniqueExampleName(name: string, examples: ReadonlyArray<{ name: string }>): string {
+  const taken = new Set(examples.map((example) => example.name));
+  if (!taken.has(name)) return name;
+  for (let i = 2; ; i++) if (!taken.has(`${name} (${i})`)) return `${name} (${i})`;
+}

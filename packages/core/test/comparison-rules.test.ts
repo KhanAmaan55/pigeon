@@ -148,7 +148,7 @@ describe('field rules in comparisons (PIGN-035)', () => {
     const request = session.findRequest('list-users')!;
     expect(
       compareExecution(request, result([]), undefined, { baseline: { mode: 'none' } }),
-    ).toBeUndefined();
+    ).toEqual({ kind: 'disabled', requestId: 'list-users' });
     const pinned = compareExecution(request, result([]), undefined, {
       baseline: { mode: 'example', exampleId: 'example-avatar' },
     });

@@ -857,6 +857,50 @@ test.describe('values mode', () => {
   });
 });
 
+test.describe('accept new baseline', () => {
+  test('accepts a changed response, then discarding restores the old baseline', async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Accept API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await page.getByTestId('explorer-item').filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    const url = page.getByTestId('url-input');
+    await url.fill(`${TEST_SERVER_URL}/json/user`);
+    await page.getByTestId('send-button').click();
+    await page.getByTestId('save-as-example').click();
+    const badge = page.getByTestId('comparison-badge');
+    await expect(badge).toHaveAttribute('data-outcome', 'pass');
+    await page.keyboard.press('ControlOrMeta+Shift+s');
+    await expect(page.getByTestId('toast')).toContainText('Wrote');
+
+    await url.fill(`${TEST_SERVER_URL}/json/user-v2`);
+    await page.getByTestId('send-button').click();
+    await expect(badge).toHaveAttribute('data-outcome', 'fail');
+    await badge.click();
+    await page.getByTestId('compare-accept').click();
+    await expect(page.getByTestId('accept-findings')).toContainText('$.email');
+    await page.getByTestId('accept-confirm').click();
+    await expect(badge).toHaveAttribute('data-outcome', 'pass');
+
+    await page
+      .getByTestId('explorer-item')
+      .filter({ hasText: 'New Request' })
+      .click({ button: 'right' });
+    await page.getByTestId('menu-discard').click();
+    // The discard brings back the committed request too (URL /json/user).
+    await expect(url).toHaveValue(`${TEST_SERVER_URL}/json/user`);
+    await url.fill(`${TEST_SERVER_URL}/json/user-v2`);
+    await page.getByTestId('send-button').click();
+    await expect(badge).toHaveAttribute('data-outcome', 'fail');
+  });
+});
+
 test.describe('comparison of large bodies', () => {
   test('compares a 5 MB body in a worker while the editor stays usable', async ({
     page,

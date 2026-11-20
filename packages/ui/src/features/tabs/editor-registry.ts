@@ -5,15 +5,17 @@
 
 import type { ProjectRequest, ProjectSession, Request, VariableScopes } from '@pigeon/core';
 import {
-  baselineFor,
   bodyComparisonInput,
   buildScopes,
   comparisonResult,
   effectiveComparison,
   inheritedAuth,
   projectRules,
+  resolveBaseline,
   scriptsNotRun,
+  uniqueExampleName,
   upsertRule,
+  withBaseline,
 } from '@pigeon/core';
 import { isEmptyComparison } from '@pigeon/formats';
 import { runBodyComparison } from '../compare/run-compare';
@@ -90,9 +92,9 @@ export function getTabEditor(
         const request = session.findRequest(requestId);
         if (!request || !result.response) return undefined;
         const effective = effectiveComparison(session.getWorkingModel(), request);
-        if (effective.baseline.mode === 'none') return undefined;
-        const example = baselineFor(request.examples, effective.baseline, result.response.status);
-        if (!example) return { kind: 'no-baseline', requestId };
+        const resolved = resolveBaseline(request, effective.baseline, result.response.status);
+        if (!('example' in resolved)) return resolved;
+        const { example } = resolved;
         const findings = await runBodyComparison(bodyComparisonInput(example, result), effective);
         const comparison = comparisonResult(requestId, example, result, findings);
         projectStore.getState().setComparison(comparison);
@@ -150,7 +152,26 @@ export function getTabEditor(
         projectStore.getState().pinTab(requestId);
       },
       createExample: (example) => {
-        session.apply({ type: 'createExample', requestId, example });
+        const examples = session.findRequest(requestId)?.examples ?? [];
+        session.apply({
+          type: 'createExample',
+          requestId,
+          example: { ...example, name: uniqueExampleName(example.name, examples) },
+        });
+        projectStore.getState().pinTab(requestId);
+      },
+      acceptBaseline: (exampleId, patch) => {
+        session.apply({ type: 'updateExample', id: exampleId, patch });
+        projectStore.getState().pinTab(requestId);
+      },
+      baseline: () => session.findRequest(requestId)?.comparison?.baseline ?? { mode: 'auto' },
+      setBaseline: (baseline) => {
+        const config = withBaseline(session.findRequest(requestId)?.comparison, baseline);
+        session.apply({
+          type: 'setComparisonConfig',
+          requestId,
+          config: isEmptyComparison(config) ? undefined : config,
+        });
         projectStore.getState().pinTab(requestId);
       },
     });

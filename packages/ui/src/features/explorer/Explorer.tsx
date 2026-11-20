@@ -19,12 +19,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
 import { IconButton } from '../../components/IconButton';
-import { PROJECT_ENTITY_ID } from '@pigeon/core';
+import { PROJECT_ENTITY_ID, withBaseline } from '@pigeon/core';
 
 import type { OpenProject } from '../../stores/app-store';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { locationLabel } from '../../stores/locations';
 import { methodColorClass } from '../request-editor/methods';
+import { isEmptyComparison } from '@pigeon/formats';
 import { statusClass } from '../examples/ExamplesTab';
 import { ExportDialog } from '../import-export/ExportDialog';
 import { disposeTabEditor } from '../tabs/editor-registry';
@@ -427,6 +428,20 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
                   onDelete={() => askDelete(row)}
                   onVariables={() => store.getState().openTab(row.id, { pin: true })}
                   onExport={() => setExporting(row.id)}
+                  onBaseline={(pin) =>
+                    edit(() => {
+                      const requestId = row.parentId!;
+                      const config = withBaseline(
+                        session.findRequest(requestId)?.comparison,
+                        pin ? { mode: 'example', exampleId: row.id } : { mode: 'auto' },
+                      );
+                      session.apply({
+                        type: 'setComparisonConfig',
+                        requestId,
+                        config: isEmptyComparison(config) ? undefined : config,
+                      });
+                    })
+                  }
                   onDiscard={() => {
                     const ids = requestIdsUnder(session, row.id);
                     void session.discard(row.id).then(() => {
@@ -494,6 +509,7 @@ function RowMenu({
   onDiscard,
   onVariables,
   onExport,
+  onBaseline,
 }: {
   row: TreeRow;
   readOnly: boolean;
@@ -507,6 +523,8 @@ function RowMenu({
   onDiscard: () => void;
   onVariables: () => void;
   onExport: () => void;
+  /** Examples: pin as the request's baseline, or back to auto (PIGN-037). */
+  onBaseline: (pin: boolean) => void;
 }) {
   const item = (label: string, onSelect: () => void, testId: string, shortcut?: string) => (
     <ContextMenu.Item
@@ -531,6 +549,9 @@ function RowMenu({
         >
           {row.kind === 'example' && (
             <>
+              {item('Pin as baseline', () => onBaseline(true), 'menu-pin-baseline')}
+              {item('Use auto baseline', () => onBaseline(false), 'menu-auto-baseline')}
+              <ContextMenu.Separator className="my-1 h-px bg-border" />
               {item('Rename', onRename, 'menu-rename', 'F2')}
               {item('Duplicate', onDuplicate, 'menu-duplicate', 'Ctrl/⌘ D')}
               {item('Delete', onDelete, 'menu-delete', 'Del')}

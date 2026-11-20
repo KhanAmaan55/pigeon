@@ -253,13 +253,21 @@ export function methodLabel(method: string): string {
 }
 
 /**
- * The ★ baseline of a request: the example its latest comparison used (while it still exists),
- * else the first example (what `auto` picks without a response).
+ * The ★ baseline of a request: the pinned example (`compare.json` `baseline.mode: 'example'`),
+ * else the example its latest comparison used (while it still exists), else the first example
+ * (what `auto` picks without a response). None when comparison is off.
  */
 export function baselineExampleId(
-  request: { id: string; examples: ReadonlyArray<{ id: string }> },
+  request: {
+    id: string;
+    examples: ReadonlyArray<{ id: string }>;
+    comparison?: { baseline?: { mode: string; exampleId?: string } } | undefined;
+  },
   baselines: Readonly<Record<string, string>> | undefined,
 ): string | undefined {
+  const mode = request.comparison?.baseline;
+  if (mode?.mode === 'none') return undefined;
+  if (mode?.mode === 'example') return mode.exampleId;
   const last = baselines?.[request.id];
   return last && request.examples.some((e) => e.id === last) ? last : request.examples[0]?.id;
 }

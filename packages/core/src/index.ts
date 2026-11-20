@@ -87,6 +87,8 @@ export type {
 } from './comparison/comparison-service';
 export {
   compareResponseInput,
+  resolveBaseline,
+  withBaseline,
   DEFAULT_HEADER_COMPARISON,
   headerSettings,
   quickHashBytes,
@@ -130,6 +132,8 @@ export {
   exampleBody,
   exampleFormat,
   exampleFromResponse,
+  acceptedExamplePatch,
+  uniqueExampleName,
 } from './examples/save';
 export type { AuthHandler, AuthOrigin, AuthOutput, EffectiveAuth } from './execution/auth/index';
 export {

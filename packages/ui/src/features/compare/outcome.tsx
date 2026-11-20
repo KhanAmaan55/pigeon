@@ -1,7 +1,64 @@
-import type { ComparisonState } from '../request-editor/scratch-store';
 import { CircleCheck, CircleMinus, CircleX, LoaderCircle, TriangleAlert } from 'lucide-react';
+import type { ReactNode } from 'react';
 
-/** ✓ Pass / ⚠ Warn / ✗ Fail / — No baseline, next to the status (PIGN-034). */
+import type { ComparisonState } from '../request-editor/scratch-store';
+
+interface BadgeView {
+  label: string;
+  icon: ReactNode;
+  className: string;
+  outcome: string;
+}
+
+export const OUTCOMES = {
+  pass: { label: 'Pass', icon: <CircleCheck size={12} />, className: 'text-pass', outcome: 'pass' },
+  warn: {
+    label: 'Warn',
+    icon: <TriangleAlert size={12} />,
+    className: 'text-warn',
+    outcome: 'warn',
+  },
+  fail: { label: 'Fail', icon: <CircleX size={12} />, className: 'text-fail', outcome: 'fail' },
+} as const;
+
+function badgeView(comparison: NonNullable<ComparisonState>): BadgeView {
+  if (comparison.status === 'running') {
+    return {
+      label: 'Comparing…',
+      icon: <LoaderCircle size={12} className="animate-spin" />,
+      className: 'text-fg-muted',
+      outcome: 'running',
+    };
+  }
+  const { outcome } = comparison;
+  switch (outcome.kind) {
+    case 'no-baseline':
+      return {
+        label: 'No baseline',
+        icon: <CircleMinus size={12} />,
+        className: 'text-fg-muted',
+        outcome: 'none',
+      };
+    case 'disabled':
+      return {
+        label: 'Off',
+        icon: <CircleMinus size={12} />,
+        className: 'text-fg-muted',
+        outcome: 'disabled',
+      };
+    case 'baseline-not-found':
+      return {
+        label: 'Baseline not found',
+        icon: <TriangleAlert size={12} />,
+        className: 'text-warn',
+        outcome: 'not-found',
+      };
+    case 'compared':
+      return OUTCOMES[outcome.result.outcome];
+  }
+}
+
+/** ✓ Pass / ⚠ Warn / ✗ Fail / — No baseline / Off, next to the status (PIGN-034/037). */
 export function ComparisonBadge({
   comparison,
   onOpen,
@@ -10,22 +67,7 @@ export function ComparisonBadge({
   onOpen: () => void;
 }) {
   if (!comparison) return null;
-  const view =
-    comparison.status === 'running'
-      ? {
-          label: 'Comparing…',
-          icon: <LoaderCircle size={12} className="animate-spin" />,
-          className: 'text-fg-muted',
-          outcome: 'running',
-        }
-      : comparison.outcome.kind === 'no-baseline'
-        ? {
-            label: 'No baseline',
-            icon: <CircleMinus size={12} />,
-            className: 'text-fg-muted',
-            outcome: 'none',
-          }
-        : OUTCOMES[comparison.outcome.result.outcome];
+  const view = badgeView(comparison);
   return (
     <button
       type="button"
@@ -42,14 +84,3 @@ export function ComparisonBadge({
     </button>
   );
 }
-
-export const OUTCOMES = {
-  pass: { label: 'Pass', icon: <CircleCheck size={12} />, className: 'text-pass', outcome: 'pass' },
-  warn: {
-    label: 'Warn',
-    icon: <TriangleAlert size={12} />,
-    className: 'text-warn',
-    outcome: 'warn',
-  },
-  fail: { label: 'Fail', icon: <CircleX size={12} />, className: 'text-fail', outcome: 'fail' },
-} as const;

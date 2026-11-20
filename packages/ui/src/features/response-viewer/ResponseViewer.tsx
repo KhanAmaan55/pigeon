@@ -194,6 +194,8 @@ function ResponseTabs({
   const canCompare = useScratchRequest((s) => s.compare !== null);
   const addRule = useScratchRequest((s) => s.addRule);
   const rulesApi = useScratchRequest((s) => s.rules);
+  const baselineApi = useScratchRequest((s) => s.baselineMode);
+  const acceptBaseline = useScratchRequest((s) => s.acceptBaseline);
   // The rules panel follows edits of compare.json / pigeon.json.
   useProjectState((s) => s.model, null);
   const [reveal, setReveal] = useState<{ line: number; nonce: number } | undefined>(undefined);
@@ -381,6 +383,21 @@ function ResponseTabs({
                     onOverrides: rulesApi.setOverrides,
                   },
                 }
+              : {})}
+            {...(baselineApi
+              ? {
+                  baselineMode: {
+                    value: baselineApi.read(),
+                    examples,
+                    onChange: baselineApi.write,
+                  },
+                }
+              : {})}
+            {...(acceptBaseline
+              ? { onAccept: () => void acceptBaseline({ volatileHeaders }) }
+              : {})}
+            {...(saveAsExample
+              ? { onSaveExample: () => void saveAsExample({ volatileHeaders }) }
               : {})}
             onEditProjectRules={() =>
               window.dispatchEvent(new CustomEvent('pigeon:open-view', { detail: 'settings' }))

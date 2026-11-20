@@ -6,6 +6,8 @@ import type {
   EffectiveAuth,
   ExecutionPreferences,
   NewExample,
+  ProjectComparisonConfig,
+  ProjectExample,
   ProjectFieldRule,
   ExecutionResult,
   KeyValue,
@@ -17,6 +19,7 @@ import {
   createExecutionContext,
   createRequest,
   DEFAULT_PREFERENCES,
+  acceptedExamplePatch,
   emptyBody,
   exampleFromResponse,
   RequestExecutor,
@@ -64,10 +67,17 @@ export interface RequestBinding {
   /** The request's rules and the project's (read-only here), and replacing the request's. */
   rules?: () => { request: ProjectFieldRule[]; project: ProjectFieldRule[] };
   setRules?: (rules: ProjectFieldRule[]) => void;
+  /** Replaces an example's response with the actual one ("Accept as new baseline", PIGN-037). */
+  acceptBaseline?: (exampleId: string, patch: Pick<ProjectExample, 'request' | 'response'>) => void;
+  /** The request's baseline mode, and setting it (`compare.json` `baseline`). */
+  baseline?: () => BaselineMode;
+  setBaseline?: (baseline: BaselineMode) => void;
   /** The request's own status / headers / body comparison settings (PIGN-036). */
   overrides?: () => ComparisonOverrides;
   setOverrides?: (patch: ComparisonOverrides) => void;
 }
+
+export type BaselineMode = NonNullable<ProjectComparisonConfig['baseline']>;
 
 /** What `compare.json` overrides besides rules; `undefined` removes a section. */
 export interface ComparisonOverrides {
@@ -122,6 +132,13 @@ export interface ScratchRequestState {
   comparison: ComparisonState;
   /** Re-runs the comparison of the latest result (project requests only). */
   compare: (() => Promise<void>) | null;
+  /**
+   * Accepts the latest response as the new baseline (the example the comparison used), with
+   * the volatile headers left out and the send's secrets masked; compares again.
+   */
+  acceptBaseline: ((options: { volatileHeaders: readonly string[] }) => boolean) | null;
+  /** The baseline mode (auto / pinned example / disabled) and changing it; compares again. */
+  baselineMode: { read: () => BaselineMode; write: (baseline: BaselineMode) => void } | null;
   /** Adds a field rule (from a finding's action), then compares again. */
   addRule: ((rule: ProjectFieldRule) => void) | null;
   /** The rules panel: request rules (editable) and project rules; edits compare again. */
@@ -194,6 +211,37 @@ export function createScratchRequestStore(
       status: 'idle',
       result: null,
       comparison: null,
+      acceptBaseline: binding?.acceptBaseline
+        ? ({ volatileHeaders }) => {
+            const { comparison, result, request } = get();
+            if (
+              comparison?.status !== 'done' ||
+              comparison.outcome.kind !== 'compared' ||
+              !result?.response
+            ) {
+              return false;
+            }
+            binding.acceptBaseline!(
+              comparison.outcome.result.exampleId,
+              acceptedExamplePatch(request, result.response, {
+                volatileHeaders,
+                secretValues: lastSecrets,
+              }),
+            );
+            void get().compare?.();
+            return true;
+          }
+        : null,
+      baselineMode:
+        binding?.baseline && binding.setBaseline
+          ? {
+              read: binding.baseline,
+              write: (baseline) => {
+                binding.setBaseline!(baseline);
+                void get().compare?.();
+              },
+            }
+          : null,
       addRule: binding?.addRule
         ? (rule) => {
             binding.addRule!(rule);

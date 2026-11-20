@@ -2231,3 +2231,98 @@ describe('status, headers and values comparison (PIGN-036)', () => {
     );
   });
 });
+
+describe('accepting baselines (PIGN-037)', () => {
+  async function setup() {
+    let reply = { status: 200, body: { id: 1, name: 'Ada' } as unknown };
+    const transport = new MockTransport().on({ url: /./ }, () => ({
+      status: reply.status,
+      headers: [['Content-Type', 'application/json']],
+      body: JSON.stringify(reply.body),
+    }));
+    const { platform, fs } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await user.dblClick(screen.getByText('List users'));
+    await user.click(screen.getByTestId('send-button'));
+    await user.click(await screen.findByTestId('save-as-example'));
+    const badge = () => screen.getByTestId('comparison-badge').getAttribute('data-outcome');
+    await waitFor(() => expect(badge()).toBe('pass'));
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(() => expect(screen.getByTestId('toast').textContent).toContain('Wrote'));
+    const send = async (status: number, body: unknown, outcome: string) => {
+      reply = { status, body };
+      await user.click(screen.getByTestId('send-button'));
+      await waitFor(() => expect(badge()).toBe(outcome));
+    };
+    return { fs, user, send, badge };
+  }
+
+  it('accepts the response as the new baseline after confirmation; discard brings the old one back', async () => {
+    const { fs, user, send, badge } = await setup();
+    await send(200, { id: 1, fullName: 'Ada' }, 'fail');
+    fireEvent.click(screen.getByTestId('comparison-badge'));
+    fireEvent.click(screen.getByTestId('compare-accept'));
+    const dialog = await screen.findByTestId('accept-dialog');
+    expect(within(dialog).getByTestId('accept-findings').textContent).toContain('$.name');
+    fireEvent.click(within(dialog).getByTestId('accept-confirm'));
+    await waitFor(() => expect(badge()).toBe('pass'));
+
+    // Discard the request's changes (the accepted example): the old baseline fails again.
+    fireEvent.contextMenu(screen.getAllByText('List users')[0]!);
+    fireEvent.click(await screen.findByTestId('menu-discard'));
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(badge()).toBe('fail'));
+    expect(await fs.readText('examples/users-api/list-users/200-ok.body.json')).toContain('"name"');
+  });
+
+  it('pins, disables and re-enables the baseline; saves a new example with a unique name', async () => {
+    const { send, badge } = await setup();
+    await send(404, { error: 'nope' }, 'fail');
+    fireEvent.click(screen.getByTestId('comparison-badge'));
+    fireEvent.click(screen.getByTestId('compare-save-example'));
+    await waitFor(() => expect(badge()).toBe('pass')); // auto picks the new 404 example
+    expect(screen.getByTestId('compare-baseline').textContent).toBe('404 Not Found');
+
+    await send(200, { id: 1, name: 'Ada' }, 'pass'); // auto: the 200 example
+    fireEvent.click(screen.getByTestId('comparison-badge'));
+    const select = screen.getByTestId('compare-baseline-mode') as HTMLSelectElement;
+    const pin404 = [...select.options].find((o) => o.textContent === 'Pin: 404 Not Found')!;
+    fireEvent.change(select, { target: { value: pin404.value } });
+    await waitFor(() => expect(badge()).toBe('fail'));
+    expect(screen.getAllByTestId('compare-finding')[0]!.getAttribute('data-kind')).toBe(
+      'status.changed',
+    );
+
+    fireEvent.change(screen.getByTestId('compare-baseline-mode'), { target: { value: 'none' } });
+    await waitFor(() => expect(badge()).toBe('disabled'));
+    fireEvent.click(await screen.findByTestId('compare-enable'));
+    await waitFor(() => expect(badge()).toBe('pass'));
+
+    // A second "200 OK" example gets a unique name.
+    fireEvent.click(screen.getByTestId('compare-save-example'));
+    await act(async () => screen.getByTestId('response-examples-tab').focus());
+    const names = () =>
+      screen.getAllByTestId('examples-list-item').map((li) => li.textContent?.replace('★', ''));
+    await waitFor(() => expect(names()).toContain('200200 OK (2)'));
+  });
+
+  it('pins an example from the explorer menu and marks it with ★', async () => {
+    const { send } = await setup();
+    await send(404, { error: 'nope' }, 'fail');
+    fireEvent.click(screen.getByTestId('comparison-badge'));
+    fireEvent.click(screen.getByTestId('compare-save-example'));
+    fireEvent.click(screen.getByTestId('explorer-examples-toggle'));
+    const row = (name: string) =>
+      screen.getAllByTestId('explorer-item').find((r) => r.textContent?.includes(name))!;
+    await waitFor(() => expect(row('404 Not Found')).toBeTruthy());
+    fireEvent.contextMenu(row('404 Not Found'));
+    fireEvent.click(await screen.findByTestId('menu-pin-baseline'));
+    await waitFor(() =>
+      expect(within(row('404 Not Found')).queryByTestId('explorer-baseline')).not.toBeNull(),
+    );
+    expect(within(row('200 OK')).queryByTestId('explorer-baseline')).toBeNull();
+  });
+});

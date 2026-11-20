@@ -201,7 +201,41 @@ export interface ComparisonResult {
 }
 
 export type ComparisonOutcome =
-  { kind: 'compared'; result: ComparisonResult } | { kind: 'no-baseline'; requestId: string };
+  | { kind: 'compared'; result: ComparisonResult }
+  | { kind: 'no-baseline'; requestId: string }
+  /** `baseline.mode: 'none'` in `compare.json`. */
+  | { kind: 'disabled'; requestId: string }
+  /** The pinned example (`mode: 'example'`) no longer exists. */
+  | { kind: 'baseline-not-found'; requestId: string; exampleId: string };
+
+/** `config` with the baseline mode set (`auto` removes the key: it is the default). */
+export function withBaseline(
+  config: ProjectComparisonConfig | undefined,
+  baseline: NonNullable<ProjectComparisonConfig['baseline']>,
+): ProjectComparisonConfig {
+  const { baseline: _old, ...rest } = config ?? { rules: [], extra: {} };
+  return baseline.mode === 'auto' ? rest : { ...rest, baseline };
+}
+
+/**
+ * What the request's baseline is for a response: the example, or why there is none (§2).
+ * Shared by the editor and the runner.
+ */
+export function resolveBaseline(
+  request: { id: string; examples: readonly ProjectExample[] },
+  baseline: EffectiveComparison['baseline'],
+  status: number | undefined,
+): { example: ProjectExample } | Exclude<ComparisonOutcome, { kind: 'compared' }> {
+  if (baseline.mode === 'none') return { kind: 'disabled', requestId: request.id };
+  if (baseline.mode === 'example') {
+    const example = request.examples.find((e) => e.id === baseline.exampleId);
+    return example
+      ? { example }
+      : { kind: 'baseline-not-found', requestId: request.id, exampleId: baseline.exampleId };
+  }
+  const example = selectBaseline(request.examples, status);
+  return example ? { example } : { kind: 'no-baseline', requestId: request.id };
+}
 
 /** What a body comparison needs, as plain data (worker-friendly). */
 export interface BodyComparisonInput {
@@ -424,13 +458,13 @@ export function compareExecution(
   } = {},
 ): ComparisonOutcome | undefined {
   if (!result.response) return undefined;
-  if (options.baseline?.mode === 'none') return undefined;
-  const example = baselineFor(
-    request.examples,
+  const resolved = resolveBaseline(
+    request,
     options.baseline ?? { mode: 'auto' },
     result.response.status,
   );
-  if (!example) return { kind: 'no-baseline', requestId: request.id };
+  if (!('example' in resolved)) return resolved;
+  const { example } = resolved;
   const findings = compareResponseInput(bodyComparisonInput(example, result), {
     status: options.status ?? 'exact',
     headers: options.headers ?? DEFAULT_HEADER_COMPARISON,

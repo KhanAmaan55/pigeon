@@ -7,12 +7,13 @@ import type {
 } from '@pigeon/core';
 import type { NormalizedResponse } from '@pigeon/core';
 import { CircleX, Info, LoaderCircle, TriangleAlert, EyeOff } from 'lucide-react';
+import { Dialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 
 import type { ComparisonState } from '../request-editor/scratch-store';
 import { OUTCOMES } from './outcome';
-import type { ComparisonOverrides } from '../request-editor/scratch-store';
+import type { BaselineMode, ComparisonOverrides } from '../request-editor/scratch-store';
 import { RequestOverrides } from './RequestOverrides';
 import { RulesTable } from './RulesTable';
 import { SideBySide } from './SideBySide';
@@ -54,6 +55,9 @@ export function CompareTab({
   onAddRule,
   rules,
   onEditProjectRules,
+  baselineMode,
+  onAccept,
+  onSaveExample,
 }: {
   comparison: ComparisonState;
   /** The example the comparison used (for the side-by-side view). */
@@ -71,7 +75,17 @@ export function CompareTab({
     onOverrides: (patch: ComparisonOverrides) => void;
   };
   onEditProjectRules?: () => void;
+  /** Baseline selector (PIGN-037): auto, a pinned example, or disabled. */
+  baselineMode?: {
+    value: BaselineMode;
+    examples: ReadonlyArray<{ id: string; name: string }>;
+    onChange: (baseline: BaselineMode) => void;
+  };
+  /** "Accept as new baseline" (after confirmation) and "Save as new example". */
+  onAccept?: () => void;
+  onSaveExample?: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
   const [view, setView] = useState<'findings' | 'side-by-side'>('findings');
   const [showIgnored, setShowIgnored] = useState(false);
   // While a new comparison runs (e.g. after a rule change), keep showing the last result so the
@@ -105,6 +119,44 @@ export function CompareTab({
       </p>
     );
   }
+  if (shown.outcome.kind === 'disabled') {
+    return (
+      <div
+        data-testid="compare-disabled"
+        className="flex items-center gap-2 p-3 text-sm text-fg-muted"
+      >
+        Comparison is turned off for this request.
+        {baselineMode && (
+          <button
+            type="button"
+            data-testid="compare-enable"
+            onClick={() => baselineMode.onChange({ mode: 'auto' })}
+            className="rounded border border-border px-2 py-0.5 text-fg hover:bg-hover"
+          >
+            Turn on (auto baseline)
+          </button>
+        )}
+      </div>
+    );
+  }
+  if (shown.outcome.kind === 'baseline-not-found') {
+    return (
+      <div data-testid="compare-baseline-not-found" className="flex items-center gap-2 p-3 text-sm">
+        <TriangleAlert size={14} className="shrink-0 text-warn" aria-hidden />
+        Baseline not found: the pinned example no longer exists.
+        {baselineMode && (
+          <button
+            type="button"
+            data-testid="compare-use-auto"
+            onClick={() => baselineMode.onChange({ mode: 'auto' })}
+            className="rounded border border-border px-2 py-0.5 hover:bg-hover"
+          >
+            Use the auto baseline
+          </button>
+        )}
+      </div>
+    );
+  }
   const result: ComparisonResult = shown.outcome.result;
   const outcome = OUTCOMES[result.outcome];
   const ignored = result.findings.filter((f) => f.severity === 'ignored').length;
@@ -135,6 +187,36 @@ export function CompareTab({
             {result.exampleName}
           </span>
         </span>
+        {baselineMode && (
+          <select
+            aria-label="Baseline"
+            data-testid="compare-baseline-mode"
+            value={
+              baselineMode.value.mode === 'example'
+                ? `example:${baselineMode.value.exampleId}`
+                : baselineMode.value.mode
+            }
+            onChange={(event) => {
+              const value = event.target.value;
+              baselineMode.onChange(
+                value.startsWith('example:')
+                  ? { mode: 'example', exampleId: value.slice('example:'.length) }
+                  : value === 'none'
+                    ? { mode: 'none' }
+                    : { mode: 'auto' },
+              );
+            }}
+            className="h-6 rounded border border-border bg-surface px-1 text-xs"
+          >
+            <option value="auto">Auto (same status, else first)</option>
+            {baselineMode.examples.map((example) => (
+              <option key={example.id} value={`example:${example.id}`}>
+                Pin: {example.name}
+              </option>
+            ))}
+            <option value="none">Disable comparison</option>
+          </select>
+        )}
         <div role="radiogroup" aria-label="Comparison view" className="ml-auto flex gap-1">
           {(['findings', 'side-by-side'] as const).map((candidate) => (
             <button
@@ -242,6 +324,42 @@ export function CompareTab({
           selected={selected}
         />
       )}
+      {(onAccept || onSaveExample) && (
+        <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-3 py-1.5">
+          {onAccept && result.outcome !== 'pass' && (
+            <button
+              type="button"
+              data-testid="compare-accept"
+              onClick={() => setConfirming(true)}
+              className="h-7 rounded bg-accent px-2 text-xs font-semibold text-accent-fg"
+            >
+              Accept as new baseline
+            </button>
+          )}
+          {onSaveExample && (
+            <button
+              type="button"
+              data-testid="compare-save-example"
+              onClick={onSaveExample}
+              className="h-7 rounded border border-border px-2 text-xs hover:bg-hover"
+            >
+              Save as new example
+            </button>
+          )}
+        </footer>
+      )}
+      {onAccept && (
+        <AcceptDialog
+          open={confirming}
+          exampleName={result.exampleName}
+          findings={result.findings.filter((f) => f.severity !== 'ignored')}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            onAccept();
+          }}
+        />
+      )}
       {rules && (
         <details
           data-testid="compare-rules"
@@ -327,5 +445,68 @@ function RuleActions({
         </button>
       ))}
     </div>
+  );
+}
+
+/** "Accept as new baseline?": what the accept replaces and which findings go away (§6). */
+function AcceptDialog({
+  open,
+  exampleName,
+  findings,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  exampleName: string;
+  findings: readonly Finding[];
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={(next) => !next && onCancel()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/40" />
+        <Dialog.Content
+          data-testid="accept-dialog"
+          className="fixed top-1/2 left-1/2 w-[min(30rem,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
+        >
+          <Dialog.Title className="text-base font-semibold">Accept as new baseline?</Dialog.Title>
+          <Dialog.Description className="mt-2 text-fg-muted">
+            The example “{exampleName}” gets this response (status, headers without volatile ones,
+            body) and the current request definition. These {findings.length} finding
+            {findings.length === 1 ? '' : 's'} will go away. Until you save it for commit,
+            discarding the change brings the old baseline back.
+          </Dialog.Description>
+          <ul data-testid="accept-findings" className="mt-2 max-h-40 overflow-auto text-xs">
+            {findings.slice(0, 20).map((finding, index) => (
+              <li key={index} className="truncate">
+                <span className="font-mono">
+                  {finding.schemaPath ?? finding.path ?? finding.kind}
+                </span>{' '}
+                — {finding.message}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 flex justify-end gap-2">
+            <Dialog.Close asChild>
+              <button
+                type="button"
+                className="h-8 rounded border border-border px-3 hover:bg-hover"
+              >
+                Cancel
+              </button>
+            </Dialog.Close>
+            <button
+              type="button"
+              data-testid="accept-confirm"
+              onClick={onConfirm}
+              className="h-8 rounded bg-accent px-3 font-semibold text-accent-fg"
+            >
+              Accept
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-037 | 7 — Comparison | MVP | Todo | PIGN-035 |
+| PIGN-037 | 7 — Comparison | MVP | Done | PIGN-035 |
 
 ## Goal
 Let users accept an actual response as the new baseline, save it as an additional example, and choose which example is the baseline (auto, pinned, or none).
@@ -25,10 +25,10 @@ As a developer who intentionally changed an API, I want to accept the new respon
 - Bulk accept from runs (PIGN-038).
 
 ## Acceptance criteria
-- [ ] After a failing comparison, Accept → outcome pass; Save for Commit changes only the example + body files (and not `compare.json`).
-- [ ] Pin a 404 example → comparing a 200 response fails on status; Auto picks the 200 example.
-- [ ] Discarding the accept draft restores the previous baseline and failing result.
-- [ ] Secrets never end up in the accepted example (test).
+- [x] After a failing comparison, Accept → outcome pass; Save for Commit changes only the example + body files (and not `compare.json`).
+- [x] Pin a 404 example → comparing a 200 response fails on status; Auto picks the 200 example.
+- [x] Discarding the accept draft restores the previous baseline and failing result.
+- [x] Secrets never end up in the accepted example (test).
 
 ## Technical notes
 - Reuse the example-capture function from PIGN-027 (single code path for "response → example").
@@ -42,3 +42,8 @@ As a developer who intentionally changed an API, I want to accept the new respon
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+- Core: `acceptedExamplePatch(definition, response, { volatileHeaders, secretValues })` reuses `exampleFromResponse` (one capture path: volatile headers dropped, secrets masked, JSON pretty-printed, `originalRequest` from the current definition) and returns the `request` / `response` patch for `updateExample` — the example keeps its id, name and file key, so a commit touches only its `.example.json` / body sidecar (never `compare.json`). `withBaseline(config, baseline)` (auto removes the key), `resolveBaseline` (shared by the editor; returns the example or `no-baseline` / `disabled` / `baseline-not-found`), `uniqueExampleName` ("200 OK (2)").
+- UI: Compare tab header has a baseline selector (Auto, Pin: <example> for each example, Disable comparison); footer **Accept as new baseline** (confirmation listing the findings that go away) and **Save as new example**; states "Comparison is turned off" (Turn on) and "Baseline not found" (Use the auto baseline); badge **Off** / **Baseline not found**. Explorer example menu: **Pin as baseline** / **Use auto baseline**; ★ follows a pinned example (none when off). Accepting re-runs the comparison (pass); discarding the request's changes restores the previous example.
+- Tests: core (accept → pass and only the example's files written; a second accept discarded restores the committed baseline; pin a 404 → status fails, auto → the 200 example, missing pin → not found; secrets masked; unique names), UI (accept with confirmation and discard, pin/disable/enable, save as new example, explorer pin ★), E2E accept → pass → discard → fail in Chromium, Firefox and WebKit.

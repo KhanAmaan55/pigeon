@@ -26,8 +26,13 @@ export function ExamplesTab({ requestId }: { requestId: string }) {
   const examples = useRequestExamples(requestId);
   const readOnly = useProjectState((s) => s.readOnly, false);
   const lastBaseline = useProjectState((s) => s.comparisons[requestId]?.exampleId, undefined);
+  const session = useAppStore((s) => s.project?.session);
   const baselineId = baselineExampleId(
-    { id: requestId, examples },
+    {
+      id: requestId,
+      examples,
+      comparison: session?.findRequest(requestId)?.comparison,
+    },
     lastBaseline ? { [requestId]: lastBaseline } : undefined,
   );
   if (!project) return null;
