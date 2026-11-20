@@ -5,14 +5,20 @@ import type { Invoke } from '../src/native-transport';
 
 function fakeDisk(initial: Record<string, string> = {}) {
   const files = new Map(Object.entries(initial));
+  const backups: string[] = [];
   const invoke: Invoke = async <T>(cmd: string, args?: Record<string, unknown> | Uint8Array) => {
     const { namespace, json } = args as { namespace: string; json?: string | null };
     if (cmd === 'app_state_read') return (files.get(namespace) ?? null) as T;
+    if (cmd === 'app_state_backup') {
+      backups.push(namespace);
+      files.delete(namespace);
+      return 'state.json.bak-1' as T;
+    }
     if (json === null) files.delete(namespace);
     else files.set(namespace, json as string);
     return undefined as T;
   };
-  return { files, invoke };
+  return { files, invoke, backups };
 }
 
 describe('FileAppState', () => {
@@ -48,11 +54,11 @@ describe('FileAppState', () => {
     await expect(state.set('app', 'f', () => 1)).rejects.toThrow(TypeError);
   });
 
-  it('starts over when the stored document is unreadable', async () => {
-    const state = new FileAppState({
-      invoke: fakeDisk({ app: '{broken', 'project:a': '[1]' }).invoke,
-    });
+  it('backs up an unreadable document and starts over', async () => {
+    const disk = fakeDisk({ app: '{broken', 'project:a': '[1]' });
+    const state = new FileAppState({ invoke: disk.invoke });
     expect(await state.get('app', 'x')).toBeUndefined();
     expect(await state.get('project:a', 'x')).toBeUndefined();
+    expect(disk.backups).toEqual(['app', 'project:a']);
   });
 });

@@ -28,6 +28,10 @@ export function AppStoreProvider({
   const [store] = useState(() => given ?? createAppStore(platform));
   useEffect(() => {
     void store.getState().loadRecents();
+    // Write debounced UI state (tabs, layout) before the page or window goes away.
+    const flush = () => void store.getState().project?.session.flushLocalState();
+    window.addEventListener('pagehide', flush);
+    return () => window.removeEventListener('pagehide', flush);
   }, [store]);
   return <AppStoreContext.Provider value={store}>{children}</AppStoreContext.Provider>;
 }

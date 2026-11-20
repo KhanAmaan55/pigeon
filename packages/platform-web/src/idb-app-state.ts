@@ -20,10 +20,22 @@ export class IdbAppState implements AppStateStore {
 
   async get<T>(ns: AppStateNamespace, key: string): Promise<T | undefined> {
     const store = storeFor(ns);
-    const json = await transact(await this.#db(), store, 'readonly', (tx) =>
+    const db = await this.#db();
+    const json = await transact(db, store, 'readonly', (tx) =>
       request(tx.objectStore(store).get(keyOf(ns, key)) as IDBRequest<string | undefined>),
-    ).then((pending) => pending);
-    return json === undefined ? undefined : (JSON.parse(json) as T);
+    );
+    if (json === undefined) return undefined;
+    try {
+      return JSON.parse(json) as T;
+    } catch {
+      // Unreadable: keep a copy under `<key>.bak-<time>` and start over (file-format.md §6).
+      const backup = `${key}.bak-${Date.now()}`;
+      await transact(db, store, 'readwrite', (tx) => {
+        tx.objectStore(store).put(json, keyOf(ns, backup));
+        tx.objectStore(store).delete(keyOf(ns, key));
+      });
+      return undefined;
+    }
   }
 
   async set<T>(ns: AppStateNamespace, key: string, value: T): Promise<void> {

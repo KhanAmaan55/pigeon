@@ -46,7 +46,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-015](PIGN-015-web-open-project.md) | Open project on web (folder access & browser workspace) | 2 Projects | MVP | 014 | Done |
 | [PIGN-016](PIGN-016-request-tabs.md) | Request tabs for project requests | 2 Projects | MVP | 014, 009 | Done |
 | [PIGN-017](PIGN-017-explorer-crud.md) | Explorer CRUD, move & reorder | 2 Projects | MVP | 016 | Done |
-| [PIGN-018](PIGN-018-save-local-drafts.md) | Save to local state (drafts) | 2 Projects | MVP | 017 | Todo |
+| [PIGN-018](PIGN-018-save-local-drafts.md) | Save to local state (drafts) | 2 Projects | MVP | 017 | Done |
 | [PIGN-019](PIGN-019-save-for-commit.md) | Save for Commit & Pending Changes | 2 Projects | MVP | 018 | Todo |
 | [PIGN-020](PIGN-020-external-changes-conflicts.md) | External file changes & conflicts | 2 Projects | MVP | 019 | Todo |
 | [PIGN-021](PIGN-021-multiple-projects.md) | Multiple isolated projects | 2 Projects | MVP | 018 | Todo |

@@ -20,6 +20,7 @@
     "allow-project-fs-remove",
     "allow-project-fs-rename",
     "allow-app-state-read",
-    "allow-app-state-write"
+    "allow-app-state-write",
+    "allow-app-state-backup"
   ]
 }

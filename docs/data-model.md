@@ -347,19 +347,19 @@ interface LocalProjectState {
   drafts: Draft[];
   currentValues: Record<string /* scopeKey */, Record<string, string>>; // non-secret current values
   selectedEnvironmentId?: Id | null;
-  tabs: { open: TabRef[]; activeIndex: number; previewTab?: TabRef };
+  tabs: { open: Array<{ id: Id; pinned: boolean }>; activeId: Id | null }; // unpinned = preview tab
   explorer: { expanded: Id[] };
-  layout: { responsePanel: 'bottom' | 'right'; sizes: Record<string, number> };
+  layout: { responsePanel: 'bottom' | 'right' };
   lastResults: Record<Id /* requestId */, StoredExecutionResult>; // bounded, see file-format.md
   lastComparisons: Record<Id, ComparisonResult>;
   runReports: RunReportSummary[];     // bounded (last 20)
   conflicts: Conflict[];
 }
 
-interface Draft {
+interface Draft {                      // core/workspace/drafts.ts
   ref: EntityRef;
   op: 'create' | 'update' | 'delete';
-  data?: unknown;                      // full entity (without children) for create/update
+  data?: unknown;                      // full entity (without children; containers add childOrder: Id[]) for create/update
   parentId?: Id | null;                // for create/move
   index?: number;                      // position among siblings
   baseHash?: string;                   // sha-256 of the entity's file bytes when the draft started (conflict detection)

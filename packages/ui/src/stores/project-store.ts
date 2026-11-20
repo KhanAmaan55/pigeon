@@ -4,7 +4,7 @@
  * Stores are never shared between projects.
  */
 
-import type { Problem, ProjectModel, ProjectSession } from '@pigeon/core';
+import type { ChangeState, Problem, ProjectModel, ProjectSession } from '@pigeon/core';
 import { createStore } from 'zustand';
 
 /** An open request tab. An unpinned tab is the *preview* tab (at most one, replaced by the next preview). */
@@ -19,6 +19,13 @@ export interface ProjectState {
   readOnly: boolean;
   /** Entities with in-memory (unsaved) edits. */
   unsaved: Readonly<Record<string, true>>;
+  /** Non-clean entities: unsaved edits or saved drafts (data-model.md §10). */
+  changes: Readonly<Record<string, Exclude<ChangeState, 'clean'>>>;
+  /** Entities deleted by a saved draft (still in the files), for the explorer. */
+  deleted: ReturnType<ProjectSession['deletedEntities']>;
+  /** Response panel position, remembered per project. */
+  dock: 'bottom' | 'right';
+  setDock: (dock: 'bottom' | 'right') => void;
   /** Expanded collection/folder ids. */
   expanded: Readonly<Record<string, true>>;
   /** Selected explorer item. */
@@ -49,21 +56,43 @@ export interface ProjectState {
 export type ProjectStore = ReturnType<typeof createProjectStore> & { dispose: () => void };
 
 export function createProjectStore(session: ProjectSession) {
-  const snapshot = () => ({
-    model: session.getWorkingModel(),
-    problems: session.problems,
-    readOnly: session.readOnly,
-    unsaved: Object.fromEntries(session.unsavedIds().map((id) => [id, true as const])),
-  });
+  const snapshot = () => {
+    const changes: Record<string, Exclude<ChangeState, 'clean'>> = {};
+    for (const draft of session.drafts) {
+      const state = session.changeState(draft.ref.id);
+      if (state !== 'clean') changes[draft.ref.id] = state;
+    }
+    for (const id of session.unsavedIds()) changes[id] = 'unsaved';
+    return {
+      model: session.getWorkingModel(),
+      problems: session.problems,
+      readOnly: session.readOnly,
+      unsaved: Object.fromEntries(session.unsavedIds().map((id) => [id, true as const])),
+      changes,
+      deleted: session.deletedEntities(),
+    };
+  };
+  // Restore UI state from local state (PIGN-018), dropping tabs of requests that are gone.
+  const saved = session.localState;
+  const restoredTabs = (saved?.tabs.open ?? []).filter((tab) => session.findRequest(tab.id));
+  const restoredActive =
+    saved?.tabs.activeId && restoredTabs.some((t) => t.id === saved.tabs.activeId)
+      ? saved.tabs.activeId
+      : (restoredTabs.at(-1)?.id ?? null);
   const store = createStore<ProjectState>()((set, get) => ({
     ...snapshot(),
-    // Collections start expanded, folders collapsed.
+    // Collections start expanded, folders collapsed (unless local state remembers otherwise).
     expanded: Object.fromEntries(
-      session.getWorkingModel().collections.map((c) => [c.id, true as const]),
+      (saved && saved.explorer.expanded.length > 0
+        ? saved.explorer.expanded
+        : session.getWorkingModel().collections.map((c) => c.id)
+      ).map((id) => [id, true as const]),
     ),
-    selectedId: null,
-    tabs: [],
-    activeTabId: null,
+    selectedId: restoredActive,
+    tabs: restoredTabs,
+    activeTabId: restoredActive,
+    dock: saved?.layout.responsePanel ?? 'bottom',
+    setDock: (dock) => set({ dock }),
     renamingId: null,
     filter: '',
     startRename: (renamingId) => set({ renamingId }),
@@ -131,5 +160,26 @@ export function createProjectStore(session: ProjectSession) {
       if (!session.findRequest(tab.id)) store.getState().closeTab(tab.id);
     }
   });
-  return Object.assign(store, { dispose: unsubscribe });
+  // Persist UI state (debounced in core) whenever tabs, expansion or layout change.
+  const unsubscribeUi = store.subscribe((state, previous) => {
+    if (
+      state.tabs === previous.tabs &&
+      state.activeTabId === previous.activeTabId &&
+      state.expanded === previous.expanded &&
+      state.dock === previous.dock
+    ) {
+      return;
+    }
+    session.updateLocalState({
+      tabs: { open: state.tabs.map((tab) => ({ ...tab })), activeId: state.activeTabId },
+      explorer: { expanded: Object.keys(state.expanded) },
+      layout: { responsePanel: state.dock },
+    });
+  });
+  return Object.assign(store, {
+    dispose: () => {
+      unsubscribe();
+      unsubscribeUi();
+    },
+  });
 }

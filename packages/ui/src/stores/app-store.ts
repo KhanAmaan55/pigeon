@@ -97,6 +97,7 @@ export function createAppStore(platform: AppPlatform) {
 
     const show = async (session: ProjectSession) => {
       get().project?.store.dispose();
+      void get().project?.session.flushLocalState();
       set({ project: { session, store: createProjectStore(session) }, pendingInit: null });
       await remember(session);
     };
@@ -118,7 +119,7 @@ export function createAppStore(platform: AppPlatform) {
         set({ pendingInit: { location, fs, suggestedName: locationFolderName(location) } });
         return;
       }
-      await show(await ProjectSession.fromFs(fs));
+      await show(await ProjectSession.fromFs(fs, { appState: platform.appState }));
     };
 
     return {
@@ -162,7 +163,7 @@ export function createAppStore(platform: AppPlatform) {
           if (!location) return;
           const fs = await platform.openProjectFs(location);
           if (!(await isPigeonProject(fs))) await initializeProject(fs, trimmed);
-          await show(await ProjectSession.fromFs(fs));
+          await show(await ProjectSession.fromFs(fs, { appState: platform.appState }));
         }),
 
       createWorkspace: (name) =>
@@ -175,7 +176,7 @@ export function createAppStore(platform: AppPlatform) {
           const location = await platform.projects.createBrowserWorkspace(trimmed);
           const fs = await platform.openProjectFs(location);
           await initializeProject(fs, trimmed);
-          await show(await ProjectSession.fromFs(fs));
+          await show(await ProjectSession.fromFs(fs, { appState: platform.appState }));
         }),
 
       importProjectZip: () =>
@@ -191,7 +192,7 @@ export function createAppStore(platform: AppPlatform) {
           const location = await platform.projects.createBrowserWorkspace(name);
           const fs = await platform.openProjectFs(location);
           for (const [path, bytes] of contents.files) await fs.writeFileAtomic(path, bytes);
-          await show(await ProjectSession.fromFs(fs));
+          await show(await ProjectSession.fromFs(fs, { appState: platform.appState }));
         }),
 
       exportProjectZip: () =>
@@ -232,13 +233,15 @@ export function createAppStore(platform: AppPlatform) {
           if (!pending) return;
           const trimmed = name.trim() || pending.suggestedName || 'Untitled project';
           await initializeProject(pending.fs, trimmed);
-          await show(await ProjectSession.fromFs(pending.fs));
+          await show(await ProjectSession.fromFs(pending.fs, { appState: platform.appState }));
         }),
 
       cancelInit: () => set({ pendingInit: null }),
 
       closeProject: () => {
-        get().project?.store.dispose();
+        const project = get().project;
+        project?.store.dispose();
+        void project?.session.flushLocalState();
         set({ project: null });
       },
 

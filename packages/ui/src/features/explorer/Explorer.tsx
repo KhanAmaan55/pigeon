@@ -53,6 +53,8 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
   const problems = useProjectState((s) => s.problems, null);
   const expanded = useProjectState((s) => s.expanded, null);
   const unsaved = useProjectState((s) => s.unsaved, null);
+  const changes = useProjectState((s) => s.changes, null);
+  const deleted = useProjectState((s) => s.deleted, null);
   const selectedId = useProjectState((s) => s.selectedId, null);
   const renamingId = useProjectState((s) => s.renamingId, null);
   const filter = useProjectState((s) => s.filter, '');
@@ -65,9 +67,14 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
   const rows = useMemo(
     () =>
       model && expanded
-        ? flattenTree(model, expanded, problems ?? [], { filter, ...(unsaved ? { unsaved } : {}) })
+        ? flattenTree(model, expanded, problems ?? [], {
+            filter,
+            ...(unsaved ? { unsaved } : {}),
+            ...(changes ? { changes } : {}),
+            ...(deleted ? { deleted } : {}),
+          })
         : NO_ROWS,
-    [model, expanded, problems, filter, unsaved],
+    [model, expanded, problems, filter, unsaved, changes, deleted],
   );
   const scrollRef = useRef<HTMLDivElement>(null);
   // The virtualizer re-renders through its own state; nothing here memoizes its functions.
@@ -112,6 +119,10 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
   /** Single click: requests open in the preview tab; containers expand/collapse. */
   const activate = (row: TreeRow, pin = false) => {
     const state = store.getState();
+    if (row.deleted) {
+      state.select(row.id);
+      return;
+    }
     state.select(row.id);
     if (row.kind === 'request') state.openTab(row.id, { pin });
     else state.toggle(row.id);
@@ -122,8 +133,8 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
     if (!deleting) return;
     const closing = requestIdsUnder(session, deleting.id);
     edit(() => session.apply({ type: 'deleteItem', id: deleting.id }));
+    // Their edits go with them: the delete itself is the change to save.
     for (const id of closing) {
-      if (session.isUnsaved(id)) session.discardUnsaved(id);
       store.getState().closeTab(id);
       disposeTabEditor(session, id);
     }
@@ -184,7 +195,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
   };
 
   const dragHandlers = (row: TreeRow) => ({
-    draggable: !readOnly && renamingId !== row.id,
+    draggable: !readOnly && !row.deleted && renamingId !== row.id,
     onDragStart: (event: DragEvent) => {
       dragged.current = row.id;
       event.dataTransfer.setData(DRAG_TYPE, row.id);
@@ -335,6 +346,14 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
                   onRename={() => store.getState().startRename(row.id)}
                   onDuplicate={() => edit(() => duplicate(session, store, row.id))}
                   onDelete={() => askDelete(row)}
+                  onDiscard={() => {
+                    const ids = requestIdsUnder(session, row.id);
+                    void session.discard(row.id).then(() => {
+                      // Tabs of requests that no longer exist close through the store.
+                      for (const id of ids)
+                        if (!session.findRequest(id)) disposeTabEditor(session, id);
+                    });
+                  }}
                 >
                   <ExplorerRow
                     row={row}
@@ -382,6 +401,7 @@ function RowMenu({
   onRename,
   onDuplicate,
   onDelete,
+  onDiscard,
 }: {
   row: TreeRow;
   readOnly: boolean;
@@ -391,6 +411,7 @@ function RowMenu({
   onRename: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onDiscard: () => void;
 }) {
   const item = (label: string, onSelect: () => void, testId: string, shortcut?: string) => (
     <ContextMenu.Item
@@ -413,12 +434,26 @@ function RowMenu({
           data-testid="explorer-menu"
           className="z-50 min-w-44 rounded-md border border-border bg-surface-raised p-1 text-sm text-fg shadow-lg"
         >
-          {item('New request', onNewRequest, 'menu-new-request', 'Ctrl/⌘ N')}
-          {item('New folder', onNewFolder, 'menu-new-folder')}
-          <ContextMenu.Separator className="my-1 h-px bg-border" />
-          {item('Rename', onRename, 'menu-rename', 'F2')}
-          {!row.broken && item('Duplicate', onDuplicate, 'menu-duplicate', 'Ctrl/⌘ D')}
-          {item('Delete', onDelete, 'menu-delete', 'Del')}
+          {!row.deleted && (
+            <>
+              {item('New request', onNewRequest, 'menu-new-request', 'Ctrl/⌘ N')}
+              {item('New folder', onNewFolder, 'menu-new-folder')}
+              <ContextMenu.Separator className="my-1 h-px bg-border" />
+              {item('Rename', onRename, 'menu-rename', 'F2')}
+              {!row.broken && item('Duplicate', onDuplicate, 'menu-duplicate', 'Ctrl/⌘ D')}
+              {item('Delete', onDelete, 'menu-delete', 'Del')}
+            </>
+          )}
+          {(row.change || row.unsaved) && (
+            <>
+              {!row.deleted && <ContextMenu.Separator className="my-1 h-px bg-border" />}
+              {item(
+                row.deleted ? 'Restore (discard delete)' : 'Discard changes',
+                onDiscard,
+                'menu-discard',
+              )}
+            </>
+          )}
         </ContextMenu.Content>
       </ContextMenu.Portal>
     </ContextMenu.Root>
@@ -536,6 +571,7 @@ function ExplorerRow({
       data-kind={row.kind}
       data-broken={row.broken || undefined}
       data-unsaved={row.unsaved || undefined}
+      data-change={row.change}
       data-drop={drop ?? undefined}
       title={row.problem ? `${row.path}: ${row.problem}` : row.name}
       onClick={onActivate}
@@ -578,9 +614,30 @@ function ExplorerRow({
       ) : (
         <span
           data-testid="explorer-item-name"
-          className={`min-w-0 flex-1 truncate ${row.kind === 'collection' ? 'font-semibold' : ''} ${row.unsaved ? 'italic' : ''}`}
+          className={`min-w-0 flex-1 truncate ${row.kind === 'collection' ? 'font-semibold' : ''} ${row.unsaved ? 'italic' : ''} ${row.deleted ? 'text-fg-muted line-through' : ''}`}
         >
           {row.name}
+        </span>
+      )}
+      {row.change && !row.unsaved && !renaming && (
+        <span
+          data-testid="explorer-badge"
+          title={
+            row.change === 'created'
+              ? 'Added (saved locally, not in the files yet)'
+              : row.change === 'deleted'
+                ? 'Deleted (saved locally; the file still exists)'
+                : 'Modified (saved locally, not in the files yet)'
+          }
+          className={`shrink-0 font-mono text-[10px] font-bold ${
+            row.change === 'created'
+              ? 'text-pass'
+              : row.change === 'deleted'
+                ? 'text-fail'
+                : 'text-warn'
+          }`}
+        >
+          {row.change === 'created' ? 'A' : row.change === 'deleted' ? 'D' : 'M'}
         </span>
       )}
       {row.unsaved && !renaming && (

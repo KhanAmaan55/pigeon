@@ -57,6 +57,22 @@ pub fn write(app_data: &Path, namespace: &str, json: Option<&str>) -> Result<(),
         .map_err(|error| format!("Could not write {}: {error}", file.display()))
 }
 
+/// Renames an unreadable namespace file to `<file>.bak-<unix ms>` (file-format.md §6) and
+/// returns the backup's file name; `None` when there is no file.
+pub fn backup(app_data: &Path, namespace: &str, now_ms: u128) -> Result<Option<String>, String> {
+    let file = namespace_file(app_data, namespace)?;
+    if !file.exists() {
+        return Ok(None);
+    }
+    let name = format!(
+        "{}.bak-{now_ms}",
+        file.file_name()
+            .map_or_else(|| "state".into(), |n| n.to_string_lossy().into_owned())
+    );
+    std::fs::rename(&file, file.with_file_name(&name)).map_err(|error| error.to_string())?;
+    Ok(Some(name))
+}
+
 fn app_data<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
     app.path().app_data_dir().map_err(|error| error.to_string())
 }
@@ -80,6 +96,20 @@ pub async fn app_state_write<R: Runtime>(
 ) -> Result<(), String> {
     let dir = app_data(&app)?;
     tokio::task::spawn_blocking(move || write(&dir, &namespace, json.as_deref()))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn app_state_backup<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    namespace: String,
+) -> Result<Option<String>, String> {
+    let dir = app_data(&app)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis());
+    tokio::task::spawn_blocking(move || backup(&dir, &namespace, now))
         .await
         .map_err(|error| error.to_string())?
 }
@@ -123,6 +153,29 @@ mod tests {
         write(&dir, "project:p1", None).unwrap();
         write(&dir, "project:p1", None).unwrap();
         assert_eq!(read(&dir, "project:p1").unwrap(), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn unreadable_files_are_backed_up_beside_the_original() {
+        let dir = std::env::temp_dir().join(format!("pigeon-state-bak-{}", std::process::id()));
+        assert_eq!(backup(&dir, "app", 1).unwrap(), None);
+        std::fs::create_dir_all(dir.join("projects").join("p")).unwrap();
+        std::fs::write(
+            dir.join("projects").join("p").join("state.json"),
+            b"{broken",
+        )
+        .unwrap();
+        assert_eq!(
+            backup(&dir, "project:p", 42).unwrap().as_deref(),
+            Some("state.json.bak-42")
+        );
+        assert!(dir
+            .join("projects")
+            .join("p")
+            .join("state.json.bak-42")
+            .exists());
+        assert_eq!(read(&dir, "project:p").unwrap(), None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -30,19 +30,26 @@ export function isToggleDockShortcut(event: KeyboardEvent): boolean {
  * response docks at the bottom or on the right.
  */
 export function MainArea() {
-  const [dock, setDock] = useState<ResponseDock>('bottom');
-  const toggleDock = () => setDock((current) => (current === 'bottom' ? 'right' : 'bottom'));
   const project = useAppStore((s) => s.project);
+  // Without a project the dock lives here; a project remembers its own (local state).
+  const [scratchDock, setScratchDock] = useState<ResponseDock>('bottom');
+  const projectDock = useProjectState((s) => s.dock, null);
+  const dock = projectDock ?? scratchDock;
+  const toggleDock = () => {
+    const next = dock === 'bottom' ? 'right' : 'bottom';
+    if (project) project.store.getState().setDock(next);
+    else setScratchDock(next);
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!isToggleDockShortcut(event)) return;
       event.preventDefault();
-      setDock((current) => (current === 'bottom' ? 'right' : 'bottom'));
+      toggleDock();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  });
 
   const split = <EditorSplit dock={dock} onToggleDock={toggleDock} />;
   return (

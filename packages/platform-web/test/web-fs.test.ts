@@ -73,4 +73,22 @@ describe('IdbAppState', () => {
     expect(await state.get('project:p2', 'tabs')).toBeUndefined();
     await expect(state.set('app', 'f', () => 1)).rejects.toThrow(TypeError);
   });
+
+  it('backs up an unreadable value and returns nothing', async () => {
+    const db = await freshDb();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction('projects', 'readwrite');
+      tx.objectStore('projects').put('{broken', 'project:p\u0000state');
+      tx.oncomplete = () => resolve();
+    });
+    const state = new IdbAppState(async () => db);
+    expect(await state.get('project:p', 'state')).toBeUndefined();
+    const keys = await new Promise<IDBValidKey[]>((resolve) => {
+      const req = db.transaction('projects').objectStore('projects').getAllKeys();
+      req.onsuccess = () => resolve(req.result);
+    });
+    const [key] = keys.map(String);
+    expect(keys).toHaveLength(1);
+    expect(key!.startsWith('project:p\u0000state.bak-')).toBe(true);
+  });
 });

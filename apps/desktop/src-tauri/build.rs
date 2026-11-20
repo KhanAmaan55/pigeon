@@ -19,6 +19,7 @@ fn main() {
             "project_fs_rename",
             "app_state_read",
             "app_state_write",
+            "app_state_backup",
         ]),
     ))
     .expect("failed to run tauri-build");

@@ -119,3 +119,8 @@ interface Crypto {
   randomUUID(): `${string}-${string}-${string}-${string}-${string}`;
 }
 declare var crypto: Crypto;
+
+/** Timers (browsers, Tauri, Node). Handles are opaque: Node returns objects, browsers numbers. */
+type TimerHandle = { readonly __timerHandle?: never } | number;
+declare function setTimeout(callback: () => void, ms?: number): TimerHandle;
+declare function clearTimeout(handle: TimerHandle | undefined): void;

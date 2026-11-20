@@ -49,16 +49,20 @@ export class FileAppState implements AppStateStore {
   #doc(ns: string): Promise<Doc> {
     let doc = this.#docs.get(ns);
     if (!doc) {
-      doc = this.#invoke<string | null>('app_state_read', { namespace: ns }).then((text) => {
+      doc = this.#invoke<string | null>('app_state_read', { namespace: ns }).then(async (text) => {
         if (text === null) return {};
         try {
           const parsed: unknown = JSON.parse(text);
-          return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
-            ? (parsed as Doc)
-            : {};
+          if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            return parsed as Doc;
+          }
         } catch {
-          return {}; // unreadable state is reset (file-format.md §6); project files are unaffected
+          // Not JSON: handled below.
         }
+        // Unreadable state is backed up beside the file and reset (file-format.md §6); project
+        // files are unaffected.
+        await this.#invoke('app_state_backup', { namespace: ns }).catch(() => undefined);
+        return {};
       });
       this.#docs.set(ns, doc);
     }

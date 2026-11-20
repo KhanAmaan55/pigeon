@@ -60,6 +60,15 @@ export {
   replaceItem,
   touchedIds,
 } from './workspace/commands';
+export type { AppliedDrafts, Draft, DraftData, DraftEntityKind } from './workspace/drafts';
+export { applyDrafts, createDraft, locateEntity } from './workspace/drafts';
+export type { LoadedLocalState, LocalProjectState, TabState } from './workspace/local-state';
+export {
+  emptyLocalState,
+  LOCAL_STATE_KEY,
+  LocalStateStore,
+  UI_STATE_DEBOUNCE_MS,
+} from './workspace/local-state';
 export type { ProjectZipContents } from './workspace/project-zip';
 export {
   collectProjectFiles,
@@ -67,7 +76,7 @@ export {
   importProjectZip,
   readProjectZip,
 } from './workspace/project-zip';
-export type { ItemLocation, Unsubscribe } from './workspace/project-session';
+export type { ChangeState, ItemLocation, Unsubscribe } from './workspace/project-session';
 export {
   initializeProject,
   isPigeonProject,

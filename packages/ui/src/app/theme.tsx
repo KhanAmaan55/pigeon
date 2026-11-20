@@ -33,7 +33,7 @@ function readSystemTheme(): ResolvedTheme {
 /**
  * Resolves the theme from the user's preference and the OS colour scheme, and applies it as
  * `data-theme` on `<html>` (the design tokens key off that attribute).
- * The preference is in memory only until local state persistence lands (PIGN-018).
+ * `SettingsPersistence` loads and saves the preference (PIGN-018).
  */
 export function ThemeProvider({
   children,

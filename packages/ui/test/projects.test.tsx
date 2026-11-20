@@ -659,3 +659,118 @@ describe('drop rules', () => {
     expect(fuzzyMatch('List users', 'xyz')).toBe(false);
   });
 });
+
+describe('Save to local state (PIGN-018)', () => {
+  async function start(platform: MemoryPlatform) {
+    const view = render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    return { view, user };
+  }
+  const row = (name: string) =>
+    screen.getAllByTestId('explorer-item').find((item) => item.textContent?.includes(name))!;
+  const badge = (name: string) => within(row(name)).queryByTestId('explorer-badge')?.textContent;
+  const urlInput = () => screen.getByTestId('url-input') as HTMLInputElement;
+
+  it('saves an edit, restores it with its tabs after a restart, and leaves files alone', async () => {
+    const { platform, fs } = await fixturePlatform();
+    const before = await fs.readText('collections/billing/get-invoices.request.json');
+    const first = await start(platform);
+    await first.user.click(screen.getByTestId('open-folder'));
+    await first.user.dblClick(await screen.findByText('Get invoices'));
+    await first.user.dblClick(screen.getByText('List users'));
+    await first.user.click(screen.getAllByTestId('request-tab')[0]!);
+    await act(async () => urlInput().focus());
+    await first.user.keyboard('&saved=1');
+    expect(screen.getByTestId('request-tab-unsaved')).toBeTruthy();
+
+    await first.user.keyboard('{Meta>}s{/Meta}');
+    await waitFor(() => expect(screen.queryByTestId('request-tab-unsaved')).toBeNull());
+    expect(badge('Get invoices')).toBe('M');
+    expect(await fs.readText('collections/billing/get-invoices.request.json')).toBe(before);
+    await act(async () => {
+      await useAppStoreFlush(platform);
+    });
+    first.view.unmount();
+
+    const second = await start(platform);
+    await second.user.click(
+      within(await screen.findByTestId('recent-project')).getByText('Basic project'),
+    );
+    await waitFor(() => expect(tabNames()).toEqual(['Get invoices', 'List users']));
+    expect(urlInput().value).toContain('&saved=1');
+    expect(badge('Get invoices')).toBe('M');
+  });
+
+  it('marks new and deleted entities A and D; Discard brings a deleted request back', async () => {
+    const { platform } = await fixturePlatform();
+    const { user } = await start(platform);
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    fireEvent.contextMenu(row('Billing API'));
+    fireEvent.click(await screen.findByTestId('menu-new-folder'));
+    await act(async () => screen.getByTestId('explorer-rename-input').focus());
+    await user.keyboard('Refunds{Enter}');
+    fireEvent.contextMenu(row('Pay invoice'));
+    fireEvent.click(await screen.findByTestId('menu-delete'));
+    fireEvent.click(await screen.findByTestId('delete-confirm'));
+    await waitFor(() => expect(row('Pay invoice')?.getAttribute('data-unsaved')).toBeUndefined());
+
+    // Radix menus open on pointerdown, which jsdom's 0×0 layout routes to the panel library.
+    await act(async () => screen.getByTestId('save-menu').focus());
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByTestId('save-all'));
+    await waitFor(() => expect(badge('Refunds')).toBe('A'));
+    expect(badge('Pay invoice')).toBe('D');
+    expect(row('Pay invoice').getAttribute('data-change')).toBe('deleted');
+
+    fireEvent.contextMenu(row('Pay invoice'));
+    fireEvent.click(await screen.findByTestId('menu-discard'));
+    await waitFor(() => expect(badge('Pay invoice')).toBeUndefined());
+    expect(row('Pay invoice').getAttribute('data-change')).toBeNull();
+  });
+
+  it('offers Save when closing an unsaved tab', async () => {
+    const { platform } = await fixturePlatform();
+    const { user } = await start(platform);
+    await user.click(screen.getByTestId('open-folder'));
+    await user.dblClick(await screen.findByText('Get invoices'));
+    await act(async () => urlInput().focus());
+    await user.keyboard('&x');
+    await user.click(screen.getByTestId('request-tab-close'));
+    await user.click(await screen.findByTestId('close-tab-save'));
+    await waitFor(() => expect(tabNames()).toEqual([]));
+    expect(badge('Get invoices')).toBe('M');
+  });
+
+  it('remembers the theme, request defaults and the response dock', async () => {
+    const { platform } = await fixturePlatform();
+    const first = await start(platform);
+    await first.user.click(screen.getByTestId('theme-toggle'));
+    await first.user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await first.user.keyboard('{Control>}{Alt>}l{/Alt}{/Control}');
+    await waitFor(async () =>
+      expect(await platform.appState.get('app', 'preferences')).toMatchObject({ theme: 'dark' }),
+    );
+    await act(async () => {
+      await useAppStoreFlush(platform);
+    });
+    first.view.unmount();
+
+    const second = await start(platform);
+    await waitFor(() => expect(document.documentElement.dataset['theme']).toBe('dark'));
+    await second.user.click(
+      within(await screen.findByTestId('recent-project')).getByText('Basic project'),
+    );
+    await screen.findByTestId('explorer');
+    await second.user.dblClick(screen.getByText('Get invoices'));
+    expect(screen.getByTestId('request-response-split').getAttribute('data-dock')).toBe('right');
+  });
+});
+
+/** Writes pending debounced UI state of every project session (the app does this on close). */
+async function useAppStoreFlush(platform: MemoryPlatform): Promise<void> {
+  // UI state is debounced in core; waiting for the debounce is simpler than reaching the session.
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  void platform;
+}

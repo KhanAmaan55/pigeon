@@ -7,6 +7,7 @@ import { AppStoreProvider } from '../stores/AppStoreProvider';
 import { AppShell } from './AppShell';
 import { PlatformProvider } from './PlatformProvider';
 import { PreferencesProvider } from './preferences';
+import { SettingsPersistence } from './SettingsPersistence';
 import { ThemeProvider } from './theme';
 
 /** Root component rendered by apps/web and apps/desktop, each with its own `Platform`. */
@@ -17,6 +18,7 @@ export function PigeonApp({ platform, appStore }: { platform: Platform; appStore
         <PreferencesProvider>
           <ThemeProvider>
             <TooltipProvider delayDuration={400}>
+              <SettingsPersistence />
               <AppShell />
               <InitProjectDialog />
             </TooltipProvider>

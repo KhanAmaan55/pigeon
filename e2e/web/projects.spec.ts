@@ -190,6 +190,46 @@ test.describe('explorer CRUD', () => {
   });
 });
 
+test.describe('save to local state', () => {
+  test('saved edits, tabs and badges survive a reload; files are unchanged until commit', async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Drafts API');
+    await page.getByTestId('create-project-submit').click();
+    const items = page.getByTestId('explorer-item');
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await items.filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    await page.getByTestId('url-input').fill('{{baseUrl}}/users');
+    await expect(page.getByTestId('request-tab-unsaved')).toHaveCount(1);
+
+    await page.getByTestId('url-input').press('ControlOrMeta+s');
+    await expect(page.getByTestId('request-tab-unsaved')).toHaveCount(0);
+    await expect(items.filter({ hasText: 'New Request' }).getByTestId('explorer-badge')).toHaveText(
+      'A',
+    );
+    await expect(items.filter({ hasText: 'Users' }).getByTestId('explorer-badge')).toHaveText('A');
+
+    await page.waitForTimeout(700); // UI state is written after a short debounce
+    await page.reload();
+    await page.waitForFunction(() => window.__pigeonTest !== undefined);
+    await page
+      .getByTestId('recent-project')
+      .filter({ hasText: 'Drafts API' })
+      .getByText('Drafts API', { exact: true })
+      .click();
+    await expect(page.getByTestId('request-tab-name')).toHaveText(['New Request']);
+    await expect(page.getByTestId('url-input')).toHaveValue('{{baseUrl}}/users');
+    await expect(items.filter({ hasText: 'New Request' }).getByTestId('explorer-badge')).toHaveText(
+      'A',
+    );
+  });
+});
+
 test.describe('browser workspaces', () => {
   test('creates a workspace that survives a reload', async ({ page, browserName }) => {
     await gotoApp(page);

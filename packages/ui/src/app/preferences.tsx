@@ -6,7 +6,7 @@ import { createStore, useStore } from 'zustand';
 
 /**
  * App preferences. Request defaults only for now (docs/api-execution.md §8: default timeout
- * 30 s, `0` = none); in memory until local state persistence lands (PIGN-018).
+ * 30 s, `0` = none); persisted by `SettingsPersistence` (PIGN-018).
  */
 export interface PreferencesState {
   execution: ExecutionPreferences;

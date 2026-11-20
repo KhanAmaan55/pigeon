@@ -21,12 +21,32 @@ export interface TreeRow {
   parentId: string | null;
   /** In-memory edits not saved yet. */
   unsaved?: boolean;
+  /** Saved draft: A / M / D badge (data-model.md §10). */
+  change?: 'created' | 'updated' | 'deleted';
+  /** Deleted by a saved draft; shown struck through until committed. */
+  deleted?: boolean;
+}
+
+/** A deleted entity as `ProjectSession.deletedEntities()` lists it. */
+export interface DeletedEntity {
+  id: string;
+  name: string;
+  kind: 'collection' | 'folder' | 'request';
+  parentId: string | null;
+  method?: string;
 }
 
 export interface FlattenOptions {
   /** Fuzzy filter on name and URL; matching items show with their ancestors expanded. */
   filter?: string;
   unsaved?: Readonly<Record<string, true>>;
+  changes?: Readonly<Record<string, string>>;
+  deleted?: readonly DeletedEntity[];
+}
+
+function changeOf(changes: Readonly<Record<string, string>>, id: string): Pick<TreeRow, 'change'> {
+  const change = changes[id];
+  return change === 'created' || change === 'updated' ? { change } : {};
 }
 
 /** Ids of entities that match `filter`, plus all their ancestors. */
@@ -59,6 +79,26 @@ export function flattenTree(
     ? Object.fromEntries([...visible].map((id) => [id, true as const]))
     : expandedState;
   const unsaved = options.unsaved ?? {};
+  const changes = options.changes ?? {};
+  const deletedByParent = new Map<string | null, DeletedEntity[]>();
+  for (const entity of visible ? [] : (options.deleted ?? [])) {
+    deletedByParent.set(entity.parentId, [...(deletedByParent.get(entity.parentId) ?? []), entity]);
+  }
+  const deletedRows = (parentId: string | null, depth: number, directory: string): TreeRow[] =>
+    (deletedByParent.get(parentId) ?? []).map((entity) => ({
+      id: entity.id,
+      kind: entity.kind,
+      name: entity.name,
+      depth,
+      ...(entity.method ? { method: entity.method } : {}),
+      hasChildren: false,
+      expanded: false,
+      broken: false,
+      path: directory,
+      parentId,
+      change: 'deleted' as const,
+      deleted: true,
+    }));
   const shown = (id: string) => !visible || visible.has(id);
   const messages = new Map<string, string>();
   for (const problem of problems) {
@@ -71,7 +111,16 @@ export function flattenTree(
     directory: string,
     depth: number,
     parentId: string,
-  ) => {
+  ): void => {
+    pushItems(items, directory, depth, parentId);
+    rows.push(...deletedRows(parentId, depth, directory));
+  };
+  const pushItems = (
+    items: readonly ProjectItem[],
+    directory: string,
+    depth: number,
+    parentId: string,
+  ): void => {
     for (const item of items) {
       if (!shown(item.id)) continue;
       if (item.kind === 'request') {
@@ -90,6 +139,7 @@ export function flattenTree(
           ...problemOf(messages, path),
           parentId,
           ...(unsaved[item.id] ? { unsaved: true } : {}),
+          ...changeOf(changes, item.id),
         });
         continue;
       }
@@ -108,6 +158,7 @@ export function flattenTree(
         ...problemOf(messages, path),
         parentId,
         ...(unsaved[item.id] ? { unsaved: true } : {}),
+        ...changeOf(changes, item.id),
       });
       if (isExpanded) pushChildren(item.children, folderDirectory, depth + 1, item.id);
     }
@@ -117,11 +168,13 @@ export function flattenTree(
     rows.push({
       ...collectionRow(collection, expanded, messages),
       ...(unsaved[collection.id] ? { unsaved: true } : {}),
+      ...changeOf(changes, collection.id),
     });
     if (expanded[collection.id]) {
       pushChildren(collection.children, `collections/${collection.fileKey}`, 1, collection.id);
     }
   }
+  rows.push(...deletedRows(null, 0, 'collections'));
   return rows;
 }
 

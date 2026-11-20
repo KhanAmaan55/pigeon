@@ -270,7 +270,7 @@ Status: **Proposed** = recommended, confirm before the dependent story starts. *
 | D-04 | UI stack | React 19, Zustand, CodeMirror 6, Tailwind v4, Radix (`radix-ui` package), react-resizable-panels v4, lucide-react icons, cmdk, @tanstack/react-virtual. PIGN-002 adopted React, Tailwind, Radix, resizable panels and lucide; the rest are added by the stories that need them. | **Accepted** (PIGN-002) | PIGN-002 |
 | D-05 | On-disk format | Exploded **Postman v2.1 fragments** as JSON: one file per collection root, folder, request, environment, example. Pigeon-only data under `_pigeon` or in Pigeon-only files. Alternatives rejected: single v2.1 file per collection (huge diffs, merge conflicts); YAML (diverges from Postman, harder determinism). | Proposed | PIGN-012 |
 | D-06 | Example bodies | Stored in sidecar files (`*.body.json` pretty-printed, `*.body.txt`, …) for readable diffs; inlined on Postman export. | Proposed | PIGN-027 |
-| D-07 | Local state storage | Desktop: JSON files in app-data dir (one per project + app file). Web: IndexedDB. SQLite deferred until needed (history, large caches). | Proposed | PIGN-018 |
+| D-07 | Local state storage | Desktop: JSON files in app-data dir (one per project + app file). Web: IndexedDB. SQLite deferred until needed (history, large caches). | **Accepted** (PIGN-018) | PIGN-018 |
 | D-08 | Web filesystem | File System Access API (Chromium) for real folders; IndexedDB browser workspace + zip import/export elsewhere. | Proposed | PIGN-015 |
 | D-09 | Validation | zod for file/import validation | Proposed | PIGN-006 |
 | D-10 | Script sandbox (later) | `quickjs-emscripten` in a Web Worker, identical on desktop and web | Proposed | PIGN-043 |

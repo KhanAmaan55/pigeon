@@ -44,6 +44,7 @@ fn main() {
             project_fs::project_fs_rename,
             app_state::app_state_read,
             app_state::app_state_write,
+            app_state::app_state_backup,
             smoke::smoke_report
         ])
     } else {
@@ -62,7 +63,8 @@ fn main() {
             project_fs::project_fs_remove,
             project_fs::project_fs_rename,
             app_state::app_state_read,
-            app_state::app_state_write
+            app_state::app_state_write,
+            app_state::app_state_backup
         ])
     };
 
