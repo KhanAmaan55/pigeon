@@ -1,9 +1,6 @@
 # Postman Collection v2.1.0 schema
 
-`collection-v2.1.0.json` is a **reconstruction** of the published Postman Collection Format
-v2.1.0 JSON Schema (https://schema.getpostman.com/json/collection/v2.1.0/collection.json),
-rewritten as JSON Schema draft-07 so `ajv` validates exports in tests (PIGN-029). It follows the
-official definitions (info, item, item-group, request, url, header, body modes, auth types,
-event/script, variable, response, cookie); unknown keys are allowed, as in the original.
-
-Replace it with the official file (converted to draft-07) when vendoring it verbatim.
+`collection-v2.1.0.json` is the official Postman Collection Format v2.1.0 JSON Schema, vendored
+verbatim from https://schema.getpostman.com/json/collection/v2.1.0/collection.json (JSON Schema
+draft-04). Tests validate every export with it through `ajv-draft-04` (PIGN-029). Do not edit it;
+replace it with a newer official copy if Postman publishes one.

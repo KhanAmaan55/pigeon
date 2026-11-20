@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { MemoryFs } from '@pigeon/platform';
-import { Ajv } from 'ajv';
+import Ajv from 'ajv-draft-04';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -20,6 +20,7 @@ import { normalizePostman } from './postman-normalize';
 const fixtures = fileURLToPath(new URL('../../fixtures/postman/', import.meta.url));
 const COLLECTIONS = readdirSync(fixtures).filter((name) => /\.v2\.[01]\.json$/.test(name));
 const schema = JSON.parse(readFileSync(join(fixtures, 'schema/collection-v2.1.0.json'), 'utf8'));
+// The official Postman schema (draft-04), vendored verbatim.
 const validate = new Ajv({ allErrors: true, strict: false }).compile(schema);
 
 /** Import → project files → read back → the imported collection (what an export starts from). */
@@ -40,6 +41,14 @@ async function importThroughFiles(name: string) {
 }
 
 describe('Postman export (PIGN-029)', () => {
+  it('validates with the official v2.1.0 schema, which rejects malformed collections', () => {
+    expect(schema.id).toBe('https://schema.getpostman.com/json/collection/v2.1.0/');
+    expect(validate({ info: { name: 'x' }, item: [] })).toBe(false); // no info.schema
+    expect(validate({ info: { name: 'x', schema: 's' }, item: [{ name: 'no request' }] })).toBe(
+      false,
+    );
+  });
+
   it.each(COLLECTIONS)('%s: export validates and round-trips with the original', async (name) => {
     const { source, collection } = await importThroughFiles(name);
     const { data, warnings } = exportCollection(collection);
