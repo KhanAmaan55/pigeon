@@ -1,0 +1,67 @@
+[
+  {
+    "name": "one missing field in every element is one finding with a count",
+    "baseline": [
+      {
+        "id": 1,
+        "name": "a"
+      },
+      {
+        "id": 2,
+        "name": "b"
+      }
+    ],
+    "actual": [
+      {
+        "id": 1
+      },
+      {
+        "id": 2
+      },
+      {
+        "id": 3
+      },
+      {
+        "id": 4
+      }
+    ],
+    "expected": [
+      {
+        "kind": "body.field.removed",
+        "path": "$[0].name",
+        "schemaPath": "$[*].name",
+        "severity": "fail",
+        "count": 4,
+        "examplePaths": ["$[0].name", "$[1].name", "$[2].name"]
+      }
+    ]
+  },
+  {
+    "name": "different kinds at one schema path stay apart",
+    "baseline": [
+      {
+        "v": "a"
+      }
+    ],
+    "actual": [
+      {},
+      {
+        "v": 1
+      }
+    ],
+    "expected": [
+      {
+        "kind": "body.field.removed",
+        "path": "$[0].v",
+        "schemaPath": "$[*].v",
+        "severity": "fail"
+      },
+      {
+        "kind": "body.type.changed",
+        "path": "$[1].v",
+        "schemaPath": "$[*].v",
+        "severity": "fail"
+      }
+    ]
+  }
+]

@@ -1,0 +1,45 @@
+[
+  {
+    "name": "integers and numbers are one type by default",
+    "baseline": {
+      "n": 1
+    },
+    "actual": {
+      "n": 1.5
+    },
+    "expected": []
+  },
+  {
+    "name": "integer to number is warn (widened)",
+    "options": {
+      "distinguishIntegers": true
+    },
+    "baseline": {
+      "n": 1
+    },
+    "actual": {
+      "n": 1.5
+    },
+    "expected": [
+      {
+        "kind": "body.type.changed",
+        "path": "$.n",
+        "severity": "warn",
+        "message": "Widened from integer to number"
+      }
+    ]
+  },
+  {
+    "name": "number to integer passes",
+    "options": {
+      "distinguishIntegers": true
+    },
+    "baseline": {
+      "n": 1.5
+    },
+    "actual": {
+      "n": 2
+    },
+    "expected": []
+  }
+]

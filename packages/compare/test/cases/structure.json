@@ -1,0 +1,346 @@
+[
+  {
+    "name": "identical object passes",
+    "baseline": {
+      "id": 1,
+      "name": "Ada"
+    },
+    "actual": {
+      "id": 2,
+      "name": "Grace"
+    },
+    "expected": []
+  },
+  {
+    "name": "field removed is fail",
+    "baseline": {
+      "id": 1,
+      "name": "Ada"
+    },
+    "actual": {
+      "id": 1
+    },
+    "expected": [
+      {
+        "kind": "body.field.removed",
+        "path": "$.name",
+        "schemaPath": "$.name",
+        "severity": "fail",
+        "message": "Field removed (was string)"
+      }
+    ]
+  },
+  {
+    "name": "implicitly optional field missing from every element is warn",
+    "baseline": {
+      "items": [
+        {
+          "id": 1,
+          "nick": "a"
+        },
+        {
+          "id": 2
+        }
+      ]
+    },
+    "actual": {
+      "items": [
+        {
+          "id": 3
+        }
+      ]
+    },
+    "expected": [
+      {
+        "kind": "body.field.removed",
+        "path": "$.items[0].nick",
+        "schemaPath": "$.items[*].nick",
+        "severity": "warn"
+      }
+    ]
+  },
+  {
+    "name": "implicitly optional field missing from some elements is fine",
+    "baseline": {
+      "items": [
+        {
+          "id": 1,
+          "nick": "a"
+        },
+        {
+          "id": 2
+        }
+      ]
+    },
+    "actual": {
+      "items": [
+        {
+          "id": 3
+        },
+        {
+          "id": 4,
+          "nick": "b"
+        }
+      ]
+    },
+    "expected": []
+  },
+  {
+    "name": "field added is warn by default",
+    "baseline": {
+      "id": 1
+    },
+    "actual": {
+      "id": 1,
+      "extra": true
+    },
+    "expected": [
+      {
+        "kind": "body.field.added",
+        "path": "$.extra",
+        "schemaPath": "$.extra",
+        "severity": "warn",
+        "message": "Field added (boolean)"
+      }
+    ]
+  },
+  {
+    "name": "field added follows additionalFields: fail",
+    "options": {
+      "additionalFields": "fail"
+    },
+    "baseline": {
+      "id": 1
+    },
+    "actual": {
+      "id": 1,
+      "extra": true
+    },
+    "expected": [
+      {
+        "kind": "body.field.added",
+        "path": "$.extra",
+        "severity": "fail"
+      }
+    ]
+  },
+  {
+    "name": "field added follows additionalFields: ignore",
+    "options": {
+      "additionalFields": "ignore"
+    },
+    "baseline": {
+      "id": 1
+    },
+    "actual": {
+      "id": 1,
+      "extra": true
+    },
+    "expected": [
+      {
+        "kind": "body.field.added",
+        "path": "$.extra",
+        "severity": "ignored"
+      }
+    ]
+  },
+  {
+    "name": "type changed is fail",
+    "baseline": {
+      "id": 1
+    },
+    "actual": {
+      "id": "1"
+    },
+    "expected": [
+      {
+        "kind": "body.type.changed",
+        "path": "$.id",
+        "severity": "fail",
+        "message": "Type changed from number to string"
+      }
+    ]
+  },
+  {
+    "name": "baseline null, actual value is warn",
+    "baseline": {
+      "deletedAt": null
+    },
+    "actual": {
+      "deletedAt": "2026-01-01"
+    },
+    "expected": [
+      {
+        "kind": "body.type.changed",
+        "path": "$.deletedAt",
+        "severity": "warn",
+        "message": "Baseline had null; type unknown (now string)"
+      }
+    ]
+  },
+  {
+    "name": "baseline value, actual null is fail",
+    "baseline": {
+      "name": "Ada"
+    },
+    "actual": {
+      "name": null
+    },
+    "expected": [
+      {
+        "kind": "body.type.changed",
+        "path": "$.name",
+        "severity": "fail",
+        "message": "Value is null (was string)"
+      }
+    ]
+  },
+  {
+    "name": "nullable in baseline array accepts both",
+    "baseline": [
+      {
+        "v": null
+      },
+      {
+        "v": "x"
+      }
+    ],
+    "actual": [
+      {
+        "v": null
+      },
+      {
+        "v": "y"
+      }
+    ],
+    "expected": []
+  },
+  {
+    "name": "baseline empty array, actual items is info",
+    "baseline": {
+      "tags": []
+    },
+    "actual": {
+      "tags": ["a", "b"]
+    },
+    "expected": [
+      {
+        "kind": "body.field.added",
+        "path": "$.tags[*]",
+        "schemaPath": "$.tags[*]",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "name": "baseline items, actual empty array is info",
+    "baseline": {
+      "tags": ["a"]
+    },
+    "actual": {
+      "tags": []
+    },
+    "expected": [
+      {
+        "kind": "body.array.length",
+        "path": "$.tags",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "name": "array element mismatch uses [i] and [*]",
+    "baseline": [
+      {
+        "id": 1
+      }
+    ],
+    "actual": [
+      {
+        "id": 1
+      },
+      {
+        "id": "two"
+      }
+    ],
+    "expected": [
+      {
+        "kind": "body.type.changed",
+        "path": "$[1].id",
+        "schemaPath": "$[*].id",
+        "severity": "fail"
+      }
+    ]
+  },
+  {
+    "name": "root type change",
+    "baseline": {
+      "a": 1
+    },
+    "actual": [1],
+    "expected": [
+      {
+        "kind": "body.type.changed",
+        "path": "$",
+        "severity": "fail",
+        "message": "Type changed from object to array"
+      }
+    ]
+  },
+  {
+    "name": "keys that need brackets",
+    "baseline": {
+      "a.b": 1,
+      "with space": {
+        "x": 1
+      }
+    },
+    "actual": {
+      "with space": {}
+    },
+    "expected": [
+      {
+        "kind": "body.field.removed",
+        "path": "$[\"a.b\"]",
+        "severity": "fail"
+      },
+      {
+        "kind": "body.field.removed",
+        "path": "$[\"with space\"].x",
+        "schemaPath": "$[\"with space\"].x",
+        "severity": "fail"
+      }
+    ]
+  },
+  {
+    "name": "values are not compared in schema mode",
+    "baseline": {
+      "n": 1,
+      "s": "a",
+      "b": true
+    },
+    "actual": {
+      "n": 2,
+      "s": "b",
+      "b": false
+    },
+    "expected": []
+  },
+  {
+    "name": "nested arrays merge items",
+    "baseline": {
+      "rows": [[1, 2], [3]]
+    },
+    "actual": {
+      "rows": [[1], ["x"]]
+    },
+    "expected": [
+      {
+        "kind": "body.type.changed",
+        "path": "$.rows[1][0]",
+        "schemaPath": "$.rows[*][*]",
+        "severity": "fail"
+      }
+    ]
+  }
+]

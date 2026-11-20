@@ -9,5 +9,8 @@
   },
   "scripts": {
     "build": "tsc -b"
+  },
+  "devDependencies": {
+    "fast-check": "^3.23.2"
   }
 }

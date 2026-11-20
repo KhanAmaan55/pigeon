@@ -67,13 +67,13 @@ Walk the **actual** value against the **baseline schema**:
 | Situation | Finding | Default severity |
 |---|---|---|
 | Key in baseline schema missing in actual object | `body.field.removed` | **fail** |
-| …and key implicitly optional (array merge) | `body.field.removed` | warn |
+| …and key implicitly optional (array merge) | `body.field.removed` | warn — only when **no** actual object at that place has the key (an element without it is normal, since baseline elements lacked it too); one finding with `count` |
 | Key in actual not in baseline schema | `body.field.added` | per `additionalFields` (default **warn**) |
 | Type not in baseline `types` | `body.type.changed` | **fail** |
 | Baseline `null`, actual non-null | `body.type.changed` | warn ("baseline had null; type unknown") |
 | Baseline non-null, actual `null` | `body.type.changed` | **fail** |
 | Baseline empty array, actual array has items | `body.field.added` at `[*]` | info ("no baseline items to compare") |
-| Baseline array has items, actual empty array | — | info (length not compared in schema mode) |
+| Baseline array has items, actual empty array | `body.array.length` | info (length not compared in schema mode); nothing when the baseline also had empty arrays there (`someEmpty`) |
 | Array element doesn't match `items` | per rules above, path `…[i]`, schemaPath `…[*]` | — |
 
 Findings for array elements are **de-duplicated by `schemaPath` + kind**: one finding with `count` and the first 3 concrete paths, so a 1,000-item array doesn't produce 1,000 findings.

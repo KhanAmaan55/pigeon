@@ -310,6 +310,7 @@ interface SchemaNode {
   properties?: Record<string, { node: SchemaNode; seen: number; of: number }>; // object keys; seen<of ⇒ optional within arrays
   items?: SchemaNode;                  // merged schema of all array elements
   emptyArray?: boolean;                // baseline array had no items
+  someEmpty?: boolean;                 // some baseline arrays here were empty, others not
 }
 ```
 Snapshots are **derived** from the baseline example body; they are cached in local state and never committed. Export as JSON Schema is PIGN-056.
