@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react';
 import { hasBody } from '@pigeon/core';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import { VariableInput } from '../../components/VariableInput';
 import { takeUrlFocus } from '../explorer/actions';
 import { BodyTab } from './BodyTab';
 import { HeadersTab } from './HeadersTab';
@@ -90,7 +91,7 @@ export function RequestEditor() {
             </option>
           ))}
         </select>
-        <input
+        <VariableInput
           ref={urlRef}
           aria-label="URL"
           data-testid="url-input"

@@ -3,6 +3,7 @@ import { GripVertical, ListTree, Text, Trash2 } from 'lucide-react';
 import type { ClipboardEvent, DragEvent, KeyboardEvent, ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
+import { VariableInput } from '../VariableInput';
 import type { BulkSeparator } from './bulk';
 import {
   descriptionText,
@@ -310,7 +311,7 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
                 )}
                 <td className="py-0.5">
                   <div className="flex items-center gap-1">
-                    <input
+                    <VariableInput
                       aria-label="Key"
                       value={current.key}
                       readOnly={fixedKeys}
@@ -329,7 +330,7 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
                 </td>
                 <td className="py-0.5">
                   {customValue ?? (
-                    <input
+                    <VariableInput
                       aria-label={valueHeader}
                       value={current.value}
                       placeholder={isDraft || fixedKeys ? valuePlaceholder : ''}

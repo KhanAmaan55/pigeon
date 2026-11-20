@@ -1186,3 +1186,102 @@ describe('environments (PIGN-022)', () => {
     expect(await fs.exists('environments/dev.postman_environment.json')).toBe(true);
   });
 });
+
+describe('variable resolution & highlighting (PIGN-023)', () => {
+  async function openWithEnvironments(transport = new MockTransport()) {
+    const { platform, fs } = await fixturePlatform(transport);
+    await fs.writeFileAtomic(
+      'environments/local.postman_environment.json',
+      JSON.stringify({
+        id: 'local',
+        name: 'Local',
+        values: [
+          { key: 'baseUrl', value: 'http://local.test', enabled: true },
+          { key: 'token', value: 'abc', type: 'secret', enabled: true },
+        ],
+      }),
+    );
+    await fs.writeFileAtomic(
+      'environments/staging.postman_environment.json',
+      JSON.stringify({
+        id: 'staging',
+        name: 'Staging',
+        values: [{ key: 'baseUrl', value: 'https://staging.test', enabled: true }],
+      }),
+    );
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    return { platform, fs, user };
+  }
+  const urlInput = () => screen.getByTestId('url-input') as HTMLInputElement;
+  const selectEnvironment = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+    await act(async () => screen.getByTestId('environment-selector').focus());
+    await user.keyboard('{Enter}');
+    await user.click(
+      (await screen.findAllByTestId('environment-option')).find((o) => o.textContent === name)!,
+    );
+  };
+  // Highlights drawn behind the URL input (the params table below has its own).
+  const states = () =>
+    [...urlInput().parentElement!.querySelectorAll('[data-variable-state]')].map((e) => [
+      e.textContent,
+      e.getAttribute('data-variable-state'),
+    ]);
+
+  it('highlights variables against the selected environment and explains them on hover', async () => {
+    const { user } = await openWithEnvironments();
+    await user.dblClick(screen.getByText('List users'));
+    expect(states()).toEqual([['{{baseUrl}}', 'unresolved']]);
+    expect(urlInput().title).toBe('baseUrl: not defined in the selected environment');
+
+    await selectEnvironment(user, 'Local');
+    await waitFor(() => expect(states()).toEqual([['{{baseUrl}}', 'resolved']]));
+    expect(urlInput().title).toBe('baseUrl = http://local.test (Local)');
+
+    await act(async () => urlInput().focus());
+    await user.keyboard('{End}?t={{{{$guid}}&a={{{{token}}'); // `{{` types one `{`
+    expect(states()).toEqual([
+      ['{{baseUrl}}', 'resolved'],
+      ['{{$guid}}', 'dynamic'],
+      ['{{token}}', 'resolved'],
+    ]);
+    expect(urlInput().title).toContain('token = •••• (Local)');
+  });
+
+  it('autocompletes variable names after {{', async () => {
+    const { user } = await openWithEnvironments();
+    await selectEnvironment(user, 'Local');
+    await user.dblClick(screen.getByText('Get invoices'));
+    await act(async () => urlInput().focus());
+    await user.keyboard('{Control>}a{/Control}{{{{to');
+    const options = await screen.findAllByTestId('variable-suggestion');
+    expect(options.map((o) => o.textContent)).toEqual(['token•••• · Local']);
+    await user.keyboard('{Enter}');
+    expect(urlInput().value).toBe('{{token}}');
+  });
+
+  it('sends to the selected environment and warns about unresolved variables', async () => {
+    const transport = new MockTransport().on({ url: /./ }, { body: 'ok' });
+    const { user } = await openWithEnvironments(transport);
+    await user.dblClick(screen.getByText('List users'));
+    await selectEnvironment(user, 'Local');
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(1));
+    expect(transport.requests[0]!.url).toBe('http://local.test/users?limit=20');
+
+    await selectEnvironment(user, 'Staging');
+    await act(async () => urlInput().focus());
+    await user.keyboard('{End}&x={{{{nope}}');
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(2));
+    expect(transport.requests[1]!.url).toBe(
+      'https://staging.test/users?limit=20&x=%7B%7Bnope%7D%7D',
+    );
+    expect(transport.requests[1]!.meta.unresolved).toEqual(['nope']);
+    expect((await screen.findByTestId('response-panel')).textContent).toContain(
+      'Unresolved variables: nope',
+    );
+  });
+});

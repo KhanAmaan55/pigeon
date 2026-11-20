@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { useCapabilities } from '../../../app/PlatformProvider';
 import { CodeEditor } from '../../../components/CodeEditor';
+import { useVariableScopes } from '../../../components/VariableInput';
 import { KeyValueTable } from '../../../components/KeyValueTable';
 import { beautifyJson } from '../../../lib/json-format';
 import { useScratchRequest } from '../ScratchRequestProvider';
@@ -111,8 +112,10 @@ function RawToolbar({ body }: { body: BodyOf<'raw'> }) {
 
 function RawBody({ body }: { body: BodyOf<'raw'> }) {
   const setBody = useScratchRequest((s) => s.setBody);
+  const variables = useVariableScopes();
   return (
     <CodeEditor
+      variables={variables}
       value={body.raw}
       onChange={(raw) => setBody({ ...body, raw })}
       language={body.language}

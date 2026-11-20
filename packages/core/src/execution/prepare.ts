@@ -6,7 +6,9 @@
 
 import type { Capabilities, PreparedRequest } from '@pigeon/platform';
 
-import type { Request } from '../model/request';
+import type { Body, KeyValue, Request } from '../model/request';
+import { isSingleVariable } from '../variables/parse';
+import { EMPTY_SCOPES, VariableResolver } from '../variables/index';
 import { buildRequestUrl } from '../model/url';
 import { PIGEON_VERSION } from '../version';
 import type { EncodedBody } from './body';
@@ -20,10 +22,89 @@ const TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const INVALID_HEADER_VALUE = /[\r\n\0]/;
 const HAS_SCHEME = /^[a-z][a-z\d+.-]*:\/\//i;
 
+/**
+ * `request` with every `{{var}}` resolved where variables apply (docs/api-execution.md §3): URL
+ * (raw and path variable values), header keys and values, raw body, urlencoded and form-data
+ * keys and text values; file sources only when they are exactly one `{{var}}`.
+ */
+export function resolveRequest(request: Request, resolver: VariableResolver): Request {
+  const resolveRows = <T extends KeyValue>(rows: readonly T[]): T[] =>
+    rows.map((row) =>
+      row.disabled
+        ? row
+        : { ...row, key: resolver.resolve(row.key), value: resolver.resolve(row.value) },
+    );
+  const resolveSrc = (src: string) => (isSingleVariable(src) ? resolver.resolve(src) : src);
+  let body: Body = request.body;
+  switch (body.mode) {
+    case 'raw':
+      body = { ...body, raw: resolver.resolve(body.raw) };
+      break;
+    case 'urlencoded':
+      body = { ...body, params: resolveRows(body.params) };
+      break;
+    case 'formdata':
+      body = {
+        ...body,
+        params: body.params.map((param) => {
+          if (param.disabled) return param;
+          if (param.kind === 'text') {
+            return {
+              ...param,
+              key: resolver.resolve(param.key),
+              value: resolver.resolve(param.value),
+            };
+          }
+          const src =
+            param.src === undefined
+              ? undefined
+              : typeof param.src === 'string'
+                ? resolveSrc(param.src)
+                : param.src.map(resolveSrc);
+          return {
+            ...param,
+            key: resolver.resolve(param.key),
+            ...(src === undefined ? {} : { src }),
+          };
+        }),
+      };
+      break;
+    case 'file':
+      if (body.src !== undefined) body = { ...body, src: resolveSrc(body.src) };
+      break;
+    case 'none':
+      break;
+  }
+  return {
+    ...request,
+    url: {
+      ...request.url,
+      raw: resolver.resolve(request.url.raw),
+      pathVariables: request.url.pathVariables.map((row) => ({
+        ...row,
+        value: resolver.resolve(row.value),
+      })),
+    },
+    headers: resolveRows(request.headers),
+    body,
+  };
+}
+
 export async function prepareRequest(
-  request: Request,
+  original: Request,
   ctx: ExecutionContext,
 ): Promise<Result<PreparedRequest, ExecutionError>> {
+  const resolver = new VariableResolver(ctx.scopes ?? EMPTY_SCOPES, ctx.generators);
+  const request = resolveRequest(original, resolver);
+  const variables = resolver.result('');
+  const variableWarnings = [
+    ...(variables.unresolved.length > 0
+      ? [`Unresolved variables: ${variables.unresolved.join(', ')}`]
+      : []),
+    ...(variables.cycles.length > 0
+      ? [`Variable cycle (left unresolved): ${variables.cycles.join(' → ')}`]
+      : []),
+  ];
   const method = request.method.trim().toUpperCase();
   if (!TOKEN.test(method)) {
     return invalid('invalid-request', `"${request.method}" is not a valid HTTP method.`);
@@ -47,7 +128,7 @@ export async function prepareRequest(
   const checked = validateBody(method, encoding.encoded, request.settings, ctx.capabilities);
   if (!checked.ok) return checked;
   const { encoded } = checked.value;
-  const warnings = [...encoding.warnings, ...checked.value.warnings];
+  const warnings = [...variableWarnings, ...encoding.warnings, ...checked.value.warnings];
 
   for (const header of autoHeadersFor(request.headers, encoded, ctx.capabilities)) {
     if (!header.preview) headers.push([header.name, header.value]);
@@ -73,8 +154,8 @@ export async function prepareRequest(
         requestId: request.id,
         ...(ctx.projectId === null ? {} : { projectId: ctx.projectId }),
         protocol: 'http',
-        unresolved: [],
-        secretValues: [],
+        unresolved: [...variables.unresolved, ...variables.cycles],
+        secretValues: variables.secretValues,
         ...(warnings.length > 0 ? { warnings } : {}),
       },
     },

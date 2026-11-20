@@ -48,6 +48,7 @@ export {
   syncUrlFromRaw,
 } from './model/url';
 
+export * from './variables/index';
 export { RequestExecutor } from './execution/executor';
 export type { ResolvedFiles } from './execution/project-files';
 export { resolveProjectFiles } from './execution/project-files';

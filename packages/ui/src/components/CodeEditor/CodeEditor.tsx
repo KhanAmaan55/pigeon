@@ -1,3 +1,6 @@
+import type { VariableScopes } from '@pigeon/core';
+
+import { variableHighlighting } from './variables';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import {
   bracketMatching,
@@ -45,6 +48,8 @@ export interface CodeEditorProps {
   testId?: string;
   placeholder?: string;
   className?: string;
+  /** Highlight `{{variables}}` against these scopes (request bodies). */
+  variables?: VariableScopes;
 }
 
 /** Colours from the design tokens, so the editor follows the light/dark theme. */
@@ -136,6 +141,7 @@ export function CodeEditor({
   testId,
   placeholder = '',
   className = '',
+  variables,
 }: CodeEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -147,11 +153,21 @@ export function CodeEditor({
     readOnly: new Compartment(),
     attributes: new Compartment(),
     features: new Compartment(),
+    variables: new Compartment(),
   });
 
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  // Variable marks follow the scopes (environment switch, edited values).
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: compartments.current.variables.reconfigure(
+        variables ? variableHighlighting(variables) : [],
+      ),
+    });
+  }, [variables]);
 
   // Created once; props below are applied through compartments and effects.
   useEffect(() => {
@@ -181,6 +197,7 @@ export function CodeEditor({
           languageSlot.of([]),
           readOnlySlot.of(EditorState.readOnly.of(readOnly)),
           attributes.of([]),
+          compartments.current.variables.of(variables ? variableHighlighting(variables) : []),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged || !onChangeRef.current) return;
             valueRef.current = update.state.doc.toString();

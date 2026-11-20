@@ -337,6 +337,48 @@ test.describe('environments', () => {
   });
 });
 
+test.describe('variables', () => {
+  test('the selected environment decides where a request goes', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Vars API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('activity-environments').click();
+    for (const [name, url] of [
+      ['Local', TEST_SERVER_URL],
+      ['Down', 'http://127.0.0.1:9'],
+    ] as const) {
+      await page.getByTestId('new-environment').click();
+      await page.getByTestId('environment-rename-input').fill(name);
+      await page.getByTestId('environment-rename-input').press('Enter');
+      const table = page.getByTestId('env-variables');
+      await table.getByLabel('Key').last().fill('baseUrl');
+      await table.getByLabel('Shared value').first().fill(url);
+    }
+    await page.getByTestId('activity-collections').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await page.getByTestId('explorer-item').first().click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    await page.getByTestId('url-input').fill('{{baseUrl}}/json/user');
+    await expect(page.locator('[data-variable-state="unresolved"]').first()).toBeVisible();
+
+    await page.getByTestId('environment-selector').click();
+    await page.getByTestId('environment-option').filter({ hasText: 'Local' }).click();
+    await expect(page.locator('[data-variable-state="resolved"]').first()).toBeVisible();
+    await page
+      .getByTestId('request-editor')
+      .screenshot({ path: 'test-results/variable-highlight.png' });
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+
+    await page.getByTestId('environment-selector').click();
+    await page.getByTestId('environment-option').filter({ hasText: 'Down' }).click();
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-error')).toBeVisible();
+  });
+});
+
 test.describe('browser workspaces', () => {
   test('creates a workspace that survives a reload', async ({ page, browserName }) => {
     await gotoApp(page);

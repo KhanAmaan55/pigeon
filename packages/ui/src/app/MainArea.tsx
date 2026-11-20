@@ -1,5 +1,5 @@
 import { FileText } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Group, Panel } from 'react-resizable-panels';
 
 import { ResizeHandle } from '../components/ResizeHandle';
@@ -13,7 +13,8 @@ import {
 import type { ResponseDock } from '../features/response-viewer/ResponseViewer';
 import { ResponseViewer } from '../features/response-viewer/ResponseViewer';
 import { ChangeBanners } from '../features/tabs/ChangeBanners';
-import { getTabEditor } from '../features/tabs/editor-registry';
+import { getTabEditor, projectScopes } from '../features/tabs/editor-registry';
+import { VariablesProvider } from '../components/VariableInput';
 import { RequestTabs } from '../features/tabs/RequestTabs';
 import type { OpenProject } from '../stores/app-store';
 import { useAppStore, useProjectState } from '../stores/AppStoreProvider';
@@ -82,7 +83,15 @@ function ProjectTabs({ project, split }: { project: OpenProject; split: React.Re
   const env = useEditorEnvironment();
   const activeTabId = useProjectState((s) => s.activeTabId, null);
   // Re-render when the working model changes (e.g. the request became broken on reload).
-  useProjectState((s) => s.model, null);
+  const model = useProjectState((s) => s.model, null);
+  const selectedEnvironmentId = useProjectState((s) => s.selectedEnvironmentId, null);
+  const currentValues = useProjectState((s) => s.currentValues, null);
+  // Highlighting follows the environment, its values and current values.
+  const scopes = useMemo(
+    () => projectScopes(project.session),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [project.session, model, selectedEnvironmentId, currentValues],
+  );
   const request = activeTabId ? project.session.findRequest(activeTabId) : undefined;
   const environment = activeTabId ? project.session.findEnvironment(activeTabId) : undefined;
 
@@ -118,10 +127,10 @@ function ProjectTabs({ project, split }: { project: OpenProject; split: React.Re
     );
   }
   return (
-    <>
+    <VariablesProvider scopes={scopes}>
       <RequestTabs project={project} />
       {content}
-    </>
+    </VariablesProvider>
   );
 }
 

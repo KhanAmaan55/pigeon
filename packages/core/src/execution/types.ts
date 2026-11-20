@@ -1,5 +1,6 @@
 /** Execution types shared by every platform (docs/api-execution.md §2). */
 
+import type { DynamicGenerators, VariableScopes } from '../variables/index';
 import type {
   Capabilities,
   Id,
@@ -36,6 +37,10 @@ export interface ExecutionContext {
   pageOrigin?: string;
   /** The open project's files, for project-relative file references in bodies. */
   projectFs?: ProjectFileSystem;
+  /** Variables (PIGN-023); none for the scratch request. */
+  scopes?: VariableScopes;
+  /** Dynamic variable generators (tests make them deterministic). */
+  generators?: DynamicGenerators;
 }
 
 export function createExecutionContext(
@@ -48,6 +53,8 @@ export function createExecutionContext(
     capabilities: init.capabilities,
     ...(init.pageOrigin === undefined ? {} : { pageOrigin: init.pageOrigin }),
     ...(init.projectFs === undefined ? {} : { projectFs: init.projectFs }),
+    ...(init.scopes === undefined ? {} : { scopes: init.scopes }),
+    ...(init.generators === undefined ? {} : { generators: init.generators }),
   };
 }
 

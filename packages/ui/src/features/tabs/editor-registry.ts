@@ -3,7 +3,8 @@
  * keeps its own last response, body-mode drafts and in-flight send while others are shown.
  */
 
-import type { ProjectRequest, ProjectSession, Request } from '@pigeon/core';
+import type { ProjectRequest, ProjectSession, Request, VariableScopes } from '@pigeon/core';
+import { buildScopes } from '@pigeon/core';
 import type { Platform } from '@pigeon/platform';
 
 import type { ScratchRequestEnvironment } from '../request-editor/scratch-store';
@@ -58,10 +59,19 @@ export function getTabEditor(
       // Separate connection pools per open project, also for copies sharing an id (PIGN-021).
       projectId: session.localKey || session.id,
       projectFs: session.fs,
+      scopes: () => projectScopes(session),
     });
     registry.set(requestId, editor);
   }
   return editor;
+}
+
+/** The variables a request in this project resolves against right now. */
+export function projectScopes(session: ProjectSession): VariableScopes {
+  return buildScopes(session.getWorkingModel(), {
+    environmentId: session.selectedEnvironmentId,
+    currentValues: (key) => session.currentValues(key),
+  });
 }
 
 /** Drops a closed tab's editor (and cancels its send). */

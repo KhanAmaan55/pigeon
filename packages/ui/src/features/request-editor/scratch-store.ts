@@ -6,6 +6,7 @@ import type {
   KeyValue,
   Request,
   RequestSettings,
+  VariableScopes,
 } from '@pigeon/core';
 import {
   createExecutionContext,
@@ -34,6 +35,8 @@ export interface RequestBinding {
   projectId: string;
   /** For project-relative file references. */
   projectFs: ProjectFileSystem;
+  /** Variables of the selected environment etc., built at send time (PIGN-023). */
+  scopes?: () => VariableScopes;
 }
 
 export interface ScratchRequestState {
@@ -137,6 +140,7 @@ export function createScratchRequestStore(
           preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
           ...(pageOrigin === undefined ? {} : { pageOrigin }),
           ...(binding ? { projectFs: binding.projectFs, projectId: binding.projectId } : {}),
+          ...(binding?.scopes ? { scopes: binding.scopes() } : {}),
         });
         const result = await executor.execute(get().request, ctx, { signal: controller.signal });
         if (inFlight !== controller) return; // superseded by a newer send
