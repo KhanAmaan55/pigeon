@@ -53,10 +53,12 @@ export function Explorer() {
 
   if (!project) return null;
   const { store } = project;
-  const activate = (row: TreeRow) => {
+  /** Single click: requests open in the preview tab; containers expand/collapse. */
+  const activate = (row: TreeRow, pin = false) => {
     const state = store.getState();
     state.select(row.id);
-    if (row.kind !== 'request') state.toggle(row.id);
+    if (row.kind === 'request') state.openTab(row.id, { pin });
+    else state.toggle(row.id);
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
@@ -149,6 +151,7 @@ export function Explorer() {
                   selected={row.id === selectedId}
                   top={item.start}
                   onActivate={() => activate(row)}
+                  onPin={() => activate(row, true)}
                 />
               );
             })}
@@ -164,11 +167,14 @@ function ExplorerRow({
   selected,
   top,
   onActivate,
+  onPin,
 }: {
   row: TreeRow;
   selected: boolean;
   top: number;
   onActivate: () => void;
+  /** Double click: a pinned tab. */
+  onPin: () => void;
 }) {
   const Chevron = row.expanded ? ChevronDown : ChevronRight;
   return (
@@ -182,6 +188,7 @@ function ExplorerRow({
       data-broken={row.broken || undefined}
       title={row.problem ? `${row.path}: ${row.problem}` : row.name}
       onClick={onActivate}
+      onDoubleClick={() => row.kind === 'request' && onPin()}
       style={{
         position: 'absolute',
         top,

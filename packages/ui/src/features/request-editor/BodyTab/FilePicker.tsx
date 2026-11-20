@@ -3,6 +3,8 @@ import { FileUp, X } from 'lucide-react';
 import { useRef } from 'react';
 
 import { usePlatform } from '../../../app/PlatformProvider';
+import { useScratchRequest } from '../ScratchRequestProvider';
+import { ProjectFileButton } from './ProjectFileDialog';
 
 /**
  * A button opening the system file dialog (a hidden `<input type="file">`, which works in
@@ -22,6 +24,7 @@ export function FilePicker({
   onPicked: (sources: string[]) => void;
 }) {
   const { pickedFiles } = usePlatform();
+  const projectFs = useScratchRequest((s) => s.projectFs);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const onChange = async (files: FileList | null) => {
@@ -60,6 +63,7 @@ export function FilePicker({
         <FileUp size={12} aria-hidden />
         {label}
       </button>
+      {projectFs && <ProjectFileButton fs={projectFs} onPicked={(path) => onPicked([path])} />}
     </>
   );
 }
@@ -70,7 +74,7 @@ export function FileChip({ src, onRemove }: { src: string; onRemove: () => void 
   return (
     <span
       data-testid="file-chip"
-      title={isPickedFileSrc(src) ? `${name} (picked this session)` : src}
+      title={isPickedFileSrc(src) ? `${name} (picked this session)` : `${src} (project file)`}
       className="inline-flex h-6 max-w-48 items-center gap-1 rounded bg-hover px-1.5 font-mono text-xs text-fg"
     >
       <span className="truncate">{name}</span>

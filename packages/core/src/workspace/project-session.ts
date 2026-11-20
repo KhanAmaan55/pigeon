@@ -8,6 +8,8 @@ import type { ProjectReadResult } from '@pigeon/formats';
 import { createEmptyProject, readProject } from '@pigeon/formats';
 import type { Platform, ProjectFileSystem, ProjectLocation, ProjectPath } from '@pigeon/platform';
 
+import type { EditCommand } from './commands';
+import { applyCommand, findItem, replaceItem, touchedIds } from './commands';
 import type {
   Collection,
   Folder,
@@ -35,12 +37,17 @@ export class ProjectSession {
   readonly location: ProjectLocation;
   readonly fs: ProjectFileSystem;
   #read: ProjectReadResult;
+  /** Base model + in-memory edits. */
+  #working: ProjectModel;
+  /** Entities with in-memory (unsaved) edits. */
+  readonly #unsaved = new Set<string>();
   readonly #listeners = new Set<() => void>();
 
   private constructor(location: ProjectLocation, fs: ProjectFileSystem, read: ProjectReadResult) {
     this.location = location;
     this.fs = fs;
     this.#read = read;
+    this.#working = read.model;
   }
 
   /** Opens and reads a project. Rejects only when the folder can't be opened at all. */
@@ -83,9 +90,35 @@ export class ProjectSession {
     return this.#read.model;
   }
 
-  /** What the UI shows: base + drafts (no drafts until PIGN-018). */
+  /** What the UI shows: base + in-memory edits (+ drafts from PIGN-018). */
   getWorkingModel(): ProjectModel {
-    return this.#read.model;
+    return this.#working;
+  }
+
+  /** Applies an in-memory edit; the entity becomes *unsaved*. Throws for read-only projects. */
+  apply(command: EditCommand): void {
+    if (this.readOnly) throw new Error('This project is read-only.');
+    this.#working = applyCommand(this.#working, command);
+    for (const id of touchedIds(command)) this.#unsaved.add(id);
+    this.#emit();
+  }
+
+  isUnsaved(id: string): boolean {
+    return this.#unsaved.has(id);
+  }
+
+  unsavedIds(): string[] {
+    return [...this.#unsaved];
+  }
+
+  /** Drops the in-memory edits of `id`: the entity is back to its file version. */
+  discardUnsaved(id: string): void {
+    if (!this.#unsaved.delete(id)) return;
+    const base = findItem(this.#read.model, id);
+    this.#working = replaceItem(this.#working, id, (item) =>
+      base && base.kind === item.kind ? keepChildren(base, item) : null,
+    );
+    this.#emit();
   }
 
   /** Problems reported for one file. */
@@ -119,6 +152,17 @@ export class ProjectSession {
   /** Re-reads every file (manual refresh; the watcher arrives in PIGN-020). */
   async reload(): Promise<void> {
     this.#read = await readProject(this.fs);
+    // Unsaved edits stay on top of the new files (conflict handling arrives with PIGN-020).
+    let working = this.#read.model;
+    for (const id of [...this.#unsaved]) {
+      const edited = findItem(this.#working, id);
+      if (!edited || !findItem(working, id)) {
+        this.#unsaved.delete(id);
+        continue;
+      }
+      working = replaceItem(working, id, (item) => keepChildren(edited, item));
+    }
+    this.#working = working;
     this.#emit();
   }
 
@@ -130,6 +174,13 @@ export class ProjectSession {
   #emit(): void {
     for (const listener of [...this.#listeners]) listener();
   }
+}
+
+/** `entity` with the children of `current` (folder edits never carry their children). */
+function keepChildren(entity: ProjectItem, current: ProjectItem): ProjectItem {
+  return entity.kind === 'folder' && current.kind === 'folder'
+    ? { ...entity, children: current.children }
+    : entity;
 }
 
 function locateIn(

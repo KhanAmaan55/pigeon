@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import type { MemoryPlatform } from '@pigeon/platform';
 import { createMemoryPlatform, MemoryFs, MockTransport } from '@pigeon/platform';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -56,6 +56,7 @@ async function fixturePlatform(
 
 const names = () =>
   screen.queryAllByTestId('explorer-item').map((item) => item.textContent?.trim());
+const tabNames = () => screen.queryAllByTestId('request-tab-name').map((tab) => tab.textContent);
 
 describe('opening a project', () => {
   it('shows the welcome panel, then the tree in file order', async () => {
@@ -83,7 +84,7 @@ describe('opening a project', () => {
     expect(names().slice(2, 6)).toEqual(['Admin', 'DELDelete user', 'Nested', 'GETGet audit log']);
   });
 
-  it('opens a request in the editor and sends it with the project context', async () => {
+  it('opens a request in a tab and sends it with the project context', async () => {
     const transport = new MockTransport().on(
       { url: /billing\.example\.test\/invoices\/inv_1\/pay/ },
       { body: 'paid' },
@@ -100,10 +101,7 @@ describe('opening a project', () => {
         'https://billing.example.test/invoices/:id/pay',
       ),
     );
-    expect(screen.getByTestId('project-request-banner').textContent).toContain(
-      'collections/billing/pay-invoice.request.json',
-    );
-    expect(screen.getByTestId('request-tab-label').textContent).toBe('Pay invoice');
+    expect(tabNames()).toEqual(['Pay invoice']);
 
     await user.click(screen.getByTestId('send-button'));
     await waitFor(() => expect(transport.requests).toHaveLength(1));
@@ -115,10 +113,8 @@ describe('opening a project', () => {
 
     await user.click(screen.getByTestId('close-project'));
     expect(screen.getByTestId('welcome')).toBeTruthy();
-    expect(screen.getByTestId('request-tab-label').textContent).toBe('Scratch request');
-    expect(screen.queryByTestId('project-request-banner')).toBeNull();
+    expect(screen.getByTestId('scratch-tab').textContent).toBe('Scratch request');
   });
-
   it('marks broken files and shows their error instead of the editor', async () => {
     const { platform, fs } = await fixturePlatform();
     await fs.writeFileAtomic('collections/billing/refund.request.json', '<<<<<<< HEAD\n{');
@@ -356,5 +352,128 @@ describe('browser workspaces and project zips', () => {
     await waitFor(() => expect(recent.getAttribute('data-status')).toBe('needs-permission'));
     await user.click(within(recent).getByTestId('recent-reconnect'));
     await waitFor(() => expect(screen.getByTestId('project-tab').textContent).toContain('Repo'));
+  });
+});
+
+describe('request tabs (PIGN-016)', () => {
+  async function openFixture(transport = new MockTransport()) {
+    const { platform, fs } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    return { platform, fs, user };
+  }
+  const urlInput = () => screen.getByTestId('url-input') as HTMLInputElement;
+
+  it('replaces the preview tab, pins on double click or edit', async () => {
+    const { user } = await openFixture();
+    await user.click(screen.getByText('Get invoices'));
+    await user.click(screen.getByText('Pay invoice'));
+    expect(tabNames()).toEqual(['Pay invoice']);
+    expect(screen.getByTestId('request-tab').getAttribute('data-pinned')).toBe('false');
+
+    await user.dblClick(screen.getByText('List users'));
+    await user.click(screen.getByText('Create user'));
+    expect(tabNames()).toEqual(['List users', 'Create user']);
+
+    // Editing pins the preview tab, so the next preview opens a third tab.
+    await act(async () => {
+      urlInput().focus();
+    });
+    await user.keyboard('/v2');
+    await user.click(screen.getByText('Get invoices'));
+    expect(tabNames()).toEqual(['List users', 'Create user', 'Get invoices']);
+    expect(screen.getAllByTestId('request-tab')[1]!.getAttribute('data-unsaved')).toBe('true');
+  });
+
+  it('marks edits ●, sends the edited values and keeps each tab its own response', async () => {
+    const transport = new MockTransport()
+      .on({ url: /invoices\?status=open&archived&page=&x=1$/ }, { body: 'invoices' })
+      .on({ url: /users\?limit=20$/ }, { body: 'users' });
+    const { user } = await openFixture(transport);
+    await user.dblClick(screen.getByText('Get invoices'));
+    await act(async () => {
+      urlInput().focus();
+    });
+    await user.keyboard('&x=1');
+    expect(screen.getByTestId('request-tab-unsaved')).toBeTruthy();
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(screen.getByTestId('response-status').textContent).toContain('200'));
+
+    await user.dblClick(screen.getByText('List users'));
+    expect(urlInput().value).toBe('{{baseUrl}}/users?limit=20');
+    expect(screen.queryByTestId('response-status')).toBeNull();
+
+    await user.click(screen.getAllByTestId('request-tab')[0]!);
+    expect(urlInput().value).toContain('&x=1');
+    expect(screen.getByTestId('response-status').textContent).toContain('200');
+    expect(transport.requests.map((r) => r.url)).toEqual([
+      'https://billing.example.test/invoices?status=open&archived&page=&x=1',
+    ]);
+  });
+
+  it('asks before closing an unsaved tab; Discard restores the file version', async () => {
+    const { user } = await openFixture();
+    await user.dblClick(screen.getByText('Get invoices'));
+    await act(async () => {
+      urlInput().focus();
+    });
+    await user.keyboard('&edited');
+    await user.click(screen.getByTestId('request-tab-close'));
+    const dialog = await screen.findByTestId('close-tab-dialog');
+    await user.click(within(dialog).getByText('Cancel'));
+    expect(tabNames()).toEqual(['Get invoices']);
+
+    await user.click(screen.getByTestId('request-tab-close'));
+    await user.click(await screen.findByTestId('close-tab-discard'));
+    expect(tabNames()).toEqual([]);
+    expect(screen.getByTestId('no-tab')).toBeTruthy();
+    await user.click(screen.getByText('Get invoices'));
+    expect(urlInput().value).toBe(
+      'https://billing.example.test/invoices?status=open&archived&page=',
+    );
+  });
+
+  it('closes with Cmd/Ctrl+W and middle click, cycles with Ctrl+Tab', async () => {
+    const { user } = await openFixture();
+    for (const name of ['Get invoices', 'Pay invoice', 'List users'])
+      await user.dblClick(screen.getByText(name));
+    const active = () =>
+      screen.getAllByTestId('request-tab').find((t) => t.getAttribute('aria-selected') === 'true')
+        ?.textContent;
+    expect(active()).toContain('List users');
+    await user.keyboard('{Control>}{Tab}{/Control}');
+    expect(active()).toContain('Get invoices');
+    await user.keyboard('{Control>}{Shift>}{Tab}{/Shift}{/Control}');
+    expect(active()).toContain('List users');
+    await user.keyboard('{Meta>}w{/Meta}');
+    expect(tabNames()).toEqual(['Get invoices', 'Pay invoice']);
+    await user.pointer({ keys: '[MouseMiddle]', target: screen.getAllByTestId('request-tab')[0]! });
+    expect(tabNames()).toEqual(['Pay invoice']);
+  });
+
+  it('picks a body file from the project folder as a project-relative path', async () => {
+    const transport = new MockTransport().on({ url: /invoices\/inv_1\/pay/ }, { body: 'ok' });
+    const { fs, user } = await openFixture(transport);
+    await fs.writeFileAtomic('fixtures/receipt.pdf', new Uint8Array([1, 2, 3]));
+    await user.dblClick(screen.getByText('Pay invoice'));
+    // Radix tabs activate on focus (jsdom's 0×0 layout lets the panel library swallow mousedown).
+    await act(async () => {
+      screen.getByTestId('body-tab').focus();
+    });
+    await user.click(screen.getByTestId('project-file-button'));
+    const options = await screen.findAllByTestId('project-file-option');
+    expect(options.map((o) => o.textContent)).toEqual([
+      'collections/users-api/README.md',
+      'fixtures/receipt.pdf',
+    ]);
+    await user.click(options[1]!);
+    expect(screen.getByTestId('file-chip').getAttribute('title')).toBe(
+      'fixtures/receipt.pdf (project file)',
+    );
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(1));
+    expect(transport.requests[0]!.body?.kind).toBe('file');
   });
 });

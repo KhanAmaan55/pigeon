@@ -1,4 +1,4 @@
-import { FileText, Send, X } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 import { Tabs } from 'radix-ui';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { useEffect } from 'react';
@@ -30,8 +30,6 @@ export function RequestEditor() {
   const headerCount = useScratchRequest(
     (s) => s.request.headers.filter((h) => !h.disabled && h.key.trim() !== '').length,
   );
-  const source = useScratchRequest((s) => s.source);
-  const requestName = useScratchRequest((s) => s.request.name);
   const send = useScratchRequest((s) => s.send);
   const cancel = useScratchRequest((s) => s.cancel);
   const shortcut = usePlatform().os === 'macos' ? '⌘↵' : 'Ctrl+Enter';
@@ -61,19 +59,6 @@ export function RequestEditor() {
       className="flex h-full min-h-0 flex-col"
       onKeyDown={onKeyDown}
     >
-      {source && (
-        <div
-          data-testid="project-request-banner"
-          className="flex shrink-0 items-center gap-2 border-b border-border bg-surface px-3 py-1.5 text-xs text-fg-muted"
-        >
-          <FileText size={14} aria-hidden />
-          <span className="min-w-0 truncate">
-            <span className="font-semibold text-fg">{requestName}</span> from {source.projectName} ·{' '}
-            <span className="font-mono">{source.filePath}</span>
-          </span>
-          <span className="ml-auto shrink-0">Read-only: changes are not saved yet</span>
-        </div>
-      )}
       <form
         aria-label="Request"
         className="flex shrink-0 items-center gap-2 border-b border-border p-2"

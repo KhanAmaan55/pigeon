@@ -49,6 +49,8 @@ export {
 export { RequestExecutor } from './execution/executor';
 export type { ResolvedFiles } from './execution/project-files';
 export { resolveProjectFiles } from './execution/project-files';
+export type { EditCommand, RequestPatch } from './workspace/commands';
+export { applyCommand, findItem, replaceItem } from './workspace/commands';
 export type { ProjectZipContents } from './workspace/project-zip';
 export {
   collectProjectFiles,

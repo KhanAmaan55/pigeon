@@ -16,33 +16,31 @@ import {
   syncQueryIntoRaw,
   syncUrlFromRaw,
 } from '@pigeon/core';
-import type { ProjectRequest } from '@pigeon/core';
 import type { Platform, ProjectFileSystem } from '@pigeon/platform';
 import { createStore } from 'zustand';
 
-/** Where the request in the editor came from, when it was opened from a project. */
-export interface RequestSource {
+/**
+ * Ties an editor to a project request (PIGN-016): edits go to `ProjectSession.apply`, and the
+ * editor follows the session's working model. Without a binding the editor owns its request
+ * (the scratch request).
+ */
+export interface RequestBinding {
+  /** The request as the working model has it now. */
+  read(): Request;
+  /** Applies an edited request (an in-memory edit; the entity becomes unsaved). */
+  commit(request: Request): void;
+  /** Called on every working-model change. */
+  subscribe(listener: () => void): () => void;
   projectId: string;
-  projectName: string;
-  /** Project path of the request file. */
-  filePath: string;
+  /** For project-relative file references. */
+  projectFs: ProjectFileSystem;
 }
 
 export interface ScratchRequestState {
-  /**
-   * The request in the editor: the ad-hoc scratch request, or a copy of a project request
-   * (`source`). Edits stay in memory until tabs and saving land (PIGN-016/018).
-   */
+  /** The request in the editor: the scratch request, or a project request (see `RequestBinding`). */
   request: Request;
-  source: RequestSource | null;
-  /** Shows a copy of a project request; sends resolve project file references through `fs`. */
-  openProjectRequest: (
-    request: ProjectRequest,
-    source: RequestSource,
-    fs: ProjectFileSystem,
-  ) => void;
-  /** Back to a fresh scratch request (e.g. when the project closes). */
-  openScratch: () => void;
+  /** The open project's files when the request belongs to one ("Pick from project folder"). */
+  projectFs: ProjectFileSystem | null;
   status: 'idle' | 'sending';
   /** Latest finished execution. */
   result: ExecutionResult | null;
@@ -81,35 +79,24 @@ export interface ScratchRequestEnvironment {
 export function createScratchRequestStore(
   platform: Pick<Platform, 'transport' | 'capabilities'> & Partial<Pick<Platform, 'pickedFiles'>>,
   env: ScratchRequestEnvironment = {},
+  binding?: RequestBinding,
 ) {
   const executor = new RequestExecutor(
     platform.transport,
     platform.pickedFiles ? { pickedFiles: platform.pickedFiles } : {},
   );
   let inFlight: AbortController | null = null;
-  let projectFs: ProjectFileSystem | undefined;
-  const fresh = () => {
-    inFlight?.abort();
-    inFlight = null;
-    return { status: 'idle' as const, result: null, bodyDrafts: {} };
-  };
 
-  return createStore<ScratchRequestState>()((set, get) => {
-    const update = (patch: Partial<Request>) => set({ request: { ...get().request, ...patch } });
+  const store = createStore<ScratchRequestState>()((set, get) => {
+    const setRequest = (request: Request, extra: Partial<ScratchRequestState> = {}) => {
+      set({ ...extra, request });
+      binding?.commit(request);
+    };
+    const update = (patch: Partial<Request>) => setRequest({ ...get().request, ...patch });
 
     return {
-      request: createRequest({ name: 'Scratch request' }),
-      source: null,
-      openProjectRequest: (projectRequest, source, fs) => {
-        projectFs = fs;
-        // The editor model has no auth/scripts yet (PIGN-026/031); they stay in the file.
-        const { auth: _auth, events: _events, broken: _broken, ...request } = projectRequest;
-        set({ ...fresh(), request: structuredClone(request), source });
-      },
-      openScratch: () => {
-        projectFs = undefined;
-        set({ ...fresh(), request: createRequest({ name: 'Scratch request' }), source: null });
-      },
+      request: binding ? binding.read() : createRequest({ name: 'Scratch request' }),
+      projectFs: binding?.projectFs ?? null,
       status: 'idle',
       result: null,
       setMethod: (method) => update({ method: method.toUpperCase() }),
@@ -126,10 +113,10 @@ export function createScratchRequestStore(
         const { request, bodyDrafts } = get();
         const current = request.body;
         if (current.mode === mode) return;
-        set({
-          bodyDrafts: { ...bodyDrafts, [current.mode]: current },
-          request: { ...request, body: bodyDrafts[mode] ?? emptyBody(mode) },
-        });
+        setRequest(
+          { ...request, body: bodyDrafts[mode] ?? emptyBody(mode) },
+          { bodyDrafts: { ...bodyDrafts, [current.mode]: current } },
+        );
       },
       setSettings: (patch) => {
         const settings: Record<string, unknown> = { ...get().request.settings, ...patch };
@@ -149,9 +136,7 @@ export function createScratchRequestStore(
           capabilities: platform.capabilities,
           preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
           ...(pageOrigin === undefined ? {} : { pageOrigin }),
-          ...(projectFs === undefined
-            ? {}
-            : { projectFs, projectId: get().source?.projectId ?? null }),
+          ...(binding ? { projectFs: binding.projectFs, projectId: binding.projectId } : {}),
         });
         const result = await executor.execute(get().request, ctx, { signal: controller.signal });
         if (inFlight !== controller) return; // superseded by a newer send
@@ -162,5 +147,18 @@ export function createScratchRequestStore(
         inFlight?.abort(new DOMException('The request was cancelled.', 'AbortError'));
       },
     };
+  });
+
+  // Follow the working model (e.g. after Discard or a reload).
+  const unsubscribe = binding?.subscribe(() => {
+    const next = binding.read();
+    if (next !== store.getState().request) store.setState({ request: next });
+  });
+  return Object.assign(store, {
+    /** Stops following the session and cancels an in-flight send. */
+    dispose: () => {
+      unsubscribe?.();
+      inFlight?.abort();
+    },
   });
 }

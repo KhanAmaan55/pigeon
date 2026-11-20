@@ -168,3 +168,78 @@ describe('project file references', () => {
     expect(transport.requests).toHaveLength(0);
   });
 });
+
+describe('in-memory edits (PIGN-016)', () => {
+  it('applies updateRequest with structural sharing and tracks unsaved entities', async () => {
+    const session = await fixtureSession();
+    const before = session.getWorkingModel();
+    const listener = vi.fn();
+    session.onChange(listener);
+
+    session.apply({
+      type: 'updateRequest',
+      id: 'get-invoices',
+      patch: { method: 'POST', name: 'Edited' },
+    });
+
+    const after = session.getWorkingModel();
+    expect(after).not.toBe(before);
+    expect(after.collections[0]).toBe(before.collections[0]); // untouched collection shared
+    expect(after.collections[1]!.children[1]).toBe(before.collections[1]!.children[1]);
+    expect(session.findRequest('get-invoices')).toMatchObject({ method: 'POST', name: 'Edited' });
+    expect(session.getBaseModel().collections[1]!.children[0]).toMatchObject({ method: 'GET' });
+    expect(session.isUnsaved('get-invoices')).toBe(true);
+    expect(session.unsavedIds()).toEqual(['get-invoices']);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    session.discardUnsaved('get-invoices');
+    expect(session.findRequest('get-invoices')).toBe(
+      session.getBaseModel().collections[1]!.children[0],
+    );
+    expect(session.isUnsaved('get-invoices')).toBe(false);
+    session.discardUnsaved('get-invoices'); // no-op
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('edits nested requests and keeps edits across a reload', async () => {
+    const session = await fixtureSession();
+    session.apply({
+      type: 'updateRequest',
+      id: 'get-audit',
+      patch: { url: { raw: '/x', query: [], pathVariables: [], extra: {} } },
+    });
+    await session.fs.writeFileAtomic(
+      'collections/billing/new.request.json',
+      '{"id":"n","name":"N","request":{"method":"GET","url":"/n"}}',
+    );
+    await session.reload();
+    expect(session.findRequest('get-audit')?.url.raw).toBe('/x');
+    expect(session.findRequest('n')).toBeDefined();
+    expect(session.isUnsaved('get-audit')).toBe(true);
+  });
+
+  it('rejects edits to folders, broken files, unknown ids and read-only projects', async () => {
+    const session = await fixtureSession();
+    expect(() => session.apply({ type: 'updateRequest', id: 'admin-folder', patch: {} })).toThrow(
+      /not a request/,
+    );
+    expect(() => session.apply({ type: 'updateRequest', id: 'nope', patch: {} })).toThrow(
+      /No item/,
+    );
+
+    await session.fs.writeFileAtomic('collections/billing/bad.request.json', '{');
+    await session.reload();
+    const broken = session.getWorkingModel().collections[1]!.children.find((c) => c.broken)!;
+    expect(() => session.apply({ type: 'updateRequest', id: broken.id, patch: {} })).toThrow(
+      /read-only/,
+    );
+
+    const fs = new MemoryFs();
+    await fs.writeFileAtomic(
+      'pigeon.json',
+      '{"pigeon":{"formatVersion":9},"id":"x","name":"X","collections":[]}',
+    );
+    const newer = await ProjectSession.fromFs(fs);
+    expect(() => newer.apply({ type: 'updateRequest', id: 'a', patch: {} })).toThrow(/read-only/);
+  });
+});

@@ -61,9 +61,7 @@ test.describe('project folders (File System Access)', () => {
     await expect(items.nth(3)).toHaveText('DELDelete user');
 
     await items.filter({ hasText: 'Get invoices' }).click();
-    await expect(page.getByTestId('project-request-banner')).toContainText(
-      'collections/billing/get-invoices.request.json',
-    );
+    await expect(page.getByTestId('request-tab-name')).toHaveText(['Get invoices']);
     await page.getByTestId('send-button').click();
     await expect(page.getByTestId('response-status')).toHaveText('200 OK');
 
@@ -99,6 +97,46 @@ test.describe('project folders (File System Access)', () => {
   test('FsAccessFs passes the filesystem conformance cases on OPFS', async ({ page }) => {
     await page.goto('/');
     expect(await page.evaluate(() => window.__pigeonTest!.runFsConformance())).toEqual([]);
+  });
+});
+
+test.describe('request tabs', () => {
+  test.skip(({ browserName }) => browserName !== 'chromium', 'uses a folder (Chromium-only)');
+
+  test('preview, pin, edit, switch and close tabs', async ({ page }) => {
+    await page.goto('/');
+    await openFixtureFolder(page);
+    const items = page.getByTestId('explorer-item');
+    const tabs = page.getByTestId('request-tab-name');
+
+    // Single clicks reuse the preview tab; a double click pins.
+    await items.filter({ hasText: 'Pay invoice' }).click();
+    await items.filter({ hasText: 'Get invoices' }).click();
+    await expect(tabs).toHaveText(['Get invoices']);
+    await items.filter({ hasText: 'Get invoices' }).dblclick();
+    await items.filter({ hasText: 'List users' }).click();
+    await expect(tabs).toHaveText(['Get invoices', 'List users']);
+
+    // Edit + send in the first tab; its response stays when switching.
+    await page.getByTestId('request-tab').first().click();
+    await page.getByTestId('url-input').press('End');
+    await page.getByTestId('url-input').pressSequentially('&tab=1');
+    await expect(page.getByTestId('request-tab-unsaved')).toHaveCount(1);
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+    await page.getByTestId('request-tab').nth(1).click();
+    await expect(page.getByTestId('url-input')).toHaveValue('{{baseUrl}}/users?limit=20');
+    await expect(page.getByTestId('response-status')).toHaveCount(0);
+    await page.getByTestId('request-tab').first().click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+
+    // Closing an edited tab asks; Discard restores the file version.
+    await page.getByTestId('request-tab').first().hover();
+    await page.getByTestId('request-tab-close').first().click();
+    await page.getByTestId('close-tab-discard').click();
+    await expect(tabs).toHaveText(['List users']);
+    await items.filter({ hasText: 'Get invoices' }).click();
+    await expect(page.getByTestId('url-input')).not.toHaveValue(/tab=1/);
   });
 });
 
