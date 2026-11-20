@@ -1,19 +1,14 @@
-/** Compares big bodies off the main thread (see ./run-compare.ts). */
+/** Compares big responses off the main thread (see ./run-compare.ts). */
 
-import type { BodyComparisonInput, BodyComparisonSettings, FieldRule } from '@pigeon/core';
-import { compareBodyTexts } from '@pigeon/core';
+import type { BodyComparisonInput, EffectiveComparison } from '@pigeon/core';
+import { compareResponseInput } from '@pigeon/core';
+
+type Effective = Pick<EffectiveComparison, 'status' | 'headers' | 'body' | 'rules'>;
 
 self.addEventListener(
   'message',
-  (
-    event: MessageEvent<{
-      id: number;
-      input: BodyComparisonInput;
-      settings: BodyComparisonSettings;
-      rules: FieldRule[];
-    }>,
-  ) => {
-    const { id, input, settings, rules } = event.data;
-    self.postMessage({ id, findings: compareBodyTexts(input, settings, rules) });
+  (event: MessageEvent<{ id: number; input: BodyComparisonInput; effective: Effective }>) => {
+    const { id, input, effective } = event.data;
+    self.postMessage({ id, findings: compareResponseInput(input, effective) });
   },
 );

@@ -93,11 +93,7 @@ export function getTabEditor(
         if (effective.baseline.mode === 'none') return undefined;
         const example = baselineFor(request.examples, effective.baseline, result.response.status);
         if (!example) return { kind: 'no-baseline', requestId };
-        const findings = await runBodyComparison(
-          bodyComparisonInput(example, result),
-          effective.body,
-          effective.rules,
-        );
+        const findings = await runBodyComparison(bodyComparisonInput(example, result), effective);
         const comparison = comparisonResult(requestId, example, result, findings);
         projectStore.getState().setComparison(comparison);
         return { kind: 'compared', result: comparison };
@@ -106,6 +102,34 @@ export function getTabEditor(
         request: session.findRequest(requestId)?.comparison?.rules ?? [],
         project: projectRules(session.getWorkingModel()),
       }),
+      overrides: () => {
+        const config = session.findRequest(requestId)?.comparison;
+        return {
+          ...(config?.status === undefined ? {} : { status: config.status }),
+          ...(config?.headers === undefined ? {} : { headers: config.headers }),
+          ...(config?.body === undefined ? {} : { body: config.body }),
+        };
+      },
+      setOverrides: (patch) => {
+        const current = session.findRequest(requestId)?.comparison ?? { rules: [], extra: {} };
+        const config: Record<string, unknown> = { ...current, ...patch };
+        for (const key of ['status', 'headers', 'body']) {
+          const value = config[key];
+          if (
+            value === undefined ||
+            (typeof value === 'object' && value !== null && Object.keys(value).length === 0)
+          ) {
+            delete config[key];
+          }
+        }
+        const next = config as unknown as typeof current;
+        session.apply({
+          type: 'setComparisonConfig',
+          requestId,
+          config: isEmptyComparison(next) ? undefined : next,
+        });
+        projectStore.getState().pinTab(requestId);
+      },
       setRules: (rules) => {
         const current = session.findRequest(requestId)?.comparison ?? { rules: [], extra: {} };
         const config = { ...current, rules };

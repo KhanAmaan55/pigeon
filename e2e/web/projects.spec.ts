@@ -781,10 +781,11 @@ test.describe('comparison', () => {
     await page.getByTestId('send-button').click();
     await expect(badge).toHaveAttribute('data-outcome', 'fail');
     await badge.click();
-    await expect(page.getByTestId('compare-finding')).toHaveAttribute(
-      'data-kind',
-      'body.contentType.changed',
-    );
+    // The Content-Type header changed too (Headers section, PIGN-036).
+    await expect(page.getByTestId('compare-finding')).toHaveCount(2);
+    await expect(
+      page.getByRole('region', { name: 'Body' }).getByTestId('compare-finding'),
+    ).toHaveAttribute('data-kind', 'body.contentType.changed');
   });
 });
 
@@ -820,6 +821,39 @@ test.describe('field rules', () => {
     await expect(badge).toHaveAttribute('data-outcome', 'warn');
     await page.keyboard.press('ControlOrMeta+Shift+s');
     await expect(page.getByTestId('toast')).toContainText('Wrote');
+  });
+});
+
+test.describe('values mode', () => {
+  test('values mode catches a changed value that schema mode accepts', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Values API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Echo');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await page.getByTestId('explorer-item').filter({ hasText: 'Echo' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    const url = page.getByTestId('url-input');
+    await url.fill(`${TEST_SERVER_URL}/echo?name=ada`);
+    await page.getByTestId('send-button').click();
+    await page.getByTestId('save-as-example').click();
+    const badge = page.getByTestId('comparison-badge');
+    await expect(badge).toHaveAttribute('data-outcome', 'pass');
+
+    await url.fill(`${TEST_SERVER_URL}/echo?name=grace`);
+    await page.getByTestId('send-button').click();
+    // Wait for the new response: the previous one already showed "pass".
+    await expect(page.getByTestId('response-panel')).toContainText('grace');
+    await expect(badge).toHaveAttribute('data-outcome', 'pass'); // schema mode: same shape
+    await badge.click();
+    await page.getByTestId('compare-rules').locator('summary').click();
+    await page.getByTestId('override-body-mode').selectOption('values');
+    await expect(badge).toHaveAttribute('data-outcome', 'fail');
+    await expect(
+      page.getByTestId('compare-finding').filter({ hasText: 'grace' }).first(),
+    ).toHaveAttribute('data-kind', 'body.value.changed');
   });
 });
 

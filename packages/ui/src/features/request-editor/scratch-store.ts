@@ -64,6 +64,16 @@ export interface RequestBinding {
   /** The request's rules and the project's (read-only here), and replacing the request's. */
   rules?: () => { request: ProjectFieldRule[]; project: ProjectFieldRule[] };
   setRules?: (rules: ProjectFieldRule[]) => void;
+  /** The request's own status / headers / body comparison settings (PIGN-036). */
+  overrides?: () => ComparisonOverrides;
+  setOverrides?: (patch: ComparisonOverrides) => void;
+}
+
+/** What `compare.json` overrides besides rules; `undefined` removes a section. */
+export interface ComparisonOverrides {
+  status?: string | undefined;
+  headers?: Record<string, unknown> | undefined;
+  body?: Record<string, unknown> | undefined;
 }
 
 /** The comparison of the latest result. */
@@ -118,6 +128,8 @@ export interface ScratchRequestState {
   rules: {
     read: () => { request: ProjectFieldRule[]; project: ProjectFieldRule[] };
     write: (rules: ProjectFieldRule[]) => void;
+    overrides: () => ComparisonOverrides;
+    setOverrides: (patch: ComparisonOverrides) => void;
   } | null;
   /** Sends the request; a send while one is in flight cancels and supersedes it. */
   send: () => Promise<void>;
@@ -194,6 +206,11 @@ export function createScratchRequestStore(
               read: binding.rules,
               write: (rules) => {
                 binding.setRules!(rules);
+                void get().compare?.();
+              },
+              overrides: binding.overrides ?? (() => ({})),
+              setOverrides: (patch) => {
+                binding.setOverrides?.(patch);
                 void get().compare?.();
               },
             }

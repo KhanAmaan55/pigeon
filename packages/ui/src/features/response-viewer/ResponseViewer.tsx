@@ -372,7 +372,16 @@ function ResponseTabs({
             baseline={baselineExample}
             response={response}
             {...(addRule ? { onAddRule: addRule } : {})}
-            {...(rulesApi ? { rules: { ...rulesApi.read(), onChange: rulesApi.write } } : {})}
+            {...(rulesApi
+              ? {
+                  rules: {
+                    ...rulesApi.read(),
+                    onChange: rulesApi.write,
+                    overrides: rulesApi.overrides(),
+                    onOverrides: rulesApi.setOverrides,
+                  },
+                }
+              : {})}
             onEditProjectRules={() =>
               window.dispatchEvent(new CustomEvent('pigeon:open-view', { detail: 'settings' }))
             }

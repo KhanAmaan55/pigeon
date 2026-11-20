@@ -56,7 +56,15 @@ export interface Finding {
   /** The first 3 concrete paths when `count > 1`. */
   examplePaths?: string[];
   message: string;
+  /** Values mode: the value looks generated (§5): the UI suggests "Mark as dynamic?". */
+  hint?: DynamicHint;
 }
+
+/** Kinds of values that usually change on every call (§5). */
+export type DynamicHint = 'uuid' | 'iso-date' | 'unix-timestamp' | 'jwt' | 'hex-token';
+
+/** How arrays are compared in values mode (§4.4). */
+export type ArrayMatching = 'index' | 'schema' | { matchBy: string };
 
 export interface CompareOptions {
   /** Severity of keys the baseline didn't have (default `warn`). */
@@ -65,6 +73,11 @@ export interface CompareOptions {
   distinguishIntegers?: boolean;
   /** Rules whose `type` overrides the baseline's types (other rules: `applyRules`). */
   rules?: readonly FieldRule[];
+}
+
+export interface ValueCompareOptions {
+  /** Default `index`. */
+  arrays?: ArrayMatching;
 }
 
 export type Outcome = 'pass' | 'warn' | 'fail';

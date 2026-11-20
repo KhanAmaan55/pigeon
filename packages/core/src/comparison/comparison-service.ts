@@ -7,15 +7,33 @@
  * a hash of the baseline body and the settings (derived data, never committed).
  */
 
-import type { FieldRule, Finding, Outcome, SchemaNode } from '@pigeon/compare';
-import { applyRules, compareJson, inferSchema, summarize } from '@pigeon/compare';
+import type {
+  ArrayMatching,
+  FieldRule,
+  Finding,
+  HeaderMode,
+  Outcome,
+  SchemaNode,
+  StatusMode,
+} from '@pigeon/compare';
+import {
+  applyRules,
+  compareBinary,
+  compareHeaders,
+  compareJson,
+  compareStatus,
+  compareText,
+  compareValues,
+  inferSchema,
+  summarize,
+} from '@pigeon/compare';
 import type {
   ExampleBodyFormat,
   ProjectComparisonConfig,
   ProjectExample,
   ProjectFieldRule,
 } from '@pigeon/formats';
-import { ruleFromFile } from '@pigeon/formats';
+import { decodeBase64, ruleFromFile } from '@pigeon/formats';
 
 import { isJsonMediaType, parseMediaType } from '../execution/response';
 import type { ExecutionResult } from '../execution/types';
@@ -25,13 +43,52 @@ export interface BodyComparisonSettings {
   mode: 'schema' | 'values' | 'none';
   additionalFields: 'ignore' | 'warn' | 'fail';
   distinguishIntegers: boolean;
+  /** Values mode: how arrays are matched (§4.4); default `index`. */
+  arrays?: ArrayMatching;
 }
 
 export const DEFAULT_BODY_COMPARISON: Readonly<BodyComparisonSettings> = Object.freeze({
   mode: 'schema',
   additionalFields: 'warn',
   distinguishIntegers: false,
+  arrays: 'index',
 });
+
+export interface HeaderComparisonSettings {
+  compare: string[];
+  mode: HeaderMode;
+  ignore: string[];
+}
+
+export const DEFAULT_HEADER_COMPARISON: Readonly<HeaderComparisonSettings> = Object.freeze({
+  compare: ['content-type'],
+  mode: 'media-type',
+  ignore: [],
+});
+
+function statusMode(raw: unknown, base: StatusMode): StatusMode {
+  return raw === 'exact' || raw === 'class' || raw === 'ignore' ? raw : base;
+}
+
+/** `raw` header settings over `base`; invalid values are ignored. */
+export function headerSettings(
+  raw: unknown,
+  base: HeaderComparisonSettings = DEFAULT_HEADER_COMPARISON,
+): HeaderComparisonSettings {
+  const value = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+  const names = (list: unknown, fallback: string[]) =>
+    Array.isArray(list) && list.every((n) => typeof n === 'string')
+      ? (list as string[]).map((n) => n.toLowerCase())
+      : fallback;
+  return {
+    compare: names(value['compare'], base.compare),
+    mode:
+      value['mode'] === 'media-type' || value['mode'] === 'value' || value['mode'] === 'presence'
+        ? value['mode']
+        : base.mode,
+    ignore: names(value['ignore'], base.ignore),
+  };
+}
 
 /** The project's body defaults (`pigeon.json` `comparison.body`), else the built-in ones. */
 export function projectBodySettings(
@@ -49,10 +106,19 @@ export function bodySettings(
     Partial<BodyComparisonSettings> | undefined;
   const pick = <K extends keyof BodyComparisonSettings>(key: K, allowed: readonly unknown[]) =>
     body && allowed.includes(body[key]) ? (body[key] as BodyComparisonSettings[K]) : base[key];
+  const arrays = (body as { arrays?: unknown } | undefined)?.arrays;
   return {
     mode: pick('mode', ['schema', 'values', 'none']),
     additionalFields: pick('additionalFields', ['ignore', 'warn', 'fail']),
     distinguishIntegers: pick('distinguishIntegers', [true, false]),
+    arrays:
+      arrays === 'index' || arrays === 'schema'
+        ? arrays
+        : typeof arrays === 'object' &&
+            arrays !== null &&
+            typeof (arrays as { matchBy?: unknown }).matchBy === 'string'
+          ? { matchBy: (arrays as { matchBy: string }).matchBy }
+          : (base.arrays ?? 'index'),
   };
 }
 
@@ -65,6 +131,8 @@ export function projectRules(model: Pick<ProjectModel, 'comparison'>): ProjectFi
 }
 
 export interface EffectiveComparison {
+  status: StatusMode;
+  headers: HeaderComparisonSettings;
   body: BodyComparisonSettings;
   /** Project rules first, then the request's (§4.5). */
   rules: FieldRule[];
@@ -77,7 +145,10 @@ export function effectiveComparison(
   request: { comparison?: ProjectComparisonConfig | undefined },
 ): EffectiveComparison {
   const config = request.comparison;
+  const project = (model.comparison ?? {}) as { status?: unknown; headers?: unknown };
   return {
+    status: statusMode(config?.status, statusMode(project.status, 'exact')),
+    headers: headerSettings(config?.headers, headerSettings(project.headers)),
     body: bodySettings(config?.body, projectBodySettings(model)),
     rules: [...projectRules(model), ...(config?.rules ?? [])] as FieldRule[],
     baseline: config?.baseline ?? { mode: 'auto' },
@@ -141,6 +212,47 @@ export interface BodyComparisonInput {
   actualContentType: string | undefined;
   /** Hash key for the snapshot cache (e.g. the example id + body hash). */
   baselineKey?: string;
+  /** Status and headers (§3.1–3.2), when they are compared. */
+  baselineStatus?: number;
+  actualStatus?: number;
+  baselineHeaders?: Array<[string, string]>;
+  actualHeaders?: Array<[string, string]>;
+  /** Web: headers hidden by CORS can't be checked. */
+  headersRestricted?: boolean;
+  /** Binary bodies (values mode): hash and size. */
+  baselineBinary?: { hash: string; size: number };
+  actualBinary?: { hash: string; size: number };
+}
+
+/** FNV-1a over bytes. */
+export function quickHashBytes(bytes: Uint8Array): string {
+  let hash = 0x811c9dc5;
+  for (const byte of bytes) {
+    hash ^= byte;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+/** Every section (§3): status, headers, body; then the rules. Plain data in and out. */
+export function compareResponseInput(
+  input: BodyComparisonInput,
+  effective: Pick<EffectiveComparison, 'status' | 'headers' | 'body' | 'rules'>,
+): Finding[] {
+  const findings: Finding[] = [];
+  if (input.baselineStatus !== undefined && input.actualStatus !== undefined) {
+    findings.push(...compareStatus(input.baselineStatus, input.actualStatus, effective.status));
+  }
+  if (input.baselineHeaders && input.actualHeaders) {
+    findings.push(
+      ...compareHeaders(input.baselineHeaders, input.actualHeaders, {
+        ...effective.headers,
+        restricted: input.headersRestricted === true,
+      }),
+    );
+  }
+  findings.push(...compareBodyStructure(input, effective.body, effective.rules));
+  return applyRules(findings, effective.rules);
 }
 
 /** FNV-1a: a cheap, stable hash for cache keys (not security). */
@@ -207,11 +319,18 @@ function compareBodyStructure(
     ];
   }
   if (!baselineIsJson) {
+    const mode = settings.mode === 'values' ? 'values' : 'schema';
+    if (input.baselineText !== undefined && input.actualText !== undefined) {
+      return compareText(input.baselineText, input.actualText, mode);
+    }
+    if (input.baselineBinary && input.actualBinary) {
+      return compareBinary(input.baselineBinary, input.actualBinary, mode);
+    }
     return [
       {
         kind: 'body.value.changed',
         severity: 'info',
-        message: 'Text body not compared structurally',
+        message: 'Body not compared (no text to compare)',
       },
     ];
   }
@@ -225,11 +344,20 @@ function compareBodyStructure(
       },
     ];
   }
-  return compareJson(snapshot(input.baselineText!, baseline.value, settings), actual.value, {
-    additionalFields: settings.additionalFields,
-    distinguishIntegers: settings.distinguishIntegers,
-    rules,
-  });
+  const structure = compareJson(
+    snapshot(input.baselineText!, baseline.value, settings),
+    actual.value,
+    {
+      additionalFields: settings.additionalFields,
+      distinguishIntegers: settings.distinguishIntegers,
+      rules,
+    },
+  );
+  if (settings.mode !== 'values') return structure;
+  return [
+    ...structure,
+    ...compareValues(baseline.value, actual.value, { arrays: settings.arrays ?? 'index' }),
+  ];
 }
 
 /** The plain-data input for `example` vs the response of `result`. */
@@ -238,12 +366,28 @@ export function bodyComparisonInput(
   result: ExecutionResult,
 ): BodyComparisonInput {
   const body = example.response.body;
+  const response = result.response;
+  const baselineBytes = body.kind === 'binary' ? decodeBase64(body.base64) : undefined;
   return {
     baselineText: body.kind === 'text' ? body.text : undefined,
     baselineFormat: body.kind === 'text' ? body.format : body.kind === 'binary' ? 'binary' : 'none',
-    actualText: result.response?.bodyText,
-    actualContentType: result.response?.contentType,
+    actualText: response?.bodyText,
+    actualContentType: response?.contentType,
     baselineKey: example.id,
+    baselineStatus: example.response.code,
+    ...(response ? { actualStatus: response.status } : {}),
+    baselineHeaders: example.response.headers
+      .filter((header) => !header.disabled)
+      .map((header): [string, string] => [header.key, header.value]),
+    ...(response
+      ? { actualHeaders: response.headers, headersRestricted: response.headersRestricted }
+      : {}),
+    ...(baselineBytes
+      ? { baselineBinary: { hash: quickHashBytes(baselineBytes), size: baselineBytes.byteLength } }
+      : {}),
+    ...(response && response.bodyText === undefined
+      ? { actualBinary: { hash: quickHashBytes(response.body), size: response.body.byteLength } }
+      : {}),
   };
 }
 
@@ -275,7 +419,9 @@ export function compareExecution(
   request: { id: string; examples: readonly ProjectExample[] },
   result: ExecutionResult,
   settings: BodyComparisonSettings = DEFAULT_BODY_COMPARISON,
-  options: { rules?: readonly FieldRule[]; baseline?: EffectiveComparison['baseline'] } = {},
+  options: Partial<Pick<EffectiveComparison, 'status' | 'headers' | 'baseline'>> & {
+    rules?: readonly FieldRule[];
+  } = {},
 ): ComparisonOutcome | undefined {
   if (!result.response) return undefined;
   if (options.baseline?.mode === 'none') return undefined;
@@ -285,7 +431,12 @@ export function compareExecution(
     result.response.status,
   );
   if (!example) return { kind: 'no-baseline', requestId: request.id };
-  const findings = compareBodyTexts(bodyComparisonInput(example, result), settings, options.rules);
+  const findings = compareResponseInput(bodyComparisonInput(example, result), {
+    status: options.status ?? 'exact',
+    headers: options.headers ?? DEFAULT_HEADER_COMPARISON,
+    body: settings,
+    rules: [...(options.rules ?? [])],
+  });
   return { kind: 'compared', result: comparisonResult(request.id, example, result, findings) };
 }
 

@@ -24,13 +24,20 @@ function example(
   id: string,
   code: number,
   body: ProjectExample['response']['body'],
+  contentType = 'application/json',
 ): ProjectExample {
   return {
     id,
     fileKey: id,
     requestId: 'r',
     name: `${code} ${id}`,
-    response: { code, status: '', headers: [], cookies: [], body },
+    response: {
+      code,
+      status: '',
+      headers: [{ key: 'Content-Type', value: contentType }],
+      cookies: [],
+      body,
+    },
     extra: {},
   };
 }
@@ -117,6 +124,7 @@ describe('comparison service (PIGN-034)', () => {
       result(200, '<h1>hi</h1>', 'text/html; charset=utf-8'),
     );
     expect(outcome?.kind === 'compared' && outcome.result.findings).toEqual([
+      expect.objectContaining({ kind: 'header.changed', path: 'content-type', severity: 'fail' }),
       expect.objectContaining({
         kind: 'body.contentType.changed',
         severity: 'fail',
@@ -133,7 +141,12 @@ describe('comparison service (PIGN-034)', () => {
       severity: 'fail',
     });
     const text = compareExecution(
-      { id: 'r', examples: [example('t', 200, { kind: 'text', text: 'hello', format: 'text' })] },
+      {
+        id: 'r',
+        examples: [
+          example('t', 200, { kind: 'text', text: 'hello', format: 'text' }, 'text/plain'),
+        ],
+      },
       result(200, 'hello', 'text/plain'),
     );
     expect(text?.kind === 'compared' && text.result).toMatchObject({
@@ -152,10 +165,16 @@ describe('comparison service (PIGN-034)', () => {
       mode: 'schema',
       additionalFields: 'warn',
       distinguishIntegers: false,
+      arrays: 'index',
     });
     expect(
       projectBodySettings({ comparison: { body: { additionalFields: 'fail', mode: 'weird' } } }),
-    ).toEqual({ mode: 'schema', additionalFields: 'fail', distinguishIntegers: false });
+    ).toEqual({
+      mode: 'schema',
+      additionalFields: 'fail',
+      distinguishIntegers: false,
+      arrays: 'index',
+    });
     const strict = compareExecution(
       { id: 'r', examples: [jsonExample('ok', 200, USER)] },
       result(200, JSON.stringify({ ...USER, extra: 1 })),

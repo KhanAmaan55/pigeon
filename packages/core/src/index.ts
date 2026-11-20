@@ -83,8 +83,13 @@ export type {
   ComparisonOutcome,
   ComparisonResult,
   EffectiveComparison,
+  HeaderComparisonSettings,
 } from './comparison/comparison-service';
 export {
+  compareResponseInput,
+  DEFAULT_HEADER_COMPARISON,
+  headerSettings,
+  quickHashBytes,
   baselineFor,
   bodySettings,
   effectiveComparison,
@@ -101,7 +106,17 @@ export {
   rememberComparison,
   selectBaseline,
 } from './comparison/comparison-service';
-export type { FieldRule, Finding, FindingKind, Outcome, Severity } from '@pigeon/compare';
+export type {
+  ArrayMatching,
+  DynamicHint,
+  FieldRule,
+  Finding,
+  FindingKind,
+  HeaderMode,
+  Outcome,
+  Severity,
+  StatusMode,
+} from '@pigeon/compare';
 export { validateRulePath } from '@pigeon/compare';
 export { scriptsNotRun, scriptsNotRunWarning } from './execution/scripts';
 export type { GraphqlError, GraphqlOperation, GraphqlView } from './execution/graphql';

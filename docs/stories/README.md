@@ -64,7 +64,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-033](PIGN-033-comparison-engine.md) | Comparison engine: inference & structural diff | 7 Comparison | MVP | 001 | Done |
 | [PIGN-034](PIGN-034-compare-ui.md) | Compare response against baseline (UI) | 7 Comparison | MVP | 027, 033 | Done |
 | [PIGN-035](PIGN-035-field-rules.md) | Field rules: optional / ignore / nullable / dynamic | 7 Comparison | MVP | 034 | Done |
-| [PIGN-036](PIGN-036-status-headers-values.md) | Status, headers & value-mode comparison | 7 Comparison | MVP | 035 | Todo |
+| [PIGN-036](PIGN-036-status-headers-values.md) | Status, headers & value-mode comparison | 7 Comparison | MVP | 035 | Done |
 | [PIGN-037](PIGN-037-accept-baseline.md) | Accept new baseline & baseline selection | 7 Comparison | MVP | 035 | Todo |
 | [PIGN-038](PIGN-038-regression-run.md) | Collection/folder regression run & report | 7 Comparison | MVP | 037 | Todo |
 | [PIGN-039](PIGN-039-web-deployment.md) | Web deployment & browser-limitation UX | 8 Hardening | MVP | 015, 011 | Todo |

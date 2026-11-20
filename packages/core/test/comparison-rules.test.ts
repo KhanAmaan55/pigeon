@@ -74,7 +74,7 @@ describe('field rules in comparisons (PIGN-035)', () => {
         response: {
           code: 200,
           status: 'OK',
-          headers: [],
+          headers: [{ key: 'Content-Type', value: 'application/json' }],
           cookies: [],
           body: { kind: 'text', text: '{"id":42,"reason":"spam"}', format: 'json' },
         },

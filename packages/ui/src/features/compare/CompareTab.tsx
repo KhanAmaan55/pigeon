@@ -12,6 +12,8 @@ import { useMemo, useState } from 'react';
 
 import type { ComparisonState } from '../request-editor/scratch-store';
 import { OUTCOMES } from './outcome';
+import type { ComparisonOverrides } from '../request-editor/scratch-store';
+import { RequestOverrides } from './RequestOverrides';
 import { RulesTable } from './RulesTable';
 import { SideBySide } from './SideBySide';
 import { indexJson, lineOf } from './json-lines';
@@ -65,22 +67,30 @@ export function CompareTab({
     request: ProjectFieldRule[];
     project: ProjectFieldRule[];
     onChange: (rules: ProjectFieldRule[]) => void;
+    overrides: ComparisonOverrides;
+    onOverrides: (patch: ComparisonOverrides) => void;
   };
   onEditProjectRules?: () => void;
 }) {
   const [view, setView] = useState<'findings' | 'side-by-side'>('findings');
   const [showIgnored, setShowIgnored] = useState(false);
+  // While a new comparison runs (e.g. after a rule change), keep showing the last result so the
+  // panel (and an open rules editor) stays put.
+  const [lastDone, setLastDone] = useState<ComparisonState>(null);
+  if (comparison?.status === 'done' && comparison !== lastDone) setLastDone(comparison);
+  const rerunning = comparison?.status === 'running' && lastDone !== null;
+  const shown = rerunning ? lastDone : comparison;
   const [selected, setSelected] = useState<{ finding: Finding; nonce: number } | null>(null);
   const actualIndex = useMemo(() => indexJson(response.bodyText ?? ''), [response.bodyText]);
 
-  if (!comparison) {
+  if (!shown) {
     return (
       <p data-testid="compare-off" className="p-3 text-sm text-fg-muted">
         Not compared. Turn on “Compare responses with the baseline” in Settings, or send again.
       </p>
     );
   }
-  if (comparison.status === 'running') {
+  if (shown.status === 'running') {
     return (
       <p role="status" className="flex items-center gap-2 p-3 text-sm text-fg-muted">
         <LoaderCircle size={14} className="animate-spin" aria-hidden />
@@ -88,14 +98,14 @@ export function CompareTab({
       </p>
     );
   }
-  if (comparison.outcome.kind === 'no-baseline') {
+  if (shown.outcome.kind === 'no-baseline') {
     return (
       <p data-testid="compare-no-baseline" className="p-3 text-sm text-fg-muted">
         No baseline — Save as example to start tracking.
       </p>
     );
   }
-  const result: ComparisonResult = comparison.outcome.result;
+  const result: ComparisonResult = shown.outcome.result;
   const outcome = OUTCOMES[result.outcome];
   const ignored = result.findings.filter((f) => f.severity === 'ignored').length;
   const groups = groupFindings(
@@ -116,6 +126,9 @@ export function CompareTab({
           {result.counts.fail} fail · {result.counts.warn} warn · {result.counts.info} info
           {result.counts.ignored > 0 ? ` · ${result.counts.ignored} ignored` : ''}
         </span>
+        {rerunning && (
+          <LoaderCircle size={12} className="animate-spin text-fg-muted" aria-label="Comparing…" />
+        )}
         <span className="text-xs text-fg-muted">
           Baseline:{' '}
           <span data-testid="compare-baseline" className="text-fg">
@@ -238,6 +251,8 @@ export function CompareTab({
             Rules ({rules.request.length} request · {rules.project.length} project)
           </summary>
           <h4 className="pt-2 pb-1 text-xs text-fg-muted">This request (compare.json)</h4>
+          <RequestOverrides overrides={rules.overrides} onChange={rules.onOverrides} />
+          <div className="h-2" />
           <RulesTable rules={rules.request} onChange={rules.onChange} testId="request-rules" />
           <h4 className="flex items-center gap-2 pt-3 pb-1 text-xs text-fg-muted">
             Project (pigeon.json, read-only here)
@@ -268,7 +283,8 @@ function RuleActions({
   onAddRule: (rule: ProjectFieldRule) => void;
 }) {
   const path = finding.schemaPath ?? finding.path;
-  if (!path || finding.severity === 'ignored') return null;
+  // Rules are about body paths; status and header findings have their own settings.
+  if (!path || !path.startsWith('$') || finding.severity === 'ignored') return null;
   const actions: Array<{ label: string; testId: string; rule: ProjectFieldRule }> = [];
   if (finding.kind === 'body.field.removed') {
     actions.push({
@@ -289,7 +305,8 @@ function RuleActions({
   }
   if (finding.kind === 'body.value.changed') {
     actions.push({
-      label: 'Mark dynamic',
+      // A generated-looking value (§5) is only a suggestion.
+      label: finding.hint ? 'Mark as dynamic?' : 'Mark dynamic',
       testId: 'finding-mark-dynamic',
       rule: { path, dynamic: true },
     });

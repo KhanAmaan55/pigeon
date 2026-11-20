@@ -1,11 +1,11 @@
 /**
- * `compareBodyTexts` for the response viewer. Bodies over `WORKER_THRESHOLD` are parsed and
+ * `compareResponseInput` for the response viewer. Bodies over `WORKER_THRESHOLD` are parsed and
  * compared in a Web Worker (./compare.worker.ts) so typing stays responsive; without Worker
  * support (tests, a worker blocked by CSP) it runs inline after yielding a frame.
  */
 
-import type { BodyComparisonInput, BodyComparisonSettings, FieldRule, Finding } from '@pigeon/core';
-import { compareBodyTexts } from '@pigeon/core';
+import type { BodyComparisonInput, EffectiveComparison, Finding } from '@pigeon/core';
+import { compareResponseInput } from '@pigeon/core';
 
 export const WORKER_THRESHOLD = 256 * 1024;
 
@@ -36,12 +36,11 @@ function getWorker(): Worker | null {
 
 export function runBodyComparison(
   input: BodyComparisonInput,
-  settings: BodyComparisonSettings,
-  rules: readonly FieldRule[] = [],
+  effective: Pick<EffectiveComparison, 'status' | 'headers' | 'body' | 'rules'>,
 ): Promise<Finding[]> {
   const inline = () =>
     new Promise<Finding[]>((resolve) =>
-      setTimeout(() => resolve(compareBodyTexts(input, settings, rules)), 0),
+      setTimeout(() => resolve(compareResponseInput(input, effective)), 0),
     );
   const size = (input.baselineText?.length ?? 0) + (input.actualText?.length ?? 0);
   const target = size > WORKER_THRESHOLD ? getWorker() : null;
@@ -49,6 +48,15 @@ export function runBodyComparison(
   return new Promise((resolve) => {
     const id = ++nextId;
     pending.set(id, { resolve, fallback: () => void inline().then(resolve) });
-    target.postMessage({ id, input, settings, rules: [...rules] });
+    target.postMessage({
+      id,
+      input,
+      effective: {
+        status: effective.status,
+        headers: effective.headers,
+        body: effective.body,
+        rules: [...effective.rules],
+      },
+    });
   });
 }

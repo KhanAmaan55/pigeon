@@ -2173,3 +2173,61 @@ describe('field rules (PIGN-035)', () => {
     await send({ id: 1, name: 'Ada', meta: { at: 1 } }, 'pass');
   });
 });
+
+describe('status, headers and values comparison (PIGN-036)', () => {
+  it('shows status and header findings and switches a request to values mode', async () => {
+    let reply = { status: 200, body: { name: 'Ada', updatedAt: '2026-01-01T00:00:00Z' } };
+    const transport = new MockTransport().on({ url: /./ }, () => ({
+      status: reply.status,
+      headers: [['Content-Type', 'application/json']],
+      body: JSON.stringify(reply.body),
+    }));
+    const { platform, fs } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await user.dblClick(screen.getByText('List users'));
+    await user.click(screen.getByTestId('send-button'));
+    await user.click(await screen.findByTestId('save-as-example'));
+    const badge = () => screen.getByTestId('comparison-badge').getAttribute('data-outcome');
+    await waitFor(() => expect(badge()).toBe('pass'));
+
+    reply = { status: 201, body: { name: 'Grace', updatedAt: '2026-11-20T00:00:00Z' } };
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(badge()).toBe('fail'));
+    fireEvent.click(screen.getByTestId('comparison-badge'));
+    expect(screen.getByRole('region', { name: 'Status' }).textContent).toContain(
+      'Status changed: 200 → 201',
+    );
+
+    // Per-request overrides: status by class, body by values.
+    const panel = screen.getByTestId('compare-rules');
+    fireEvent.click(within(panel).getByText(/Rules \(/));
+    fireEvent.change(within(panel).getByTestId('override-status'), { target: { value: 'class' } });
+    fireEvent.change(within(panel).getByTestId('override-body-mode'), {
+      target: { value: 'values' },
+    });
+    await waitFor(() =>
+      expect(
+        screen.getAllByTestId('compare-finding').map((f) => f.getAttribute('data-kind')),
+      ).toEqual(['body.value.changed', 'body.value.changed']),
+    );
+    expect(screen.getAllByTestId('finding-mark-dynamic').map((b) => b.textContent)).toEqual([
+      'Mark as dynamic?',
+      'Mark dynamic',
+    ]);
+    fireEvent.click(screen.getAllByTestId('finding-mark-dynamic')[0]!);
+    await waitFor(() => expect(screen.getAllByTestId('compare-finding')).toHaveLength(1));
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(async () =>
+      expect(JSON.parse(await fs.readText('examples/users-api/list-users/compare.json'))).toEqual({
+        pigeonCompare: 1,
+        requestId: 'list-users',
+        status: 'class',
+        body: { mode: 'values' },
+        rules: [{ path: '$.updatedAt', dynamic: true }],
+      }),
+    );
+  });
+});

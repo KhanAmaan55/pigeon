@@ -35,7 +35,7 @@ function bigModel(count: number): ProjectModel {
 }
 
 describe('commit planner performance', () => {
-  it('plans a one-request commit in a 5,000-request project within budget', async () => {
+  it('plans a one-request commit in a 5,000-request project quickly', async () => {
     const base = bigModel(5000);
     const working = applyCommand(base, {
       type: 'updateRequest',
@@ -68,7 +68,8 @@ describe('commit planner performance', () => {
       'collections/big/folder-42/folder.json',
       'collections/big/folder-42/request-42.request.json',
     ]);
-    // Budget: 100 ms (story PIGN-019); shared CI runners get headroom.
-    expect(elapsed).toBeLessThan(process.env['CI'] ? 500 : 100);
+    // Loose guard here (the suite runs in parallel on busy machines); the 100 ms budget of
+    // PIGN-019 is checked by `pnpm test:perf` (test/perf/commit-planner.perf.test.ts).
+    expect(elapsed).toBeLessThan(1000);
   });
 });
