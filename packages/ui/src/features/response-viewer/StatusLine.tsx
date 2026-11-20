@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { ExecutionResult, NormalizedResponse } from '@pigeon/core';
 
 import { formatBytes, formatDuration, statusText } from '../../lib/format';
@@ -36,9 +37,12 @@ function sizeTooltip(bytes: number, transport: TransportKind): string {
 export function StatusLine({
   response,
   transport,
+  comparison,
 }: {
   response: NormalizedResponse;
   transport: TransportKind;
+  /** The comparison badge (PIGN-034), for project requests. */
+  comparison?: ReactNode;
 }) {
   const badge = TRANSPORT_BADGES[transport];
   return (
@@ -68,6 +72,7 @@ export function StatusLine({
           {formatBytes(response.sizeBytes)}
         </span>
       </span>
+      {comparison}
       <span
         data-testid="response-transport"
         data-transport={transport}

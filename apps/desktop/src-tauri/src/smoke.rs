@@ -27,6 +27,13 @@ pub fn requested(args: impl IntoIterator<Item = String>) -> bool {
 
 /// Adds the probe and the timeout. `main` registers [`smoke_report`] with the other commands.
 pub fn install(builder: Builder<Wry>) -> Builder<Wry> {
+    // Never the user's app data: a fresh directory, removed when the run ends.
+    let data = std::env::temp_dir().join(format!("pigeon-smoke-{}", process::id()));
+    let _ = std::fs::remove_dir_all(&data);
+    if let Err(error) = std::fs::create_dir_all(&data) {
+        finish(Err(format!("smoke data directory: {error}")));
+    }
+    crate::data_dir::use_isolated(data);
     let url = serve_probe_target()
         .unwrap_or_else(|error| finish(Err(format!("probe target server: {error}"))));
     // A plain thread, not `Builder::setup`: Tauri keeps only the last setup hook, and main's
@@ -81,6 +88,9 @@ pub fn smoke_report(error: Option<String>) {
 }
 
 fn finish(result: Result<(), String>) -> ! {
+    if let Some(dir) = crate::data_dir::isolated() {
+        let _ = std::fs::remove_dir_all(dir);
+    }
     match result {
         Ok(()) => {
             println!("{OK}");

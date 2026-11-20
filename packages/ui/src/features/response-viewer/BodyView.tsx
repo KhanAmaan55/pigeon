@@ -26,14 +26,18 @@ const linkButton =
 export function BodyView({
   response,
   onSave,
+  reveal,
 }: {
   response: NormalizedResponse;
   onSave: () => void;
+  /** "Show in body" (PIGN-034): a line of the Pretty view to scroll to. */
+  reveal?: { line: number; nonce: number };
 }) {
   const info = useMemo(() => describeBody(response), [response]);
   const [mode, setMode] = useState(info.defaultMode);
   const [formatAnyway, setFormatAnyway] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [revealed, setRevealed] = useState<number | null>(null);
   const capabilities = useCapabilities();
   // Holding 20 MB+ of text in the editor is fine natively; in a browser tab it may not be.
   const canShowAll = capabilities.transport !== 'fetch';
@@ -63,6 +67,11 @@ export function BodyView({
     if (next === 'pretty') setFormatAnyway(info.large);
     setMode(next);
   };
+  // Showing a path needs the Pretty view (its lines are the ones findings point at).
+  if (reveal && revealed !== reveal.nonce && info.modes.includes('pretty') && !prettyBlocked) {
+    setRevealed(reveal.nonce);
+    if (mode !== 'pretty' || (info.large && !formatAnyway)) choose('pretty');
+  }
   const pretty = mode === 'pretty' && (!info.large || formatAnyway) && !prettyBlocked;
 
   return (
@@ -137,6 +146,7 @@ export function BodyView({
           text={shown}
           language={info.language}
           knownValidJson={response.json !== undefined && !truncated}
+          {...(reveal ? { reveal } : {})}
         />
       ) : (
         <CodeEditor
@@ -154,7 +164,12 @@ export function BodyView({
   );
 }
 
-function PrettyBody({ text, language, knownValidJson }: FormatRequest) {
+function PrettyBody({
+  text,
+  language,
+  knownValidJson,
+  reveal,
+}: FormatRequest & { reveal?: { line: number; nonce: number } }) {
   const request = useMemo<FormatRequest>(
     () => ({ text, language, knownValidJson }),
     [text, language, knownValidJson],
@@ -193,6 +208,7 @@ function PrettyBody({ text, language, knownValidJson }: FormatRequest) {
       ariaLabel="Response body"
       testId="response-body"
       className="m-2 flex-1 rounded"
+      {...(reveal ? { revealLine: reveal } : {})}
     />
   );
 }

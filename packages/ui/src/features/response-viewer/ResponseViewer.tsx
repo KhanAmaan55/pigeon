@@ -17,6 +17,8 @@ import { lazy, Suspense, useMemo, useState } from 'react';
 import { usePlatform } from '../../app/PlatformProvider';
 import { useVolatileHeaders } from '../../app/preferences';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
+import { CompareTab } from '../compare/CompareTab';
+import { ComparisonBadge } from '../compare/outcome';
 import { ExamplesTab, useRequestExamples } from '../examples/ExamplesTab';
 import { useScratchRequest } from '../request-editor/ScratchRequestProvider';
 import { suggestFileName } from './body-view';
@@ -45,6 +47,15 @@ export function ResponseViewer({
 } = {}) {
   const sending = useScratchRequest((s) => s.status === 'sending');
   const result = useScratchRequest((s) => s.result);
+  const comparison = useScratchRequest((s) => s.comparison);
+  const canCompare = useScratchRequest((s) => s.compare !== null);
+  // The active response tab, per result (a new response starts on Body).
+  const [tab, setTab] = useState<{ resultId: string | undefined; value: string }>({
+    resultId: undefined,
+    value: 'body',
+  });
+  const activeTab = tab.resultId === result?.id ? tab.value : 'body';
+  const selectTab = (value: string) => setTab({ resultId: result?.id, value });
 
   return (
     <div
@@ -71,7 +82,20 @@ export function ResponseViewer({
       ) : (
         <>
           {result.response && (
-            <StatusLine response={result.response} transport={result.transport} />
+            <StatusLine
+              response={result.response}
+              transport={result.transport}
+              {...(canCompare
+                ? {
+                    comparison: (
+                      <ComparisonBadge
+                        comparison={comparison}
+                        onOpen={() => selectTab('compare')}
+                      />
+                    ),
+                  }
+                : {})}
+            />
           )}
           {result.error?.kind === 'aborted' ? (
             <Cancelled />
@@ -86,6 +110,8 @@ export function ResponseViewer({
               key={result.id}
               result={result}
               response={result.response}
+              tab={activeTab}
+              onTab={selectTab}
               dock={dock}
               {...(onToggleDock ? { onToggleDock } : {})}
             />
@@ -152,20 +178,34 @@ function saveMessage(state: SaveState): string {
 function ResponseTabs({
   result,
   response,
+  tab,
+  onTab,
   dock,
   onToggleDock,
 }: {
   result: ExecutionResult;
   response: NormalizedResponse;
+  tab: string;
+  onTab: (tab: string) => void;
   dock: ResponseDock;
   onToggleDock?: () => void;
 }) {
+  const comparison = useScratchRequest((s) => s.comparison);
+  const canCompare = useScratchRequest((s) => s.compare !== null);
+  const [reveal, setReveal] = useState<{ line: number; nonce: number } | undefined>(undefined);
   const { files } = usePlatform();
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
   const saveAsExample = useScratchRequest((s) => s.saveAsExample);
   const requestId = useScratchRequest((s) => s.request.id);
   const volatileHeaders = useVolatileHeaders();
   const project = useAppStore((s) => s.project);
+  const baselineExample = useProjectState(() => {
+    const id =
+      comparison?.status === 'done' && comparison.outcome.kind === 'compared'
+        ? comparison.outcome.result.exampleId
+        : undefined;
+    return id ? project?.session.findExample(id)?.example : undefined;
+  }, undefined);
   const readOnly = useProjectState((s) => s.readOnly, false);
   const examples = useRequestExamples(requestId);
   const [savedExample, setSavedExample] = useState<string | null>(null);
@@ -195,7 +235,8 @@ function ResponseTabs({
 
   return (
     <Tabs.Root
-      defaultValue="body"
+      value={tab}
+      onValueChange={onTab}
       data-transport={result.transport}
       className="flex min-h-0 flex-1 flex-col"
     >
@@ -216,6 +257,11 @@ function ResponseTabs({
           <ResponseTab value="timeline" testId="response-timeline-tab">
             Timeline
           </ResponseTab>
+          {canCompare && (
+            <ResponseTab value="compare" testId="response-compare-tab">
+              Compare
+            </ResponseTab>
+          )}
           {saveAsExample && (
             <ResponseTab value="examples" testId="response-examples-tab">
               Examples
@@ -297,7 +343,7 @@ function ResponseTabs({
         <Suspense
           fallback={<div aria-busy data-testid="response-body-loading" className="flex-1" />}
         >
-          <BodyView response={response} onSave={save} />
+          <BodyView response={response} onSave={save} {...(reveal ? { reveal } : {})} />
         </Suspense>
       </Tabs.Content>
       <Tabs.Content
@@ -312,6 +358,22 @@ function ResponseTabs({
       >
         <TimelineTab result={result} response={response} />
       </Tabs.Content>
+      {canCompare && (
+        <Tabs.Content
+          value="compare"
+          className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+        >
+          <CompareTab
+            comparison={comparison}
+            baseline={baselineExample}
+            response={response}
+            onShowInBody={(line) => {
+              setReveal({ line, nonce: Date.now() });
+              onTab('body');
+            }}
+          />
+        </Tabs.Content>
+      )}
       {saveAsExample && (
         <Tabs.Content
           value="examples"

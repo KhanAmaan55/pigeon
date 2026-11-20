@@ -6,5 +6,6 @@ export default defineProject({
     // Component flows render the whole app in jsdom; on a busy machine (or CI) they can take a
     // few seconds each.
     testTimeout: 20_000,
+    setupFiles: ['./test/setup.ts'],
   },
 });

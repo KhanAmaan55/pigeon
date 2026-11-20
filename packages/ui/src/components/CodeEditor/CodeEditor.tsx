@@ -50,6 +50,8 @@ export interface CodeEditorProps {
   className?: string;
   /** Highlight `{{variables}}` against these scopes (request bodies). */
   variables?: VariableScopes;
+  /** Scrolls to (and selects the start of) a 0-based line; a new `nonce` repeats it. */
+  revealLine?: { line: number; nonce: number };
 }
 
 /** Colours from the design tokens, so the editor follows the light/dark theme. */
@@ -142,6 +144,7 @@ export function CodeEditor({
   placeholder = '',
   className = '',
   variables,
+  revealLine,
 }: CodeEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -245,6 +248,19 @@ export function CodeEditor({
       ],
     });
   }, [ariaLabel, testId, readOnly]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !revealLine) return;
+    const line = view.state.doc.line(
+      Math.min(Math.max(revealLine.line + 1, 1), view.state.doc.lines),
+    );
+    view.dispatch({
+      selection: { anchor: line.from, head: line.to },
+      effects: EditorView.scrollIntoView(line.from, { y: 'start', yMargin: 24 }),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- by nonce
+  }, [revealLine?.nonce]);
 
   useEffect(() => {
     let current = true;

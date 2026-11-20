@@ -14,6 +14,9 @@ export interface PreferencesState {
   /** Response headers "Save as example" leaves out (PIGN-027). */
   volatileHeaders: readonly string[];
   setVolatileHeaders: (headers: readonly string[]) => void;
+  /** Compare every response with its baseline example after a send (PIGN-034). */
+  autoCompare: boolean;
+  setAutoCompare: (autoCompare: boolean) => void;
 }
 
 export type PreferencesStore = ReturnType<typeof createPreferencesStore>;
@@ -24,6 +27,8 @@ export function createPreferencesStore(initial: Partial<ExecutionPreferences> = 
     setExecution: (patch) => set({ execution: { ...get().execution, ...patch } }),
     volatileHeaders: DEFAULT_VOLATILE_HEADERS,
     setVolatileHeaders: (volatileHeaders) => set({ volatileHeaders }),
+    autoCompare: true,
+    setAutoCompare: (autoCompare) => set({ autoCompare }),
   }));
 }
 

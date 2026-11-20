@@ -28,11 +28,21 @@ describe('/json/:shape', () => {
     expect(JSON.parse(text)).toMatchObject({ null: null, emptyArray: [], emptyObject: {} });
   });
 
+  it('serves user-v2: user with email removed, nickname added and a string id', async () => {
+    expect(await (await fetch(url('/json/user-v2'))).json()).toEqual({
+      id: '1',
+      name: 'Ada Lovelace',
+      active: true,
+      roles: ['admin', 'editor'],
+      nickname: 'ada',
+    });
+  });
+
   it('answers 404 for an unknown shape', async () => {
     const res = await fetch(url('/json/nope'));
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
-      error: expect.stringContaining('user, users, nested, types'),
+      error: expect.stringContaining('user, user-v2, users, nested, types'),
     });
   });
 

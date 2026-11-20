@@ -2,6 +2,7 @@ import type { ProjectExample } from '@pigeon/core';
 import { Bookmark, Trash2 } from 'lucide-react';
 
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
+import { baselineExampleId } from '../explorer/tree';
 
 /** Status colour of an example's code, like the response status line. */
 export function statusClass(code: number): string {
@@ -24,6 +25,11 @@ export function ExamplesTab({ requestId }: { requestId: string }) {
   const project = useAppStore((s) => s.project);
   const examples = useRequestExamples(requestId);
   const readOnly = useProjectState((s) => s.readOnly, false);
+  const lastBaseline = useProjectState((s) => s.comparisons[requestId]?.exampleId, undefined);
+  const baselineId = baselineExampleId(
+    { id: requestId, examples },
+    lastBaseline ? { [requestId]: lastBaseline } : undefined,
+  );
   if (!project) return null;
   if (examples.length === 0) {
     return (
@@ -41,6 +47,16 @@ export function ExamplesTab({ requestId }: { requestId: string }) {
           className="group flex items-center gap-2 px-3 py-1 hover:bg-hover"
         >
           <Bookmark size={12} className="shrink-0 text-fg-muted" aria-hidden />
+          {example.id === baselineId && (
+            <span
+              data-testid="examples-baseline"
+              title="Baseline"
+              aria-label="(baseline)"
+              className="text-warn"
+            >
+              ★
+            </span>
+          )}
           <button
             type="button"
             data-testid="examples-open"

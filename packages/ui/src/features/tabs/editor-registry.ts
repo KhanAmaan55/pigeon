@@ -4,7 +4,16 @@
  */
 
 import type { ProjectRequest, ProjectSession, Request, VariableScopes } from '@pigeon/core';
-import { buildScopes, inheritedAuth, scriptsNotRun } from '@pigeon/core';
+import {
+  bodyComparisonInput,
+  buildScopes,
+  comparisonResult,
+  inheritedAuth,
+  projectBodySettings,
+  scriptsNotRun,
+  selectBaseline,
+} from '@pigeon/core';
+import { runBodyComparison } from '../compare/run-compare';
 import type { Platform } from '@pigeon/platform';
 
 import type { ScratchRequestEnvironment } from '../request-editor/scratch-store';
@@ -74,6 +83,19 @@ export function getTabEditor(
         projectStore.getState().pinTab(requestId);
       },
       skippedScripts: () => scriptsNotRun(session.getWorkingModel(), requestId),
+      compare: async (result) => {
+        const request = session.findRequest(requestId);
+        if (!request || !result.response) return undefined;
+        const example = selectBaseline(request.examples, result.response.status);
+        if (!example) return { kind: 'no-baseline', requestId };
+        const findings = await runBodyComparison(
+          bodyComparisonInput(example, result),
+          projectBodySettings(session.getWorkingModel()),
+        );
+        const comparison = comparisonResult(requestId, example, result, findings);
+        projectStore.getState().setComparison(comparison);
+        return { kind: 'compared', result: comparison };
+      },
       createExample: (example) => {
         session.apply({ type: 'createExample', requestId, example });
         projectStore.getState().pinTab(requestId);

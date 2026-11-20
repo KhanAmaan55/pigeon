@@ -75,6 +75,25 @@ export {
 } from './import/import-service';
 export type { ImportReport } from '@pigeon/formats';
 export { statusText } from './execution/status';
+export type {
+  BodyComparisonInput,
+  BodyComparisonSettings,
+  ComparisonOutcome,
+  ComparisonResult,
+} from './comparison/comparison-service';
+export {
+  bodyComparisonInput,
+  compareBodyTexts,
+  compareExecution,
+  comparisonResult,
+  DEFAULT_BODY_COMPARISON,
+  LAST_COMPARISONS_LIMIT,
+  projectBodySettings,
+  quickHash,
+  rememberComparison,
+  selectBaseline,
+} from './comparison/comparison-service';
+export type { Finding, FindingKind, Outcome, Severity } from '@pigeon/compare';
 export { scriptsNotRun, scriptsNotRunWarning } from './execution/scripts';
 export type { GraphqlError, GraphqlOperation, GraphqlView } from './execution/graphql';
 export { graphqlOperations, interpretGraphql } from './execution/graphql';

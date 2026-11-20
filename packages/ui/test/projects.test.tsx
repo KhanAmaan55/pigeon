@@ -1597,8 +1597,9 @@ describe('response examples (PIGN-027)', () => {
     // Response panel → Examples lists it; the explorer shows a count on the request.
     await act(async () => screen.getByTestId('response-examples-tab').focus());
     expect(screen.getByTestId('response-examples-count').textContent).toBe('1');
+    // ★: the only example is the baseline (PIGN-034).
     expect(screen.getAllByTestId('examples-list-item').map((li) => li.textContent)).toEqual([
-      '200200 OK',
+      '★200200 OK',
     ]);
     const toggle = screen.getByTestId('explorer-examples-toggle');
     expect(toggle.textContent).toBe('1');
@@ -1990,5 +1991,100 @@ describe('GraphQL requests (PIGN-032)', () => {
     expect((await screen.findByTestId('graphql-errors-chip')).textContent).toBe('errors: 1');
     expect(screen.getByTestId('graphql-errors').textContent).toContain('Intentional failure');
     expect(screen.getByTestId('graphql-errors').textContent).toContain('path: fail · at 1:3');
+  });
+});
+
+describe('comparison with the baseline (PIGN-034)', () => {
+  const USER = { id: 1, name: 'Ada Lovelace', email: 'ada@example.com', active: true };
+  const USER_V2 = { id: '1', name: 'Ada Lovelace', active: true, nickname: 'ada' };
+
+  it('compares each response with the saved example and lists the findings', async () => {
+    let body = USER;
+    const transport = new MockTransport().on({ url: /./ }, () => ({
+      headers: [['Content-Type', 'application/json']],
+      body: JSON.stringify(body),
+    }));
+    const { platform } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await user.dblClick(screen.getByText('List users'));
+
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() =>
+      expect(screen.getByTestId('comparison-badge').getAttribute('data-outcome')).toBe('none'),
+    );
+    fireEvent.click(screen.getByTestId('comparison-badge'));
+    expect((await screen.findByTestId('compare-no-baseline')).textContent).toBe(
+      'No baseline — Save as example to start tracking.',
+    );
+
+    await user.click(screen.getByTestId('save-as-example'));
+    await waitFor(() =>
+      expect(screen.getByTestId('comparison-badge').getAttribute('data-outcome')).toBe('pass'),
+    );
+
+    body = USER_V2 as never;
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() =>
+      expect(screen.getByTestId('comparison-badge').getAttribute('data-outcome')).toBe('fail'),
+    );
+    fireEvent.click(screen.getByTestId('comparison-badge'));
+    expect(screen.getByTestId('compare-outcome').textContent).toBe('Fail');
+    expect(screen.getByTestId('compare-counts').textContent).toBe('2 fail · 1 warn · 0 info');
+    expect(screen.getByTestId('compare-baseline').textContent).toBe('200 OK');
+    const findings = screen.getAllByTestId('compare-finding');
+    expect(
+      findings.map((f) => [f.getAttribute('data-severity'), f.getAttribute('data-kind')]),
+    ).toEqual([
+      ['fail', 'body.field.removed'],
+      ['fail', 'body.type.changed'],
+      ['warn', 'body.field.added'],
+    ]);
+    expect(findings.map((f) => within(f).getByTestId('compare-finding-path').textContent)).toEqual([
+      '$.email',
+      '$.id',
+      '$.nickname',
+    ]);
+
+    // Side by side: − on the baseline, + on the actual, ~ on both.
+    fireEvent.click(within(findings[1]!).getByTestId('compare-show-side-by-side'));
+    const markers = (pane: string) =>
+      within(screen.getByTestId(pane))
+        .getAllByTestId('compare-marked-line')
+        .map((line) => line.getAttribute('data-marker'));
+    expect(markers('compare-baseline-pane').sort()).toEqual(['~', '−']);
+    expect(markers('compare-actual-pane').sort()).toEqual(['+', '~']);
+
+    // Show in body: back on the Body tab, Pretty view.
+    fireEvent.click(screen.getByTestId('compare-view-findings'));
+    fireEvent.click(
+      within(screen.getAllByTestId('compare-finding')[2]!).getByTestId('compare-show-in-body'),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('response-body-tab').getAttribute('data-state')).toBe('active'),
+    );
+    expect(screen.getByTestId('response-body-mode').getAttribute('data-mode')).toBe('pretty');
+
+    // The example used is the ★ baseline in the explorer.
+    fireEvent.click(screen.getByTestId('explorer-examples-toggle'));
+    expect(await screen.findByTestId('explorer-baseline')).toBeTruthy();
+  });
+
+  it('can be turned off in Settings', async () => {
+    const transport = new MockTransport().on({ url: /./ }, { body: '{}' });
+    const { platform } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    fireEvent.click(screen.getByTestId('activity-settings'));
+    fireEvent.click(await screen.findByTestId('preference-auto-compare'));
+    fireEvent.click(screen.getByTestId('activity-collections'));
+    await user.dblClick(await screen.findByText('List users'));
+    await user.click(screen.getByTestId('send-button'));
+    await screen.findByTestId('response-status');
+    expect(screen.queryByTestId('comparison-badge')).toBeNull();
   });
 });

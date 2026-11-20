@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app_state;
+mod data_dir;
 mod files;
 mod http;
 #[cfg(target_os = "macos")]

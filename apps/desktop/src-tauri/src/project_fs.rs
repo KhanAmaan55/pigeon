@@ -570,7 +570,7 @@ pub async fn project_fs_rename(
 
 /// Registers `ProjectRoots` from `<app-data>/project-roots.json`.
 pub fn setup<R: Runtime>(app: &tauri::App<R>) -> Result<(), Box<dyn std::error::Error>> {
-    let dir = app.path().app_data_dir()?;
+    let dir = crate::data_dir::app_data_dir(app)?;
     app.manage(ProjectRoots::load(dir.join("project-roots.json")));
     Ok(())
 }

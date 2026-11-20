@@ -16,6 +16,8 @@ export interface TreeRow {
   exampleCount?: number;
   /** Examples only: the status code. */
   code?: number;
+  /** Examples only: the request's current baseline (★, PIGN-034). */
+  baseline?: boolean;
   /** Has pre-request or test scripts (PIGN-031). */
   scripts?: boolean;
   hasChildren: boolean;
@@ -51,6 +53,8 @@ export interface FlattenOptions {
   unsaved?: Readonly<Record<string, true>>;
   changes?: Readonly<Record<string, string>>;
   deleted?: readonly DeletedEntity[];
+  /** Example id of each request's latest comparison (the ★ baseline). */
+  baselines?: Readonly<Record<string, string>>;
 }
 
 function changeOf(
@@ -158,6 +162,7 @@ export function flattenTree(
           ...changeOf(changes, item.id),
         });
         if (examplesShown) {
+          const baselineId = baselineExampleId(item, options.baselines);
           const exampleDirectory = `examples/${directory.slice('collections/'.length)}/${item.fileKey}`;
           for (const example of item.examples) {
             rows.push({
@@ -166,6 +171,7 @@ export function flattenTree(
               name: example.name,
               depth: depth + 1,
               code: example.response.code,
+              ...(example.id === baselineId ? { baseline: true } : {}),
               hasChildren: false,
               expanded: false,
               broken: false,
@@ -244,4 +250,16 @@ export function methodLabel(method: string): string {
   if (upper === 'DELETE') return 'DEL';
   if (upper === 'OPTIONS') return 'OPT';
   return upper.length > 5 ? upper.slice(0, 5) : upper;
+}
+
+/**
+ * The ★ baseline of a request: the example its latest comparison used (while it still exists),
+ * else the first example (what `auto` picks without a response).
+ */
+export function baselineExampleId(
+  request: { id: string; examples: ReadonlyArray<{ id: string }> },
+  baselines: Readonly<Record<string, string>> | undefined,
+): string | undefined {
+  const last = baselines?.[request.id];
+  return last && request.examples.some((e) => e.id === last) ? last : request.examples[0]?.id;
 }

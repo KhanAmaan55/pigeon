@@ -6,6 +6,7 @@
  * that doesn't validate is backed up under `state.bak-<time>` and replaced by a clean state.
  */
 
+import type { ComparisonResult } from '../comparison/comparison-service';
 import type { AppStateNamespace, AppStateStore } from '@pigeon/platform';
 
 import { z } from '../model/zod';
@@ -30,6 +31,8 @@ export interface LocalProjectState {
   selectedEnvironmentId?: string | null;
   /** Variable current values by scope (`env:<id>`, `collection:<id>`, `globals`); never in files. */
   currentValues?: Record<string, Record<string, string>>;
+  /** Latest comparison per request (PIGN-034), bounded; never in files. */
+  lastComparisons?: Record<string, ComparisonResult>;
   /** Keys added by later stories, preserved as they are. */
   [key: string]: unknown;
 }

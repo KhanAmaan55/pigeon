@@ -2,6 +2,7 @@ import type {
   Auth,
   Body,
   BodyMode,
+  ComparisonOutcome,
   EffectiveAuth,
   ExecutionPreferences,
   NewExample,
@@ -55,7 +56,13 @@ export interface RequestBinding {
   setEvents?: (events: unknown[]) => void;
   /** Where scripts exist that a send skips (the request, its folders, its collection). */
   skippedScripts?: () => string[];
+  /** Compares a result with the request's baseline example (PIGN-034). */
+  compare?: (result: ExecutionResult) => Promise<ComparisonOutcome | undefined>;
 }
+
+/** The comparison of the latest result. */
+export type ComparisonState =
+  { status: 'running' } | { status: 'done'; outcome: ComparisonOutcome } | null;
 
 export interface ScratchRequestState {
   /** The request in the editor: the scratch request, or a project request (see `RequestBinding`). */
@@ -96,6 +103,9 @@ export interface ScratchRequestState {
    * resolved masked. Returns the new example's id, or `null` when there is nothing to save.
    */
   saveAsExample: ((options: { volatileHeaders: readonly string[] }) => string | null) | null;
+  comparison: ComparisonState;
+  /** Re-runs the comparison of the latest result (project requests only). */
+  compare: (() => Promise<void>) | null;
   /** Sends the request; a send while one is in flight cancels and supersedes it. */
   send: () => Promise<void>;
   /** Cancels the in-flight request; its result becomes a quiet "Cancelled". */
@@ -109,6 +119,8 @@ export interface ScratchRequestEnvironment {
   preferences?: () => ExecutionPreferences | undefined;
   /** Origin of the page requests are sent from, for error classification (mixed content). */
   pageOrigin?: () => string | undefined;
+  /** Compare with the baseline after every send (default on). */
+  autoCompare?: () => boolean;
 }
 
 export function createScratchRequestStore(
@@ -149,11 +161,25 @@ export function createScratchRequestStore(
               secretValues: lastSecrets,
             });
             binding.createExample(example);
+            // The new example may be the baseline now.
+            void get().compare?.();
             return example.id;
           }
         : null,
       status: 'idle',
       result: null,
+      comparison: null,
+      compare: binding?.compare
+        ? async () => {
+            const result = get().result;
+            if (!result?.response || !binding.compare) return;
+            set({ comparison: { status: 'running' } });
+            const outcome = await binding.compare(result);
+            // A newer send replaced the result meanwhile: its own comparison wins.
+            if (get().result !== result) return;
+            set({ comparison: outcome ? { status: 'done', outcome } : null });
+          }
+        : null,
       setMethod: (method) => update({ method: method.toUpperCase() }),
       setUrl: (raw) => update({ url: syncUrlFromRaw(get().request.url, raw) }),
       setQuery: (query) => {
@@ -209,7 +235,8 @@ export function createScratchRequestStore(
         if (inFlight !== controller) return; // superseded by a newer send
         inFlight = null;
         lastSecrets = secrets;
-        set({ status: 'idle', result });
+        set({ status: 'idle', result, comparison: null });
+        if (env.autoCompare?.() !== false) void get().compare?.();
       },
       cancel: () => {
         inFlight?.abort(new DOMException('The request was cancelled.', 'AbortError'));

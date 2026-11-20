@@ -4,8 +4,14 @@
  * Stores are never shared between projects.
  */
 
-import type { ChangeState, Problem, ProjectModel, ProjectSession } from '@pigeon/core';
-import { findContainer, GLOBALS_ENTITY_ID } from '@pigeon/core';
+import type {
+  ChangeState,
+  Problem,
+  ProjectModel,
+  ProjectSession,
+  ComparisonResult,
+} from '@pigeon/core';
+import { findContainer, GLOBALS_ENTITY_ID, rememberComparison } from '@pigeon/core';
 import { createStore } from 'zustand';
 
 /** An open request tab. An unpinned tab is the *preview* tab (at most one, replaced by the next preview). */
@@ -30,6 +36,9 @@ export interface ProjectState {
   external: Readonly<Record<string, true>>;
   /** Entities deleted by a saved draft (still in the files), for the explorer. */
   deleted: ReturnType<ProjectSession['deletedEntities']>;
+  /** Latest comparison per request (PIGN-034); local only. */
+  comparisons: Readonly<Record<string, ComparisonResult>>;
+  setComparison: (result: ComparisonResult) => void;
   /** Response panel position, remembered per project. */
   dock: 'bottom' | 'right';
   setDock: (dock: 'bottom' | 'right') => void;
@@ -112,6 +121,12 @@ export function createProjectStore(session: ProjectSession) {
     activeTabId: restoredActive,
     dock: saved?.layout.responsePanel ?? 'bottom',
     setDock: (dock) => set({ dock }),
+    comparisons: saved?.lastComparisons ?? {},
+    setComparison: (result) => {
+      const comparisons = rememberComparison(get().comparisons, result);
+      set({ comparisons });
+      session.updateLocalState({ lastComparisons: comparisons });
+    },
     renamingId: null,
     filter: '',
     startRename: (renamingId) => set({ renamingId }),

@@ -73,6 +73,17 @@ const pretty = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 /** `/json/:shape` bodies. */
 export const JSON_SHAPES: Record<string, string> = {
   user: pretty(USERS[0]),
+  /**
+   * `user` with a changed shape, for comparison tests (PIGN-034): `email` removed, `nickname`
+   * added, `id` now a string.
+   */
+  'user-v2': pretty({
+    id: String(USERS[0]!.id),
+    name: USERS[0]!.name,
+    active: USERS[0]!.active,
+    roles: USERS[0]!.roles,
+    nickname: 'ada',
+  }),
   users: pretty(USERS),
   nested: pretty(NESTED),
   types: TYPES,

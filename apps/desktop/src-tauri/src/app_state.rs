@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use tauri::{Manager, Runtime};
+use tauri::Runtime;
 
 /// The file for a namespace, or an error for anything that could escape the app-data dir.
 pub fn namespace_file(app_data: &Path, namespace: &str) -> Result<PathBuf, String> {
@@ -130,7 +130,7 @@ pub async fn secrets_write<R: Runtime>(
 }
 
 fn app_data<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
-    app.path().app_data_dir().map_err(|error| error.to_string())
+    crate::data_dir::app_data_dir(app)
 }
 
 #[tauri::command]

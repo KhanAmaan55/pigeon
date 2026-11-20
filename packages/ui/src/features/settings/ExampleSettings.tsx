@@ -9,6 +9,8 @@ import { usePreferences } from '../../app/preferences';
  */
 export function ExampleSettings() {
   const headers = usePreferences((s) => s.volatileHeaders);
+  const autoCompare = usePreferences((s) => s.autoCompare);
+  const setAutoCompare = usePreferences((s) => s.setAutoCompare);
   const setHeaders = usePreferences((s) => s.setVolatileHeaders);
   const [text, setText] = useState(() => headers.join('\n'));
   const id = useId();
@@ -28,8 +30,18 @@ export function ExampleSettings() {
       className="border-b border-border p-3 text-sm"
     >
       <h2 id={`${id}-title`} className="mb-2 font-semibold">
-        Examples
+        Examples &amp; comparison
       </h2>
+      <label htmlFor={`${id}-compare`} className="mb-3 flex items-center gap-2 text-fg">
+        <input
+          id={`${id}-compare`}
+          type="checkbox"
+          data-testid="preference-auto-compare"
+          checked={autoCompare}
+          onChange={(event) => setAutoCompare(event.target.checked)}
+        />
+        Compare responses with the baseline example after each send
+      </label>
       <label htmlFor={`${id}-headers`} className="text-fg">
         Headers not saved in examples
       </label>

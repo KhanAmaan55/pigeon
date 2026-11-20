@@ -742,6 +742,85 @@ test.describe('GraphQL', () => {
   });
 });
 
+test.describe('comparison', () => {
+  test('compares responses with the saved example: pass, fail, content type', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Compare API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await page.getByTestId('explorer-item').filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    const url = page.getByTestId('url-input');
+    await url.fill(`${TEST_SERVER_URL}/json/user`);
+    await page.getByTestId('send-button').click();
+    const badge = page.getByTestId('comparison-badge');
+    await expect(badge).toHaveAttribute('data-outcome', 'none');
+    await badge.click();
+    await expect(page.getByTestId('compare-no-baseline')).toHaveText(
+      'No baseline — Save as example to start tracking.',
+    );
+
+    await page.getByTestId('save-as-example').click();
+    await expect(badge).toHaveAttribute('data-outcome', 'pass');
+
+    await url.fill(`${TEST_SERVER_URL}/json/user-v2`);
+    await page.getByTestId('send-button').click();
+    await expect(badge).toHaveAttribute('data-outcome', 'fail');
+    await badge.click();
+    await expect(page.getByTestId('compare-finding-path')).toHaveText([
+      '$.email',
+      '$.id',
+      '$.nickname',
+    ]);
+    await expect(page.getByTestId('compare-finding')).toHaveCount(3);
+
+    await url.fill(`${TEST_SERVER_URL}/html`);
+    await page.getByTestId('send-button').click();
+    await expect(badge).toHaveAttribute('data-outcome', 'fail');
+    await badge.click();
+    await expect(page.getByTestId('compare-finding')).toHaveAttribute(
+      'data-kind',
+      'body.contentType.changed',
+    );
+  });
+});
+
+test.describe('comparison of large bodies', () => {
+  test('compares a 5 MB body in a worker while the editor stays usable', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'one browser is enough for the worker path');
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Large API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Big');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await page.getByTestId('explorer-item').filter({ hasText: 'Big' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    const url = page.getByTestId('url-input');
+    await url.fill(`${TEST_SERVER_URL}/large/5`);
+    await page.getByTestId('send-button').click();
+    await page.getByTestId('save-as-example').click();
+    await page.getByTestId('send-button').click();
+    // Typing while the comparison runs.
+    await url.press('End');
+    await page.keyboard.type('?typed');
+    await expect(url).toHaveValue(`${TEST_SERVER_URL}/large/5?typed`);
+    await expect(page.getByTestId('comparison-badge')).toHaveAttribute('data-outcome', 'pass', {
+      timeout: 20_000,
+    });
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('Postman export', () => {
   test('downloads a collection as a Postman v2.1 file', async ({ page, browserName }) => {
     // Chromium saves through the native save picker, which can't be automated.

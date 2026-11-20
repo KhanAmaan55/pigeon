@@ -63,6 +63,17 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
   const unsaved = useProjectState((s) => s.unsaved, null);
   const changes = useProjectState((s) => s.changes, null);
   const deleted = useProjectState((s) => s.deleted, null);
+  const comparisons = useProjectState((s) => s.comparisons, null);
+  const baselines = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(comparisons ?? {}).map(([requestId, result]) => [
+          requestId,
+          result.exampleId,
+        ]),
+      ),
+    [comparisons],
+  );
   const selectedId = useProjectState((s) => s.selectedId, null);
   const renamingId = useProjectState((s) => s.renamingId, null);
   const filter = useProjectState((s) => s.filter, '');
@@ -81,9 +92,10 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
             ...(unsaved ? { unsaved } : {}),
             ...(changes ? { changes } : {}),
             ...(deleted ? { deleted } : {}),
+            baselines,
           })
         : NO_ROWS,
-    [model, expanded, problems, filter, unsaved, changes, deleted],
+    [model, expanded, problems, filter, unsaved, changes, deleted, baselines],
   );
   const scrollRef = useRef<HTMLDivElement>(null);
   // The virtualizer re-renders through its own state; nothing here memoizes its functions.
@@ -701,6 +713,16 @@ function ExplorerRow({
       {row.kind === 'example' ? (
         <>
           <Bookmark size={12} className="ml-4 shrink-0 text-fg-muted" aria-hidden />
+          {row.baseline && (
+            <span
+              data-testid="explorer-baseline"
+              title="Baseline"
+              aria-label="(baseline)"
+              className="shrink-0 text-warn"
+            >
+              ★
+            </span>
+          )}
           <span
             data-testid="explorer-example-code"
             className={`shrink-0 font-mono text-[10px] font-bold ${statusClass(row.code ?? 0)}`}
