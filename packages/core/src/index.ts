@@ -56,9 +56,18 @@ export {
 
 export * from './variables/index';
 export { RequestExecutor } from './execution/executor';
-export type { CollectionImportPlan, ImportPreview } from './import/import-service';
+export type {
+  ApplyImportOptions,
+  CollectionImportPlan,
+  ImportContext,
+  ImportItem,
+  ImportPreview,
+} from './import/import-service';
 export {
+  applyImport,
+  importContext,
   planEntityIds,
+  previewImportFiles,
   previewImport,
   previewImportFile,
   renamePlan,

@@ -41,17 +41,20 @@ export function AppShell() {
     if (!isFileDrag(event)) return;
     event.preventDefault();
     setDragging(false);
-    const file = event.dataTransfer.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.dataTransfer.files ?? []);
+    if (files.length === 0) return;
     if (!hasProject) {
-      notify('Open or create a project first, then drop the file to import it.');
+      notify('Open or create a project first, then drop the files to import them.');
       return;
     }
-    void file
-      .arrayBuffer()
-      .then((buffer) =>
-        setPendingImport({ name: file.name, bytes: new Uint8Array(buffer), mime: file.type }),
-      );
+    // Several files (a collection and its environments) make one combined preview.
+    void Promise.all(
+      files.map(async (file) => ({
+        name: file.name,
+        bytes: new Uint8Array(await file.arrayBuffer()),
+        mime: file.type,
+      })),
+    ).then(setPendingImport);
   };
 
   return (

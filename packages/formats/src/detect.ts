@@ -56,8 +56,11 @@ export function detectFormat(input: string | Uint8Array | unknown): DetectedForm
     };
   }
   if (Array.isArray(data['values'])) {
-    if (data['_postman_variable_scope'] === 'globals') return { kind: 'postman-globals', data };
-    if (typeof data['name'] === 'string') return { kind: 'postman-environment', data };
+    const scope = data['_postman_variable_scope'];
+    if (scope === 'globals') return { kind: 'postman-globals', data };
+    if (scope === 'environment' || typeof data['name'] === 'string') {
+      return { kind: 'postman-environment', data };
+    }
   }
   return {
     kind: 'unknown',

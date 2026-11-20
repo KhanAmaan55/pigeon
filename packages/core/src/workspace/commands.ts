@@ -62,7 +62,14 @@ export type EditCommand =
   /** `pigeon.json` identity (e.g. "Regenerate project id" for a copied project folder). */
   | { type: 'setProjectInfo'; id?: string; name?: string }
   // Environments (PIGN-022): one file each, ordered by file key.
-  | { type: 'createEnvironment'; id: string; name: string; values?: ProjectEnvVariable[] }
+  | {
+      type: 'createEnvironment';
+      id: string;
+      name: string;
+      values?: ProjectEnvVariable[];
+      /** Unknown keys to keep (an imported environment's, PIGN-030). */
+      extra?: Record<string, unknown>;
+    }
   | { type: 'renameEnvironment'; id: string; name: string }
   | { type: 'duplicateEnvironment'; id: string; newId: string }
   | { type: 'deleteEnvironment'; id: string }
@@ -408,7 +415,7 @@ export function applyCommand(
         fileKey: environmentKey(model, name, command.id),
         name,
         values: command.values ?? [],
-        extra: {},
+        extra: command.extra ?? {},
       };
       return { ...model, environments: sortEnvironments([...model.environments, environment]) };
     }

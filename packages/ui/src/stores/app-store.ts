@@ -77,9 +77,9 @@ export interface AppState {
   createWorkspace: (name: string) => Promise<void>;
   /** Web: a new browser workspace from a project zip the user picks. */
   importProjectZip: () => Promise<void>;
-  /** A file waiting in the import dialog of the active project (PIGN-028). */
-  pendingImport: PickedFile | null;
-  setPendingImport: (file: PickedFile | null) => void;
+  /** Files waiting in the import dialog of the active project (PIGN-028/030). */
+  pendingImport: PickedFile[] | null;
+  setPendingImport: (files: PickedFile[] | null) => void;
   /** Picks a file to import into the active project (the import dialog opens). */
   pickImportFile: () => Promise<void>;
   /**
@@ -341,12 +341,12 @@ export function createAppStore(platform: AppPlatform) {
         }),
 
       pendingImport: null,
-      setPendingImport: (file) => set({ pendingImport: file }),
+      setPendingImport: (files) => set({ pendingImport: files && files.length > 0 ? files : null }),
 
       pickImportFile: async () => {
         if (!platform.files) return;
-        const [picked] = await platform.files.pickFiles({ accept: IMPORT_ACCEPT });
-        if (picked) set({ pendingImport: picked });
+        const picked = await platform.files.pickFiles({ accept: IMPORT_ACCEPT, multiple: true });
+        if (picked.length > 0) set({ pendingImport: picked });
       },
 
       importIntoNewProject: () =>
@@ -383,7 +383,7 @@ export function createAppStore(platform: AppPlatform) {
           const fs = await platform.openProjectFs(location);
           if (!(await isPigeonProject(fs))) await initializeProject(fs, name);
           await openSession(fs);
-          set({ pendingImport: picked });
+          set({ pendingImport: [picked] });
         }),
 
       importProjectZip: () =>

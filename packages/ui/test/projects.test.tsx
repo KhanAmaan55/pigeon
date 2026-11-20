@@ -1803,3 +1803,73 @@ describe('Postman collection export (PIGN-029)', () => {
     expect(platform.files.saved[1]!.name).toBe('Admin.postman_collection.json');
   });
 });
+
+describe('Postman environments import/export (PIGN-030)', () => {
+  const postman = (name: string) =>
+    readFile(join(import.meta.dirname, '../../fixtures/postman', name)).then(
+      (buffer) => new Uint8Array(buffer),
+    );
+
+  it('imports a collection and two environments in one confirmation, then exports one', async () => {
+    const { platform, fs } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+
+    platform.files.queuePick([
+      { name: 'auth.v2.1.json', bytes: await postman('auth.v2.1.json') },
+      {
+        name: 'staging.postman_environment.json',
+        bytes: await postman('environments/staging.postman_environment.json'),
+      },
+      {
+        name: 'local.postman_environment.json',
+        bytes: await postman('environments/local.postman_environment.json'),
+      },
+    ]);
+    await user.click(screen.getByTestId('explorer-import'));
+    const dialog = await screen.findByTestId('import-dialog');
+    await within(dialog).findAllByTestId('import-item');
+    expect(
+      within(dialog)
+        .getAllByTestId('import-item')
+        .map((item) => item.getAttribute('data-kind')),
+    ).toEqual(['collection', 'environment', 'environment']);
+    expect(
+      within(dialog)
+        .getAllByTestId('import-count-secrets')
+        .map((c) => c.textContent),
+    ).toEqual(['2', '1']);
+    fireEvent.click(within(dialog).getByTestId('import-use-current'));
+    await user.click(within(dialog).getByTestId('import-write'));
+    await waitFor(() => expect(screen.queryByTestId('import-dialog')).toBeNull());
+    expect(screen.getByTestId('toast').textContent).toMatch(
+      /^Imported 9 requests, 2 environments; wrote \d+ files\.$/,
+    );
+    const staging = JSON.parse(await fs.readText('environments/staging.postman_environment.json'));
+    expect(staging.values.find((v: { key: string }) => v.key === 'token')).toMatchObject({
+      value: '',
+    });
+    expect(await platform.secrets.getAll('project-basic')).toMatchObject({
+      'env:5c1a6f3e-staging\u0000token': 'staging-secret-token',
+    });
+
+    fireEvent.click(screen.getByTestId('activity-environments'));
+    const item = (await screen.findAllByTestId('environment-item')).find((i) =>
+      i.textContent?.includes('Staging'),
+    )!;
+    fireEvent.contextMenu(item);
+    fireEvent.click(await screen.findByTestId('env-menu-export'));
+    await waitFor(() => expect(platform.files.saved).toHaveLength(1));
+    const saved = platform.files.saved[0]!;
+    expect(saved.name).toBe('Staging.postman_environment.json');
+    const data = JSON.parse(String(saved.data));
+    expect(data).toMatchObject({
+      name: 'Staging',
+      _postman_variable_scope: 'environment',
+      _postman_exported_using: expect.stringMatching(/^Pigeon\//),
+    });
+    expect(JSON.stringify(data)).not.toContain('staging-secret-token');
+  });
+});

@@ -11,6 +11,17 @@ export { importPostmanCollection } from './postman/import';
 export { convertCollectionV20 } from './postman/collection-v20';
 export type { ExportOptions, ExportResult } from './postman/export';
 export { exportCollection, exportCollectionText, exportFileName } from './postman/export';
+export type {
+  ImportedVariables,
+  VariablesExportOptions,
+  VariablesImportReport,
+} from './postman/environment-io';
+export {
+  exportEnvironment,
+  exportGlobals,
+  importPostmanEnvironment,
+  importPostmanGlobals,
+} from './postman/environment-io';
 export type { UrlParts } from './postman/url';
 export { decomposeUrl } from './postman/url';
 export { collectionFromPostman, folderFromPostman } from './postman/collection';

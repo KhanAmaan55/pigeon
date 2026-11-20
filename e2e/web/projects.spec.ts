@@ -607,6 +607,58 @@ test.describe('Postman import', () => {
   });
 });
 
+test.describe('Postman environments', () => {
+  test('drops a collection and two environments, imports them once, selects one and sends', async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Env import');
+    await page.getByTestId('create-project-submit').click();
+    await expect(page.getByTestId('explorer')).toBeVisible();
+
+    const collection = {
+      info: {
+        name: 'Users',
+        schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+      },
+      item: [
+        { id: 'get-user', name: 'Get user', request: { method: 'GET', url: '{{baseUrl}}/user' } },
+      ],
+    };
+    const environment = (name: string, baseUrl: string) => ({
+      name,
+      values: [{ key: 'baseUrl', value: baseUrl, type: 'default', enabled: true }],
+      _postman_variable_scope: 'environment',
+    });
+    const files = [
+      ['users.postman_collection.json', collection],
+      ['local.postman_environment.json', environment('Local', `${TEST_SERVER_URL}/json`)],
+      ['broken.postman_environment.json', environment('Broken', 'http://127.0.0.1:9')],
+    ] as const;
+    const dataTransfer = await page.evaluateHandle((entries) => {
+      const transfer = new DataTransfer();
+      for (const [name, data] of entries) {
+        transfer.items.add(new File([JSON.stringify(data)], name, { type: 'application/json' }));
+      }
+      return transfer;
+    }, files);
+    await page.dispatchEvent('[data-testid="app-shell"]', 'dragover', { dataTransfer });
+    await page.dispatchEvent('[data-testid="app-shell"]', 'drop', { dataTransfer });
+
+    const dialog = page.getByTestId('import-dialog');
+    await expect(dialog.getByTestId('import-item')).toHaveCount(3);
+    await dialog.getByTestId('import-write').click();
+    await expect(page.getByTestId('toast')).toContainText('Imported 1 request, 2 environments');
+
+    await page.getByTestId('environment-selector').click();
+    await page.getByTestId('environment-option').filter({ hasText: 'Local' }).click();
+    await page.getByTestId('explorer-item').filter({ hasText: 'Get user' }).click();
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+  });
+});
+
 test.describe('Postman export', () => {
   test('downloads a collection as a Postman v2.1 file', async ({ page, browserName }) => {
     // Chromium saves through the native save picker, which can't be automated.

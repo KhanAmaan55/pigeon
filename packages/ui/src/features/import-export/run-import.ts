@@ -4,17 +4,14 @@
  * worker blocked by CSP) it runs inline after yielding a frame for the progress indicator.
  */
 
-import type { ImportPreview } from '@pigeon/core';
-import { previewImportFile } from '@pigeon/core';
+import type { ImportContext, ImportItem } from '@pigeon/core';
+import { previewImportFiles } from '@pigeon/core';
 
 export const WORKER_THRESHOLD = 512 * 1024;
 
 let worker: Worker | null | undefined;
 let nextId = 0;
-const pending = new Map<
-  number,
-  { resolve: (preview: ImportPreview) => void; fallback: () => void }
->();
+const pending = new Map<number, { resolve: (items: ImportItem[]) => void; fallback: () => void }>();
 
 function getWorker(): Worker | null {
   if (worker !== undefined) return worker;
@@ -24,13 +21,10 @@ function getWorker(): Worker | null {
   } catch {
     return (worker = null);
   }
-  worker.addEventListener(
-    'message',
-    (event: MessageEvent<{ id: number; preview: ImportPreview }>) => {
-      pending.get(event.data.id)?.resolve(event.data.preview);
-      pending.delete(event.data.id);
-    },
-  );
+  worker.addEventListener('message', (event: MessageEvent<{ id: number; items: ImportItem[] }>) => {
+    pending.get(event.data.id)?.resolve(event.data.items);
+    pending.delete(event.data.id);
+  });
   worker.addEventListener('error', () => {
     for (const job of pending.values()) job.fallback();
     pending.clear();
@@ -41,18 +35,23 @@ function getWorker(): Worker | null {
 }
 
 export function runImportPreview(
-  bytes: Uint8Array,
-  usedIds: ReadonlySet<string>,
-): Promise<ImportPreview> {
+  files: ReadonlyArray<{ name: string; bytes: Uint8Array }>,
+  context: ImportContext,
+): Promise<ImportItem[]> {
   const inline = () =>
-    new Promise<ImportPreview>((resolve) =>
-      setTimeout(() => resolve(previewImportFile(bytes, usedIds)), 0),
+    new Promise<ImportItem[]>((resolve) =>
+      setTimeout(() => resolve(previewImportFiles(files, context)), 0),
     );
-  const target = bytes.byteLength > WORKER_THRESHOLD ? getWorker() : null;
+  const size = files.reduce((total, file) => total + file.bytes.byteLength, 0);
+  const target = size > WORKER_THRESHOLD ? getWorker() : null;
   if (!target) return inline();
   return new Promise((resolve) => {
     const id = ++nextId;
     pending.set(id, { resolve, fallback: () => void inline().then(resolve) });
-    target.postMessage({ id, bytes, usedIds: [...usedIds] });
+    target.postMessage({
+      id,
+      files,
+      context: { usedIds: [...context.usedIds], environments: context.environments },
+    });
   });
 }
