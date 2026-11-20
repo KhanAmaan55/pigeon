@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-012 | 2 — Projects | MVP | Todo | PIGN-001 |
+| PIGN-012 | 2 — Projects | MVP | Done | PIGN-001 |
 
 ## Goal
 Deterministic JSON serialization and slug/filename rules in `@pigeon/formats`, as the foundation for Git-friendly project files.
@@ -26,11 +26,11 @@ As a developer committing Pigeon files, I want identical data to always produce 
 - Reading/writing actual project files (PIGN-013).
 
 ## Acceptance criteria
-- [ ] Same logical object with different insertion order → identical output.
-- [ ] Unknown keys appear sorted after known keys and before `_pigeon`.
-- [ ] Output ends with exactly one `\n`; no `\r` anywhere.
-- [ ] `slugify('Get User!')` = `get-user`; `slugify('CON')` = `con-1`; `slugify('ユーザー取得', {kind:'request', id})` = `request-<id8>`; collisions → `-2`, `-3`.
-- [ ] 100 % branch coverage for slug and canonical-json modules.
+- [x] Same logical object with different insertion order → identical output.
+- [x] Unknown keys appear sorted after known keys and before `_pigeon`.
+- [x] Output ends with exactly one `\n`; no `\r` anywhere.
+- [x] `slugify('Get User!')` = `get-user`; `slugify('CON')` = `con-1`; `slugify('ユーザー取得', {kind:'request', id})` = `request-<id8>`; collisions → `-2`, `-3`.
+- [x] 100 % branch coverage for slug and canonical-json modules.
 
 ## Technical notes
 - Implement your own stringifier (small, ~100 lines) rather than a library, so key order and escaping are fully controlled.
@@ -45,3 +45,7 @@ Unit + property tests (fast-check) for serializer and slugs.
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+- `stringifyCanonical` drops values `JSON.stringify` would drop (undefined, functions, symbols) from objects and writes `null` for them in arrays; `_pigeon` always sorts last even if a spec lists it.
+- Branch coverage is checked with `pnpm vitest run packages/formats --coverage --coverage.include='packages/formats/src/{canonical-json,slug}.ts'` (`@vitest/coverage-v8` is added as a root dev dependency in PIGN-013).

@@ -22,7 +22,8 @@ export function slugify(name: string, { kind, id }: SlugOptions): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-  const base = normalized === '' ? fallbackSlug(kind, id) : truncateSlug(normalized, MAX_SLUG_LENGTH);
+  const base =
+    normalized === '' ? fallbackSlug(kind, id) : truncateSlug(normalized, MAX_SLUG_LENGTH);
   return WINDOWS_RESERVED_NAMES.has(base) ? `${base}-1` : base;
 }
 

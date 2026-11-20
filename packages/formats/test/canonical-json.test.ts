@@ -55,9 +55,62 @@ describe('stringifyCanonical', () => {
   it('round-trips every generated JSON value', () => {
     fc.assert(
       fc.property(fc.jsonValue(), (value) => {
-        expect(JSON.parse(stringifyCanonical(value))).toEqual(value);
+        expect(JSON.parse(stringifyCanonical(value))).toEqual(JSON.parse(JSON.stringify(value)));
       }),
       { numRuns: 200 },
+    );
+  });
+});
+
+describe('stringifyCanonical edge cases', () => {
+  it('rejects undefined at the root and circular values', () => {
+    expect(() => stringifyCanonical(undefined)).toThrow(TypeError);
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(() => stringifyCanonical(circular)).toThrow(/circular/);
+  });
+
+  it('drops functions and symbols in objects and writes null for them in arrays', () => {
+    const fn = (): void => undefined;
+    expect(stringifyCanonical({ fn, sym: Symbol('x'), list: [fn, Symbol('y')] })).toBe(
+      '{\n  "list": [\n    null,\n    null\n  ]\n}\n',
+    );
+    expect(stringifyCanonical({ only: undefined })).toBe('{}\n');
+    expect(stringifyCanonical([])).toBe('[]\n');
+  });
+
+  it('sorts unknown keys by code point, after known keys, with _pigeon last', () => {
+    const spec = { kinds: { root: ['b', '_pigeon', 'a'] }, kindForPath: () => 'root' };
+    const output = stringifyCanonical(
+      { _pigeon: 1, '𝒳': 1, z: 1, ab: 1, aa: 1, a: 1, b: 1, a2: 1 },
+      { keyOrder: spec },
+    );
+    expect(Object.keys(JSON.parse(output))).toEqual([
+      'b',
+      'a',
+      'a2',
+      'aa',
+      'ab',
+      'z',
+      '𝒳',
+      '_pigeon',
+    ]);
+  });
+
+  it('falls back to code-point order when the kind is unknown to the spec', () => {
+    const spec = { kinds: {}, kindForPath: () => 'missing' };
+    expect(Object.keys(JSON.parse(stringifyCanonical({ b: 1, a: 1 }, { keyOrder: spec })))).toEqual(
+      ['a', 'b'],
+    );
+  });
+
+  it('is independent of insertion order for arbitrary objects', () => {
+    fc.assert(
+      fc.property(fc.dictionary(fc.string(), fc.jsonValue()), (record) => {
+        const reversed = Object.fromEntries(Object.entries(record).reverse());
+        expect(stringifyCanonical(reversed)).toBe(stringifyCanonical(record));
+      }),
+      { numRuns: 100 },
     );
   });
 });
