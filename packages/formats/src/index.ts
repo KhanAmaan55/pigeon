@@ -9,6 +9,10 @@ export { detectFormat } from './detect';
 export type { ImportOptions, ImportReport } from './postman/import';
 export { importPostmanCollection } from './postman/import';
 export { convertCollectionV20 } from './postman/collection-v20';
+export type { ExportOptions, ExportResult } from './postman/export';
+export { exportCollection, exportCollectionText, exportFileName } from './postman/export';
+export type { UrlParts } from './postman/url';
+export { decomposeUrl } from './postman/url';
 export { collectionFromPostman, folderFromPostman } from './postman/collection';
 export { decodeBase64, encodeBase64 } from './base64';
 export {

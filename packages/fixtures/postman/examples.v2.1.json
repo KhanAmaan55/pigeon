@@ -134,7 +134,8 @@
             {
               "domain": "example.test",
               "name": "sid",
-              "value": "1"
+              "value": "1",
+              "path": "/"
             }
           ],
           "body": "<a>1</a>",

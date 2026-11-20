@@ -1756,3 +1756,50 @@ describe('Postman collection import (PIGN-028)', () => {
     await waitFor(() => expect(names()).toContain('Legacy v2.0'));
   });
 });
+
+describe('Postman collection export (PIGN-029)', () => {
+  it('exports a collection and a folder with the chosen options', async () => {
+    const { platform } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+
+    fireEvent.contextMenu(screen.getByText('Users API'));
+    fireEvent.click(await screen.findByTestId('menu-export'));
+    const dialog = await screen.findByTestId('export-dialog');
+    expect(within(dialog).getByTestId('export-file-name').textContent).toBe(
+      'Users API.postman_collection.json',
+    );
+    fireEvent.click(within(dialog).getByTestId('export-include-metadata'));
+    await user.click(within(dialog).getByTestId('export-save'));
+    await waitFor(() => expect(screen.queryByTestId('export-dialog')).toBeNull());
+    expect(screen.getByTestId('toast').textContent).toBe(
+      'Exported Users API.postman_collection.json.',
+    );
+    const [saved] = platform.files.saved;
+    expect(saved).toMatchObject({
+      name: 'Users API.postman_collection.json',
+      mime: 'application/json',
+    });
+    const data = JSON.parse(
+      typeof saved!.data === 'string' ? saved!.data : new TextDecoder().decode(saved!.data),
+    ) as {
+      info: { schema: string; name: string };
+      item: Array<{ name: string }>;
+      _pigeon?: unknown;
+    };
+    expect(data.info).toMatchObject({
+      name: 'Users API',
+      schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+    });
+    expect(data.item.map((item) => item.name)).toEqual(['List users', 'Admin', 'Create user']);
+    expect(data._pigeon).toEqual({ 'x-pigeon': 'kept' });
+
+    fireEvent.contextMenu(screen.getByText('Admin'));
+    fireEvent.click(await screen.findByTestId('menu-export'));
+    await user.click(await screen.findByTestId('export-save'));
+    await waitFor(() => expect(platform.files.saved).toHaveLength(2));
+    expect(platform.files.saved[1]!.name).toBe('Admin.postman_collection.json');
+  });
+});

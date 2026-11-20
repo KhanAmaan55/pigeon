@@ -607,6 +607,45 @@ test.describe('Postman import', () => {
   });
 });
 
+test.describe('Postman export', () => {
+  test('downloads a collection as a Postman v2.1 file', async ({ page, browserName }) => {
+    // Chromium saves through the native save picker, which can't be automated.
+    test.skip(browserName === 'chromium', 'save picker');
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Export API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    const collection = page.getByTestId('explorer-item').filter({ hasText: 'Users' });
+    await collection.click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    await page.getByTestId('url-input').fill('{{baseUrl}}/users?limit=5');
+
+    await collection.click({ button: 'right' });
+    await page.getByTestId('menu-export').click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('export-save').click(),
+    ]);
+    expect(download.suggestedFilename()).toBe('Users.postman_collection.json');
+    const data = JSON.parse(readFileSync((await download.path())!, 'utf8')) as {
+      info: { name: string; schema: string };
+      item: Array<{ request: { url: { raw: string; host: string[]; path: string[] } } }>;
+    };
+    expect(data.info).toMatchObject({
+      name: 'Users',
+      schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+    });
+    expect(data.item[0]!.request.url).toMatchObject({
+      raw: '{{baseUrl}}/users?limit=5',
+      host: ['{{baseUrl}}'],
+      path: ['users'],
+    });
+  });
+});
+
 test.describe('browser workspaces', () => {
   test('creates a workspace that survives a reload', async ({ page, browserName }) => {
     await gotoApp(page);

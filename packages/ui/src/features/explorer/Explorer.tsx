@@ -26,6 +26,7 @@ import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { locationLabel } from '../../stores/locations';
 import { methodColorClass } from '../request-editor/methods';
 import { statusClass } from '../examples/ExamplesTab';
+import { ExportDialog } from '../import-export/ExportDialog';
 import { disposeTabEditor } from '../tabs/editor-registry';
 import type { DropPosition } from './actions';
 import {
@@ -68,6 +69,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
   const readOnly = useProjectState((s) => s.readOnly, false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<TreeRow | null>(null);
+  const [exporting, setExporting] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ id: string; position: DropPosition } | null>(null);
   const dragged = useRef<string | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -402,6 +404,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
                   onDuplicate={() => edit(() => duplicateRow(row))}
                   onDelete={() => askDelete(row)}
                   onVariables={() => store.getState().openTab(row.id, { pin: true })}
+                  onExport={() => setExporting(row.id)}
                   onDiscard={() => {
                     const ids = requestIdsUnder(session, row.id);
                     void session.discard(row.id).then(() => {
@@ -441,6 +444,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
           </div>
         </div>
       )}
+      <ExportDialog containerId={exporting} onClose={() => setExporting(null)} />
       <DeleteDialog
         row={deleting}
         unsavedTabs={
@@ -466,6 +470,7 @@ function RowMenu({
   onDelete,
   onDiscard,
   onVariables,
+  onExport,
 }: {
   row: TreeRow;
   readOnly: boolean;
@@ -477,6 +482,7 @@ function RowMenu({
   onDelete: () => void;
   onDiscard: () => void;
   onVariables: () => void;
+  onExport: () => void;
 }) {
   const item = (label: string, onSelect: () => void, testId: string, shortcut?: string) => (
     <ContextMenu.Item
@@ -512,6 +518,15 @@ function RowMenu({
               {item('New folder', onNewFolder, 'menu-new-folder')}
               <ContextMenu.Separator className="my-1 h-px bg-border" />
               {row.kind !== 'request' && item('Variables', onVariables, 'menu-variables')}
+              {row.kind !== 'request' && !row.broken && (
+                <ContextMenu.Item
+                  data-testid="menu-export"
+                  onSelect={onExport}
+                  className="flex cursor-default items-center rounded px-2 py-1 outline-none select-none data-[highlighted]:bg-hover"
+                >
+                  Export as Postman collection…
+                </ContextMenu.Item>
+              )}
               {item('Rename', onRename, 'menu-rename', 'F2')}
               {!row.broken && item('Duplicate', onDuplicate, 'menu-duplicate', 'Ctrl/⌘ D')}
               {item('Delete', onDelete, 'menu-delete', 'Del')}

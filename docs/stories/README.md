@@ -57,7 +57,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-026](PIGN-026-auth-inheritance.md) | Auth (basic, bearer, API key) with inheritance | 4 Auth | MVP | 025 | Done |
 | [PIGN-027](PIGN-027-response-examples.md) | Save & manage response examples | 5 Examples & Postman | MVP | 019, 010 | Done |
 | [PIGN-028](PIGN-028-import-postman-collection.md) | Import Postman collection (v2.1/v2.0) | 5 Examples & Postman | MVP | 027, 026 | Done |
-| [PIGN-029](PIGN-029-export-postman-collection.md) | Export Postman collection v2.1 | 5 Examples & Postman | MVP | 028 | Todo |
+| [PIGN-029](PIGN-029-export-postman-collection.md) | Export Postman collection v2.1 | 5 Examples & Postman | MVP | 028 | Done |
 | [PIGN-030](PIGN-030-postman-environments-io.md) | Import/export Postman environments & globals | 5 Examples & Postman | MVP | 028, 025 | Todo |
 | [PIGN-031](PIGN-031-scripts-tab.md) | Scripts tab (preserve & edit) | 5 Examples & Postman | MVP | 028 | Todo |
 | [PIGN-032](PIGN-032-graphql-requests.md) | GraphQL requests | 6 GraphQL | MVP | 023 | Todo |

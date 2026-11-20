@@ -79,6 +79,8 @@ Round-trip `import → Save for Commit → export` must be **semantically equal*
 5. Empty/default values omitted (`disabled: false`, empty `description`).
 6. v2.0 inputs exported as v2.1.
 7. Form-data/binary absolute file paths inside the project folder rewritten to project-relative on import (warning listed).
+8. Examples come back in file-key order: a project stores no example order (`response[]` is compared as a set).
+9. File form-data rows: an empty `value` is the same as none (exports omit it, like Postman).
 
 The compatibility test suite asserts `normalize(export(import(x))) deepEquals normalize(x)` for every fixture.
 
@@ -87,7 +89,7 @@ The compatibility test suite asserts `normalize(export(import(x))) deepEquals no
 | Option | Default | Effect |
 |---|---|---|
 | Include examples | on | writes `response[]` with bodies inlined as strings |
-| Include Pigeon metadata | off | keeps `_pigeon` keys (Postman ignores unknown keys on import — **Observed**, verify in PIGN-029) |
+| Include Pigeon metadata | off | keeps `_pigeon` keys (Postman ignores unknown keys on import — **Assumption**: not yet checked in Postman, see PIGN-029 notes) |
 | Scope | whole collection | also: a single folder as a collection |
 
 Exported file name: `<collection name>.postman_collection.json`.

@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-029 | 5 — Examples & Postman | MVP | Todo | PIGN-028 |
+| PIGN-029 | 5 — Examples & Postman | MVP | Done | PIGN-028 |
 
 ## Goal
 Export a collection (or a folder as a collection) to a single Postman v2.1 file that re-imports into Postman and round-trips semantically with the original import.
@@ -26,10 +26,10 @@ As a developer, I want to hand a Postman file to a teammate who still uses Postm
 - Exporting environments (PIGN-030).
 
 ## Acceptance criteria
-- [ ] All exports validate against the v2.1 JSON Schema.
-- [ ] Round-trip equality holds for every fixture.
+- [x] All exports validate against the v2.1 JSON Schema.
+- [x] Round-trip equality holds for every fixture.
 - [ ] Exported file opens in Postman (manual check, noted in implementation notes) with folders, requests, auth, scripts, variables intact.
-- [ ] Export works on desktop (save dialog) and web (download / save picker).
+- [x] Export works on desktop (save dialog) and web (download / save picker).
 
 ## Technical notes
 - URL decomposition must handle `{{baseUrl}}` hosts: Postman represents `{{baseUrl}}/users` as `host: ["{{baseUrl}}"], path: ["users"]`.
@@ -42,3 +42,11 @@ As a developer, I want to hand a Postman file to a teammate who still uses Postm
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+- `formats/src/postman/url.ts` `decomposeUrl(raw)`: protocol, `host[]` (split on dots outside `{{…}}`, so `{{baseUrl}}` stays one part), `port` (digits or a variable), `path[]` (trailing slash → empty last segment); query and hash come from the model. Table tests in `url-decompose.test.ts`.
+- `formats/src/postman/export.ts` `exportCollection(collectionOrFolder, { includeExamples = true, includePigeonMetadata = false })` → `{ data, fileName, warnings }`; reuses the project mappings (`requestToPostmanItem`, `authToPostman`, `exampleToPostman`, variables), emits unknown keys in place, regenerates URL parts (requests and `originalRequest`), drops `_pigeon` (and always the file-only `order`, `requestId`, `bodyFile`), inlines example bodies (binary ones as Latin-1 text, with a warning), leaves broken entities out (warning), omits the empty `value` of file form-data rows. A folder exports as a collection (its id, name, description, auth, events and variables at the root). `exportCollectionText` writes it tab-indented like Postman. File name `<name>.postman_collection.json`.
+- Schema: `packages/fixtures/postman/schema/collection-v2.1.0.json` is a **draft-07 reconstruction** of the published v2.1.0 schema (README there), validated with `ajv` (dev dependency of formats). The official file was not downloaded in this environment; replacing it with the official schema is a follow-up.
+- `test/postman-normalize.ts` implements compatibility §A.4 (plus two documented additions: example order, empty file-row values). `roundtrip.test.ts`: for every fixture, import → project files → read → export validates against the schema and `normalize(export) == normalize(original)`.
+- UI: explorer context menu **Export as Postman collection…** on collections and folders → options dialog (include examples, include Pigeon metadata, warnings, file name) → `platform.files.saveFile` (desktop save dialog; web download or save picker). E2E covers the download in Firefox and WebKit (Chromium uses the native save picker).
+- Not done: the manual check that the exported file opens in Postman (criterion left unchecked — no Postman available here), and whether Postman ignores `_pigeon` keys (compatibility §A.5 now says "Assumption").
