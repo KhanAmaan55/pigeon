@@ -52,7 +52,12 @@ export type EditCommand =
   | { type: 'duplicateItem'; id: string; newId: string }
   | { type: 'deleteItem'; id: string }
   | { type: 'moveItem'; id: string; parentId: string; index: number }
-  | { type: 'moveCollection'; id: string; index: number };
+  | { type: 'moveCollection'; id: string; index: number }
+  /** `pigeon.json` identity (e.g. "Regenerate project id" for a copied project folder). */
+  | { type: 'setProjectInfo'; id?: string; name?: string };
+
+/** Pseudo entity id of the project itself (`pigeon.json`) in drafts and unsaved tracking. */
+export const PROJECT_ENTITY_ID = '$project';
 
 /** Context for commands that need fresh ids beyond the ones they carry (duplicates). */
 export interface CommandContext {
@@ -103,6 +108,8 @@ export function touchedIds(model: ProjectModel, command: EditCommand): string[] 
     }
     case 'moveCollection':
       return [command.id];
+    case 'setProjectInfo':
+      return [PROJECT_ENTITY_ID];
   }
 }
 
@@ -275,6 +282,17 @@ export function applyCommand(
         const moved = fileKey === item.fileKey ? item : { ...item, fileKey };
         return { ...container, children: insertAt(container.children, moved, index) };
       });
+    }
+
+    case 'setProjectInfo': {
+      if (command.name !== undefined && command.name.trim() === '') {
+        throw new CommandError('A name cannot be empty.');
+      }
+      return {
+        ...model,
+        ...(command.id === undefined ? {} : { id: command.id }),
+        ...(command.name === undefined ? {} : { name: command.name.trim() }),
+      };
     }
 
     case 'moveCollection': {

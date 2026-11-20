@@ -56,7 +56,7 @@ export function MainArea() {
   return (
     <section className="flex h-full min-w-0 flex-col bg-bg">
       {project ? (
-        <ProjectTabs project={project} split={split} />
+        <ProjectTabs key={project.key} project={project} split={split} />
       ) : (
         <ScratchRequestProvider>
           <div

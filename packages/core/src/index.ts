@@ -57,6 +57,7 @@ export {
   findItem,
   isSameOrDescendant,
   placementOf,
+  PROJECT_ENTITY_ID,
   replaceItem,
   touchedIds,
 } from './workspace/commands';

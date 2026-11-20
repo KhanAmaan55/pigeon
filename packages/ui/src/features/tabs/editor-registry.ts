@@ -55,7 +55,8 @@ export function getTabEditor(
         session.onChange(() => {
           if (session.findRequest(requestId)) listener();
         }),
-      projectId: session.id,
+      // Separate connection pools per open project, also for copies sharing an id (PIGN-021).
+      projectId: session.localKey || session.id,
       projectFs: session.fs,
     });
     registry.set(requestId, editor);

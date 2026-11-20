@@ -252,11 +252,8 @@ test.describe('save to local state', () => {
     await page.waitForTimeout(700); // UI state is written after a short debounce
     await page.reload();
     await page.waitForFunction(() => window.__pigeonTest !== undefined);
-    await page
-      .getByTestId('recent-project')
-      .filter({ hasText: 'Drafts API' })
-      .getByText('Drafts API', { exact: true })
-      .click();
+    // The project that was open reopens by itself (PIGN-021).
+    await expect(page.getByTestId('project-tab')).toContainText('Drafts API');
     await expect(page.getByTestId('request-tab-name')).toHaveText(['New Request']);
     await expect(page.getByTestId('url-input')).toHaveValue('{{baseUrl}}/users');
     await expect(items.filter({ hasText: 'New Request' }).getByTestId('explorer-badge')).toHaveText(
@@ -301,11 +298,8 @@ test.describe('save for commit', () => {
 
     await page.reload();
     await page.waitForFunction(() => window.__pigeonTest !== undefined);
-    await page
-      .getByTestId('recent-project')
-      .filter({ hasText: 'Commit API' })
-      .getByText('Commit API', { exact: true })
-      .click();
+    // The project that was open reopens by itself (PIGN-021).
+    await expect(page.getByTestId('project-tab')).toContainText('Commit API');
     await expect(items).toHaveText(['Users', 'GETNew Request']);
     await expect(page.getByTestId('explorer-badge')).toHaveCount(0);
   });
@@ -323,10 +317,32 @@ test.describe('browser workspaces', () => {
     await expect(page.getByTestId('workspace-badge')).toBeVisible();
 
     await page.reload();
-    const recent = page.getByTestId('recent-project').filter({ hasText: 'Notes API' });
-    await expect(recent).toHaveAttribute('data-status', 'ok');
-    await recent.getByText('Notes API', { exact: true }).click();
     await expect(page.getByTestId('project-tab')).toContainText('Notes API');
+    await expect(page.getByTestId('explorer-project-name')).toHaveText('Notes API');
+  });
+
+  test('two projects stay open side by side and come back after a reload', async ({ page }) => {
+    await gotoApp(page);
+    for (const name of ['First API', 'Second API']) {
+      if (await page.getByTestId('add-project').isVisible())
+        await page.getByTestId('add-project').click();
+      await page.getByTestId('new-browser-workspace').click();
+      await page.getByTestId('create-project-name').fill(name);
+      await page.getByTestId('create-project-submit').click();
+      await expect(page.getByTestId('explorer-project-name')).toHaveText(name);
+    }
+    const tabs = page.getByTestId('project-tab');
+    await expect(tabs).toHaveText(['First API', 'Second API']);
+    await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+    await tabs.nth(0).click();
+    await expect(page.getByTestId('explorer-project-name')).toHaveText('First API');
+
+    await page.waitForTimeout(300);
+    await page.reload();
+    await expect(tabs).toHaveText(['First API', 'Second API']);
+    await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('ControlOrMeta+Alt+ArrowRight');
+    await expect(page.getByTestId('explorer-project-name')).toHaveText('Second API');
   });
 
   test('export zip → import zip gives identical files', async ({ page, browserName }) => {

@@ -8,9 +8,9 @@
  */
 
 import type { Collection, Folder, ProjectItem, ProjectModel } from '../model/project';
-import { findContainer, findItem, placementOf, replaceItem } from './commands';
+import { findContainer, findItem, placementOf, PROJECT_ENTITY_ID, replaceItem } from './commands';
 
-export type DraftEntityKind = 'collection' | 'folder' | 'request';
+export type DraftEntityKind = 'project' | 'collection' | 'folder' | 'request';
 
 export interface Draft {
   ref: { kind: DraftEntityKind; id: string };
@@ -64,6 +64,11 @@ export function createDraft(
   hashOf: (id: string) => string | null,
   now: string = new Date().toISOString(),
 ): Draft | null {
+  if (id === PROJECT_ENTITY_ID) {
+    const data = { id: working.id, name: working.name };
+    if (sameJson({ id: base.id, name: base.name }, data)) return null;
+    return { ref: { kind: 'project', id }, op: 'update', data, baseHash: hashOf(id), savedAt: now };
+  }
   const before = locateEntity(base, id);
   const after = locateEntity(working, id);
   if (!before && !after) return null;
@@ -110,7 +115,16 @@ export interface AppliedDrafts {
 export function applyDrafts(base: ProjectModel, drafts: readonly Draft[]): AppliedDrafts {
   let model = base;
   const stale: Draft[] = [];
-  let pending = drafts.filter((draft) => draft.op !== 'delete');
+  for (const draft of drafts) {
+    if (draft.ref.kind !== 'project') continue;
+    const { id, name } = draft.data ?? {};
+    model = {
+      ...model,
+      ...(typeof id === 'string' ? { id } : {}),
+      ...(typeof name === 'string' ? { name } : {}),
+    };
+  }
+  let pending = drafts.filter((draft) => draft.op !== 'delete' && draft.ref.kind !== 'project');
 
   // Creates and updates, repeated until no progress: a child may wait for its created parent.
   for (let progress = true; progress && pending.length > 0;) {

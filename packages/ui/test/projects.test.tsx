@@ -221,6 +221,8 @@ describe('app store', () => {
       await store.getState().openFolder();
       await store.getState().confirmInit(`P${index}`);
     }
+    // Reopening a closed project moves it to the top; an open one is only focused.
+    store.getState().closeProject('memory:' + (fss[3]!.root as { id: string }).id);
     await store.getState().openLocation(fss[3]!.root);
     const recents = store.getState().recentProjects.map((recent) => recent.name);
     expect(recents).toEqual(['P3', 'P11', 'P10', 'P9', 'P8', 'P7', 'P6', 'P5', 'P4', 'P2']);
@@ -692,10 +694,8 @@ describe('Save to local state (PIGN-018)', () => {
     });
     first.view.unmount();
 
-    const second = await start(platform);
-    await second.user.click(
-      within(await screen.findByTestId('recent-project')).getByText('Basic project'),
-    );
+    // The project that was open at exit reopens by itself (PIGN-021).
+    await start(platform);
     await waitFor(() => expect(tabNames()).toEqual(['Get invoices', 'List users']));
     expect(urlInput().value).toContain('&saved=1');
     expect(badge('Get invoices')).toBe('M');
@@ -759,9 +759,6 @@ describe('Save to local state (PIGN-018)', () => {
 
     const second = await start(platform);
     await waitFor(() => expect(document.documentElement.dataset['theme']).toBe('dark'));
-    await second.user.click(
-      within(await screen.findByTestId('recent-project')).getByText('Basic project'),
-    );
     await screen.findByTestId('explorer');
     await second.user.dblClick(screen.getByText('Get invoices'));
     expect(screen.getByTestId('request-response-split').getAttribute('data-dock')).toBe('right');
@@ -942,5 +939,151 @@ describe('external changes & conflicts (PIGN-020)', () => {
     await user.click(await screen.findByTestId('external-reload', {}, { timeout: 2000 }));
     expect(urlInput().value).toBe('https://billing.example.test/invoices/:id/settle');
     expect(screen.queryByTestId('request-tab-unsaved')).toBeNull();
+  });
+});
+
+describe('multiple projects (PIGN-021)', () => {
+  async function twoProjects() {
+    const platform = createMemoryPlatform({ os: 'macos' });
+    const basic = new MemoryFs();
+    await copyInto(basic, fixtureDirectory);
+    const other = new MemoryFs();
+    await other.writeFileAtomic(
+      'pigeon.json',
+      '{"pigeon":{"formatVersion":1},"id":"other","name":"Other API","collections":["shop"]}',
+    );
+    await other.writeFileAtomic(
+      'collections/shop/collection.json',
+      '{"info":{"_postman_id":"shop","name":"Shop"}}',
+    );
+    await other.writeFileAtomic(
+      'collections/shop/get-invoices.request.json',
+      '{"id":"get-invoices","name":"Get invoices","request":{"method":"GET","url":"/other"}}',
+    );
+    const locations = [platform.projects.add(basic), platform.projects.add(other)];
+    return { platform, basic, other, locations };
+  }
+  // Project switches use fireEvent: in jsdom every element is 0×0, so real pointer events also
+  // land on the resize handles of the remounted panels.
+  const urlInput = () => screen.getByTestId('url-input') as HTMLInputElement;
+  const projectTabs = () =>
+    screen
+      .getAllByTestId('project-tab')
+      .map((t) => [t.textContent, t.getAttribute('aria-selected')]);
+
+  it('keeps two projects open with their own tabs and unsaved edits', async () => {
+    const { platform, locations } = await twoProjects();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    platform.projects.pickResult = locations[0]!;
+    await user.click(screen.getByTestId('open-folder'));
+    await user.dblClick(await screen.findByText('Get invoices'));
+    await act(async () => urlInput().focus());
+    await user.keyboard('&a=1');
+
+    fireEvent.click(screen.getByTestId('add-project'));
+    platform.projects.pickResult = locations[1]!;
+    await user.click(await screen.findByTestId('open-folder'));
+    await user.dblClick(await screen.findByText('Get invoices'));
+    expect(urlInput().value).toBe('/other');
+    expect(projectTabs()).toEqual([
+      ['Basic project', 'false'],
+      ['Other API', 'true'],
+    ]);
+
+    // From the URL field (jsdom may leave focus on a resize handle, which handles arrows itself).
+    await act(async () => urlInput().focus());
+    await user.keyboard('{Meta>}{Alt>}{ArrowLeft}{/Alt}{/Meta}');
+    expect(urlInput().value).toContain('&a=1');
+    expect(screen.getByTestId('request-tab-unsaved')).toBeTruthy();
+    fireEvent.click(screen.getAllByTestId('project-tab')[1]!);
+    expect(urlInput().value).toBe('/other');
+    expect(screen.queryByTestId('request-tab-unsaved')).toBeNull();
+
+    // Opening an already-open project only focuses its tab.
+    fireEvent.click(screen.getByTestId('add-project'));
+    platform.projects.pickResult = locations[0]!;
+    await user.click(await screen.findByTestId('open-folder'));
+    expect(projectTabs()).toEqual([
+      ['Basic project', 'true'],
+      ['Other API', 'false'],
+    ]);
+  });
+
+  it('restores the open projects and the active one after a restart', async () => {
+    const { platform, locations } = await twoProjects();
+    const first = render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    for (const location of locations) {
+      platform.projects.pickResult = location;
+      if (screen.queryByTestId('add-project')) fireEvent.click(screen.getByTestId('add-project'));
+      await user.click(await screen.findByTestId('open-folder'));
+      await screen.findByTestId('explorer');
+    }
+    fireEvent.click(screen.getAllByTestId('project-tab')[0]!);
+    await waitFor(async () =>
+      expect(await platform.appState.get('app', 'activeProject')).toBe(
+        `memory:${(locations[0] as { id: string }).id}`,
+      ),
+    );
+    first.unmount();
+
+    render(<PigeonApp platform={platform} />);
+    await waitFor(() =>
+      expect(projectTabs()).toEqual([
+        ['Basic project', 'true'],
+        ['Other API', 'false'],
+      ]),
+    );
+  });
+
+  it('opens a copied folder with the same id with separate local state and a banner', async () => {
+    const platform = createMemoryPlatform();
+    const original = new MemoryFs();
+    await copyInto(original, fixtureDirectory);
+    const copy = new MemoryFs();
+    await copyInto(copy, fixtureDirectory);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    platform.projects.pickResult = platform.projects.add(original);
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    expect(screen.queryByTestId('duplicate-project-banner')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('add-project'));
+    platform.projects.pickResult = platform.projects.add(copy);
+    await user.click(await screen.findByTestId('open-folder'));
+    expect(await screen.findByTestId('duplicate-project-banner')).toBeTruthy();
+    await user.dblClick(screen.getByText('Get invoices'));
+    await act(async () => urlInput().focus());
+    await user.keyboard('&copy{Meta>}s{/Meta}');
+    await waitFor(async () => {
+      const keys = (
+        await Promise.all(
+          ['project-basic', 'project-basic@'].map((k) =>
+            platform.appState.get(`project:${k}`, 'state'),
+          ),
+        )
+      ).map(Boolean);
+      expect(keys[0]).toBe(false);
+    });
+
+    await user.click(screen.getByTestId('regenerate-project-id'));
+    expect(screen.getByTestId('pending-count').textContent).toBe('2');
+  });
+
+  it('asks before closing a project with unsaved changes', async () => {
+    const { platform, locations } = await twoProjects();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    platform.projects.pickResult = locations[1]!;
+    await user.click(screen.getByTestId('open-folder'));
+    await user.dblClick(await screen.findByText('Get invoices'));
+    await act(async () => urlInput().focus());
+    await user.keyboard('?x');
+    await user.click(screen.getByTestId('close-project'));
+    await user.click(await screen.findByTestId('close-project-confirm'));
+    expect(screen.queryAllByTestId('project-tab')).toEqual([]);
+    expect(screen.getByTestId('welcome')).toBeTruthy();
   });
 });

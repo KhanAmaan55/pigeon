@@ -30,7 +30,14 @@ import type { Draft } from './drafts';
 import { applyDrafts, createDraft, locateEntity } from './drafts';
 import type { LocalProjectState } from './local-state';
 import { LocalStateStore } from './local-state';
-import { applyCommand, findItem, placementOf, replaceItem, touchedIds } from './commands';
+import {
+  applyCommand,
+  findItem,
+  placementOf,
+  PROJECT_ENTITY_ID,
+  replaceItem,
+  touchedIds,
+} from './commands';
 import type {
   Collection,
   Folder,
@@ -139,18 +146,31 @@ export class ProjectSession {
     return ProjectSession.fromFs(fs, platform.appState ? { appState: platform.appState } : {});
   }
 
-  /** With `appState`, drafts and UI state are loaded from and saved to local state. */
+  /**
+   * With `appState`, drafts and UI state are loaded from and saved to local state under
+   * `project:<localKey>` — the project id, or `<id>@<hash>` for a copy of a project that is
+   * already known at another location (file-format.md §6).
+   */
   static async fromFs(
     fs: ProjectFileSystem,
-    opts: { appState?: AppStateStore } = {},
+    opts: {
+      appState?: AppStateStore;
+      localKey?: (projectId: string) => string | Promise<string>;
+    } = {},
   ): Promise<ProjectSession> {
     const read = await readProject(fs);
-    const persistable = opts.appState && read.model.id !== '' && !read.readOnly;
-    const local = persistable
-      ? await LocalStateStore.load(opts.appState!, read.model.id)
-      : undefined;
-    return new ProjectSession(fs.root, fs, read, local);
+    const persistable = opts.appState !== undefined && read.model.id !== '' && !read.readOnly;
+    const localKey = persistable
+      ? await (opts.localKey?.(read.model.id) ?? read.model.id)
+      : read.model.id;
+    const local = persistable ? await LocalStateStore.load(opts.appState!, localKey) : undefined;
+    const session = new ProjectSession(fs.root, fs, read, local);
+    session.localKey = localKey;
+    return session;
   }
+
+  /** Key of this project's local state (and transport pool): the id, or `<id>@<hash>`. */
+  localKey = '';
 
   #loadDrafts(drafts: readonly Draft[]): void {
     const { model, stale } = applyDrafts(this.#read.model, drafts);
@@ -251,13 +271,13 @@ export class ProjectSession {
   deletedEntities(): Array<{
     id: string;
     name: string;
-    kind: Draft['ref']['kind'];
+    kind: Exclude<Draft['ref']['kind'], 'project'>;
     parentId: string | null;
     method?: string;
   }> {
     const deleted = [];
     for (const draft of this.#drafts.values()) {
-      if (draft.op !== 'delete') continue;
+      if (draft.op !== 'delete' || draft.ref.kind === 'project') continue;
       const found = locateEntity(this.#read.model, draft.ref.id);
       if (!found) continue;
       deleted.push({
@@ -683,6 +703,7 @@ export class ProjectSession {
  * place when that container still exists.
  */
 function restoreFromBase(working: ProjectModel, base: ProjectModel, id: string): ProjectModel {
+  if (id === PROJECT_ENTITY_ID) return { ...working, id: base.id, name: base.name };
   const baseCollection = base.collections.find((c) => c.id === id);
   const workingCollection = working.collections.find((c) => c.id === id);
   if (baseCollection || workingCollection) {
@@ -731,6 +752,7 @@ function restoreFromBase(working: ProjectModel, base: ProjectModel, id: string):
 
 /** The file of a collection, folder or request in `model`. */
 function filePathIn(model: ProjectModel, id: string): ProjectPath | undefined {
+  if (id === PROJECT_ENTITY_ID) return 'pigeon.json';
   const collection = model.collections.find((c) => c.id === id);
   if (collection) return `collections/${collection.fileKey}/collection.json`;
   for (const c of model.collections) {

@@ -11,7 +11,7 @@ import {
   ProjectSession,
   readProjectZip,
 } from '@pigeon/core';
-import { slugify } from '@pigeon/formats';
+import { sha256Hex, slugify } from '@pigeon/formats';
 import type { Platform, ProjectFileSystem, ProjectLocation } from '@pigeon/platform';
 import { createStore } from 'zustand';
 
@@ -20,6 +20,11 @@ import type { ProjectStore } from './project-store';
 import { createProjectStore } from './project-store';
 
 export const RECENT_PROJECTS_KEY = 'recentProjects';
+/** `app` keys: open projects (in tab order) and the active one, restored on restart. */
+export const OPEN_PROJECTS_KEY = 'openProjects';
+export const ACTIVE_PROJECT_KEY = 'activeProject';
+/** `app` key: project id → location key of the first folder seen with it (duplicate detection). */
+export const PROJECT_LOCATIONS_KEY = 'projectLocations';
 export const MAX_RECENT_PROJECTS = 10;
 
 export interface RecentProject {
@@ -33,7 +38,11 @@ export interface RecentProject {
 export type RecentStatus = 'ok' | 'missing' | 'needs-permission';
 
 export interface OpenProject {
+  /** `locationKey` of the folder: unique among open projects. */
+  key: string;
   session: ProjectSession;
+  /** Set for a copy of a project known at another location: that location, for the banner. */
+  duplicateOf?: ProjectLocation;
   store: ProjectStore;
   /** `watching`: native watcher; `focus`: re-check on window focus (web, or a watcher failed). */
   changeDetection: 'watching' | 'focus' | 'watch-failed';
@@ -50,6 +59,9 @@ export interface AppState {
   recentProjects: RecentProject[];
   /** By `locationKey`. */
   recentStatus: Record<string, RecentStatus>;
+  /** Open projects, in tab order (PIGN-021). Each has its own session and store. */
+  projects: OpenProject[];
+  /** The active project (one of `projects`), or `null` while the Welcome panel shows. */
   project: OpenProject | null;
   busy: boolean;
   error: string | null;
@@ -71,7 +83,13 @@ export interface AppState {
   openRecent: (recent: RecentProject) => Promise<void>;
   confirmInit: (name: string) => Promise<void>;
   cancelInit: () => void;
-  closeProject: () => void;
+  /** Closes the active project (or `key`); unsaved edits are lost, drafts stay. */
+  closeProject: (key?: string) => void;
+  switchProject: (key: string) => void;
+  /** Activates the next (`1`) or previous (`-1`) project tab. */
+  cycleProject: (delta: 1 | -1) => void;
+  /** "+": shows the Welcome panel to open or create another project. */
+  showWelcome: () => void;
   forgetRecent: (recent: RecentProject) => Promise<void>;
   clearError: () => void;
 }
@@ -101,35 +119,104 @@ export function createAppStore(platform: AppPlatform) {
       await saveRecents([entry, ...rest].slice(0, MAX_RECENT_PROJECTS));
     };
 
-    const close = () => {
-      const project = get().project;
-      project?.store.dispose();
-      project?.stopWatching();
-      void project?.session.flushLocalState();
+    /** Persists the open projects and the active one (`app` namespace). */
+    const persistOpen = () => {
+      const { projects, project } = get();
+      void platform.appState
+        .set(
+          'app',
+          OPEN_PROJECTS_KEY,
+          projects.map((p) => p.session.location),
+        )
+        .catch(() => undefined);
+      void platform.appState
+        .set('app', ACTIVE_PROJECT_KEY, project?.key ?? null)
+        .catch(() => undefined);
     };
 
-    const show = async (session: ProjectSession) => {
-      close();
+    const activate = (key: string | null) => {
+      const project = get().projects.find((p) => p.key === key) ?? null;
+      set({ project, pendingInit: null });
+      persistOpen();
+    };
+
+    const dispose = (project: OpenProject) => {
+      project.store.dispose();
+      project.stopWatching();
+      void project.session.flushLocalState();
+    };
+
+    /** Adds an opened session as a project tab (or focuses it if that folder is already open). */
+    const show = async (session: ProjectSession, duplicateOf?: ProjectLocation) => {
+      const key = locationKey(session.location);
+      const existing = get().projects.find((p) => p.key === key);
+      if (existing) {
+        activate(key);
+        return;
+      }
       // External changes (file-format.md §8): a native watcher where available, else (and if it
       // fails) a re-check whenever the window gets focus.
       const watching = platform.capabilities?.fileWatch === true;
       const stop = watching
         ? session.watch(() => {
-            const project = get().project;
-            if (project?.session === session)
-              set({ project: { ...project, changeDetection: 'watch-failed' } });
+            set({
+              projects: get().projects.map((p) =>
+                p.session === session ? { ...p, changeDetection: 'watch-failed' as const } : p,
+              ),
+            });
+            const active = get().project;
+            if (active?.session === session)
+              set({ project: get().projects.find((p) => p.key === key) ?? null });
           })
         : null;
-      set({
-        project: {
-          session,
-          store: createProjectStore(session),
-          changeDetection: stop ? 'watching' : 'focus',
-          stopWatching: stop ?? (() => undefined),
-        },
-        pendingInit: null,
-      });
+      const project: OpenProject = {
+        key,
+        session,
+        store: createProjectStore(session),
+        changeDetection: stop ? 'watching' : 'focus',
+        stopWatching: stop ?? (() => undefined),
+        ...(duplicateOf ? { duplicateOf } : {}),
+      };
+      set({ projects: [...get().projects, project] });
+      activate(key);
       await remember(session);
+    };
+
+    /**
+     * Local-state key of a project at `location` (file-format.md §6): its id, unless another
+     * folder already uses that id — then `<id>@<hash(location)>`, and `duplicateOf` names it.
+     */
+    const resolveLocalKey = async (projectId: string, location: ProjectLocation) => {
+      const key = locationKey(location);
+      const owners =
+        (await platform.appState.get<Record<string, ProjectLocation>>(
+          'app',
+          PROJECT_LOCATIONS_KEY,
+        )) ?? {};
+      const owner = owners[projectId];
+      if (!owner) {
+        await platform.appState.set('app', PROJECT_LOCATIONS_KEY, {
+          ...owners,
+          [projectId]: location,
+        });
+        return { localKey: projectId };
+      }
+      if (locationKey(owner) === key) return { localKey: projectId };
+      const hash = (await sha256Hex(new TextEncoder().encode(key))).slice(0, 8);
+      return { localKey: `${projectId}@${hash}`, duplicateOf: owner };
+    };
+
+    const openSession = async (fs: ProjectFileSystem) => {
+      let duplicateOf: ProjectLocation | undefined;
+      const session = await ProjectSession.fromFs(fs, {
+        appState: platform.appState,
+        localKey: async (projectId) => {
+          const resolved = await resolveLocalKey(projectId, fs.root);
+          duplicateOf = resolved.duplicateOf;
+          return resolved.localKey;
+        },
+      });
+      await show(session, duplicateOf);
     };
 
     /** Runs `job` with `busy` set; failures become `error`. */
@@ -149,12 +236,23 @@ export function createAppStore(platform: AppPlatform) {
         set({ pendingInit: { location, fs, suggestedName: locationFolderName(location) } });
         return;
       }
-      await show(await ProjectSession.fromFs(fs, { appState: platform.appState }));
+      await openSession(fs);
+    };
+
+    /** Opens a location unless it is already open (then it is just activated). */
+    const openLocation = async (location: ProjectLocation) => {
+      const key = locationKey(location);
+      if (get().projects.some((p) => p.key === key)) {
+        activate(key);
+        return;
+      }
+      await openFs(location, await platform.openProjectFs(location));
     };
 
     return {
       recentProjects: [],
       recentStatus: {},
+      projects: [],
       project: null,
       busy: false,
       error: null,
@@ -179,6 +277,23 @@ export function createAppStore(platform: AppPlatform) {
           }),
         );
         set({ recentStatus: Object.fromEntries(statuses) });
+        // Reopen the projects that were open at the last exit (PIGN-021), silently.
+        if (get().projects.length > 0) return;
+        const open =
+          (await platform.appState.get<ProjectLocation[]>('app', OPEN_PROJECTS_KEY)) ?? [];
+        const active = await platform.appState.get<string | null>('app', ACTIVE_PROJECT_KEY);
+        for (const location of Array.isArray(open) ? open : []) {
+          try {
+            if ((await platform.projects.reopen(location)) !== 'ok') continue;
+            const fs = await platform.openProjectFs(location);
+            if (await isPigeonProject(fs)) await openSession(fs);
+          } catch {
+            // A folder that can't be reopened stays in the recent list with its status.
+          }
+        }
+        if (get().projects.length > 0) {
+          activate(get().projects.some((p) => p.key === active) ? active! : get().projects[0]!.key);
+        }
       },
 
       openFolder: () =>
@@ -195,7 +310,7 @@ export function createAppStore(platform: AppPlatform) {
           if (!location) return;
           const fs = await platform.openProjectFs(location);
           if (!(await isPigeonProject(fs))) await initializeProject(fs, trimmed);
-          await show(await ProjectSession.fromFs(fs, { appState: platform.appState }));
+          await openSession(fs);
         }),
 
       createWorkspace: (name) =>
@@ -208,7 +323,7 @@ export function createAppStore(platform: AppPlatform) {
           const location = await platform.projects.createBrowserWorkspace(trimmed);
           const fs = await platform.openProjectFs(location);
           await initializeProject(fs, trimmed);
-          await show(await ProjectSession.fromFs(fs, { appState: platform.appState }));
+          await openSession(fs);
         }),
 
       importProjectZip: () =>
@@ -224,7 +339,7 @@ export function createAppStore(platform: AppPlatform) {
           const location = await platform.projects.createBrowserWorkspace(name);
           const fs = await platform.openProjectFs(location);
           for (const [path, bytes] of contents.files) await fs.writeFileAtomic(path, bytes);
-          await show(await ProjectSession.fromFs(fs, { appState: platform.appState }));
+          await openSession(fs);
         }),
 
       exportProjectZip: () =>
@@ -239,8 +354,7 @@ export function createAppStore(platform: AppPlatform) {
           await platform.files.saveFile(`${base}.zip`, zip, 'application/zip');
         }),
 
-      openLocation: (location) =>
-        run(async () => openFs(location, await platform.openProjectFs(location))),
+      openLocation: (location) => run(() => openLocation(location)),
 
       openRecent: (recent) =>
         run(async () => {
@@ -256,7 +370,7 @@ export function createAppStore(platform: AppPlatform) {
             throw new Error(`The folder of "${recent.name}" was moved or deleted.`);
           if (status === 'needs-permission')
             throw new Error(`Pigeon has no access to "${recent.name}". Open the folder again.`);
-          await openFs(recent.location, await platform.openProjectFs(recent.location));
+          await openLocation(recent.location);
         }),
 
       confirmInit: (name) =>
@@ -265,15 +379,37 @@ export function createAppStore(platform: AppPlatform) {
           if (!pending) return;
           const trimmed = name.trim() || pending.suggestedName || 'Untitled project';
           await initializeProject(pending.fs, trimmed);
-          await show(await ProjectSession.fromFs(pending.fs, { appState: platform.appState }));
+          await openSession(pending.fs);
         }),
 
       cancelInit: () => set({ pendingInit: null }),
 
-      closeProject: () => {
-        close();
-        set({ project: null });
+      closeProject: (key) => {
+        const { projects, project } = get();
+        const target = projects.find((p) => p.key === (key ?? project?.key));
+        if (!target) return;
+        dispose(target);
+        const index = projects.indexOf(target);
+        const rest = projects.filter((p) => p !== target);
+        set({ projects: rest });
+        const next =
+          project === target
+            ? (rest[Math.min(index, rest.length - 1)]?.key ?? null)
+            : (project?.key ?? null);
+        activate(next);
       },
+
+      switchProject: (key) => activate(key),
+
+      cycleProject: (delta) => {
+        const { projects, project } = get();
+        if (projects.length === 0) return;
+        const index = projects.findIndex((p) => p === project);
+        const next = projects[(index + delta + projects.length) % projects.length]!;
+        activate(next.key);
+      },
+
+      showWelcome: () => activate(null),
 
       forgetRecent: async (recent) => {
         const key = locationKey(recent.location);

@@ -17,8 +17,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
 import { IconButton } from '../../components/IconButton';
+import { PROJECT_ENTITY_ID } from '@pigeon/core';
+
 import type { OpenProject } from '../../stores/app-store';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
+import { locationLabel } from '../../stores/locations';
 import { methodColorClass } from '../request-editor/methods';
 import { disposeTabEditor } from '../tabs/editor-registry';
 import type { DropPosition } from './actions';
@@ -292,6 +295,28 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
           This project was created by a newer Pigeon or its <code>pigeon.json</code> is unreadable.
           It is read-only.
         </p>
+      )}
+      {project.duplicateOf && (
+        <div
+          data-testid="duplicate-project-banner"
+          className="flex flex-col gap-1 border-b border-border bg-warn/10 px-3 py-1.5 text-xs text-fg"
+        >
+          <span>
+            Another folder ({locationLabel(project.duplicateOf)}) has the same project id, so this
+            copy keeps its own local state. Give it a new id to tell them apart in Git too.
+          </span>
+          <button
+            type="button"
+            data-testid="regenerate-project-id"
+            disabled={readOnly || session.changeState(PROJECT_ENTITY_ID) !== 'clean'}
+            onClick={() =>
+              edit(() => session.apply({ type: 'setProjectInfo', id: crypto.randomUUID() }))
+            }
+            className="self-start rounded border border-border bg-surface px-2 py-0.5 hover:bg-hover disabled:opacity-50"
+          >
+            Regenerate project id
+          </button>
+        </div>
       )}
       {error && (
         <p

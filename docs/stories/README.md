@@ -49,7 +49,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-018](PIGN-018-save-local-drafts.md) | Save to local state (drafts) | 2 Projects | MVP | 017 | Done |
 | [PIGN-019](PIGN-019-save-for-commit.md) | Save for Commit & Pending Changes | 2 Projects | MVP | 018 | Done |
 | [PIGN-020](PIGN-020-external-changes-conflicts.md) | External file changes & conflicts | 2 Projects | MVP | 019 | Done |
-| [PIGN-021](PIGN-021-multiple-projects.md) | Multiple isolated projects | 2 Projects | MVP | 018 | Todo |
+| [PIGN-021](PIGN-021-multiple-projects.md) | Multiple isolated projects | 2 Projects | MVP | 018 | Done |
 | [PIGN-022](PIGN-022-environments.md) | Environments (Postman env files) | 3 Variables | MVP | 019 | Todo |
 | [PIGN-023](PIGN-023-variable-resolution.md) | Variable resolution & highlighting | 3 Variables | MVP | 022 | Todo |
 | [PIGN-024](PIGN-024-collection-vars-globals.md) | Collection variables & project globals | 3 Variables | MVP | 023 | Todo |

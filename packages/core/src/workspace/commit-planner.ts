@@ -18,6 +18,7 @@ import type { ProjectPath } from '@pigeon/platform';
 
 import type { ProjectItem, ProjectModel } from '../model/project';
 import type { Draft } from './drafts';
+import { PROJECT_ENTITY_ID } from './commands';
 import { applyDrafts, locateEntity } from './drafts';
 
 /** Managed files on disk now: path → sha-256, `null` for files Pigeon doesn't manage. */
@@ -142,7 +143,10 @@ export async function planCommit(input: PlanInput): Promise<CommitPlan> {
     }
     return false;
   };
-  const collectionsChanged = committed.some((id) => drafts.get(id)!.ref.kind === 'collection');
+  const collectionsChanged = committed.some((id) => {
+    const kind = drafts.get(id)!.ref.kind;
+    return kind === 'collection' || kind === 'project';
+  });
   const baseParents = parentMap(input.base);
   const childParents = new Set<string>();
   for (const id of committed) {
@@ -229,6 +233,7 @@ export async function planCommit(input: PlanInput): Promise<CommitPlan> {
 
 /** `collections/<c>/…` file of a collection, folder or request in `model`. */
 export function entityFilePath(model: ProjectModel, id: string): ProjectPath | undefined {
+  if (id === PROJECT_ENTITY_ID) return 'pigeon.json';
   return pathEntries(model).find(([, owner]) => owner === id)?.[0];
 }
 

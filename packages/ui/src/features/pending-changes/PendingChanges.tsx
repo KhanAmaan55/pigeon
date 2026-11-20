@@ -1,5 +1,5 @@
 import type { CommitPlan, ProjectSession } from '@pigeon/core';
-import { locateEntity } from '@pigeon/core';
+import { locateEntity, PROJECT_ENTITY_ID } from '@pigeon/core';
 import { AlertTriangle, FileCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -12,8 +12,8 @@ const decoder = new TextDecoder();
 interface PendingEntity {
   id: string;
   name: string;
-  kind: 'collection' | 'folder' | 'request';
-  state: 'unsaved' | 'created' | 'updated' | 'deleted';
+  kind: 'project' | 'collection' | 'folder' | 'request';
+  state: 'unsaved' | 'created' | 'updated' | 'deleted' | 'conflict';
 }
 
 /** The project's pending entities: saved drafts and unsaved edits (data-model.md §10). */
@@ -23,6 +23,15 @@ function pendingEntities(
 ): PendingEntity[] {
   const entities: PendingEntity[] = [];
   for (const [id, state] of Object.entries(changes)) {
+    if (id === PROJECT_ENTITY_ID) {
+      entities.push({
+        id,
+        name: 'Project (pigeon.json)',
+        kind: 'project',
+        state: state as PendingEntity['state'],
+      });
+      continue;
+    }
     const found =
       locateEntity(session.getWorkingModel(), id) ?? locateEntity(session.getBaseModel(), id);
     if (!found) continue;
@@ -42,6 +51,7 @@ const BADGES: Record<PendingEntity['state'], { label: string; className: string;
     updated: { label: 'M', className: 'text-warn', title: 'Modified' },
     deleted: { label: 'D', className: 'text-fail', title: 'Deleted' },
     unsaved: { label: '●', className: 'text-fg-muted', title: 'Unsaved (saved first)' },
+    conflict: { label: '!', className: 'text-fail', title: 'Conflict: the file changed on disk' },
   };
 
 /** Files of a plan for the list: renames collapse their delete + write. */
