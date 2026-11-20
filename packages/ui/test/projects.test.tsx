@@ -1664,3 +1664,95 @@ describe('response examples (PIGN-027)', () => {
     expect(within(view).getByTestId('example-headers').textContent).not.toContain('Date');
   });
 });
+
+describe('Postman collection import (PIGN-028)', () => {
+  const postman = (name: string) =>
+    readFile(join(import.meta.dirname, '../../fixtures/postman', name)).then(
+      (buffer) => new Uint8Array(buffer),
+    );
+
+  it('previews a collection, renames it, imports it and writes its files', async () => {
+    const { platform, fs } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+
+    platform.files.queuePick([
+      { name: 'examples.v2.1.json', bytes: await postman('examples.v2.1.json') },
+    ]);
+    await user.click(screen.getByTestId('explorer-import'));
+    const dialog = await screen.findByTestId('import-dialog');
+    await within(dialog).findByTestId('import-counts');
+    expect(within(dialog).getByTestId('import-format').textContent).toBe(
+      'Detected: Postman Collection v2.1',
+    );
+    expect(within(dialog).getByTestId('import-count-requests').textContent).toBe('1');
+    expect(within(dialog).getByTestId('import-count-examples').textContent).toBe('5');
+    expect(within(dialog).getByTestId('import-warnings').textContent).toContain(
+      '1 item without an id got one.',
+    );
+    const name = within(dialog).getByTestId('import-name') as HTMLInputElement;
+    expect(name.value).toBe('Examples');
+    await user.clear(name);
+    await user.type(name, 'Imported examples');
+    await user.click(within(dialog).getByTestId('import-write'));
+
+    await waitFor(() => expect(screen.queryByTestId('import-dialog')).toBeNull());
+    expect(screen.getByTestId('toast').textContent).toMatch(
+      /Imported 1 request; wrote \d+ files\./,
+    );
+    expect(names()).toContain('Imported examples');
+    expect(JSON.parse(await fs.readText('pigeon.json')).collections).toEqual([
+      'users-api',
+      'billing',
+      'imported-examples',
+    ]);
+    expect(await fs.exists('collections/imported-examples/list-users.request.json')).toBe(true);
+    expect(await fs.exists('examples/imported-examples/list-users/200-ok.body.json')).toBe(true);
+  });
+
+  it('imports as local drafts and rejects v1 files with a clear message', async () => {
+    const { platform, fs } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+
+    platform.files.queuePick([{ name: 'v1.json', bytes: await postman('v1.json') }]);
+    await user.keyboard('{Meta>}o{/Meta}');
+    expect((await screen.findByTestId('import-rejected')).textContent).toMatch(
+      /Re-export it from Postman as Collection v2\.1/,
+    );
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByTestId('import-dialog')).toBeNull());
+
+    platform.files.queuePick([{ name: 'auth.v2.1.json', bytes: await postman('auth.v2.1.json') }]);
+    await user.click(screen.getByTestId('explorer-import'));
+    await user.click(await screen.findByTestId('import-as-drafts'));
+    await waitFor(() => expect(screen.queryByTestId('import-dialog')).toBeNull());
+    expect(screen.getByTestId('toast').textContent).toBe('Imported 9 requests as local drafts.');
+    const row = screen
+      .getAllByTestId('explorer-item')
+      .find((r) => r.textContent?.includes('Auth types'))!;
+    expect(row.getAttribute('data-change')).toBe('created');
+    expect(await fs.exists('collections/auth-types/collection.json')).toBe(false);
+  });
+
+  it('Welcome → Import Postman file creates a project named after the collection', async () => {
+    const platform = createMemoryPlatform({ os: 'macos' });
+    platform.files.queuePick([
+      { name: 'legacy.v2.0.json', bytes: await postman('legacy.v2.0.json') },
+    ]);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('import-postman-file'));
+    const dialog = await screen.findByTestId('import-dialog');
+    expect(screen.getByTestId('project-tab').textContent).toContain('Legacy v2.0');
+    expect((await within(dialog).findByTestId('import-format')).textContent).toBe(
+      'Detected: Postman Collection v2.0',
+    );
+    await user.click(within(dialog).getByTestId('import-write'));
+    await waitFor(() => expect(names()).toContain('Legacy v2.0'));
+  });
+});

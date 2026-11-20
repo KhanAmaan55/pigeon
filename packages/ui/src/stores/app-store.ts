@@ -11,8 +11,8 @@ import {
   ProjectSession,
   readProjectZip,
 } from '@pigeon/core';
-import { sha256Hex, slugify } from '@pigeon/formats';
-import type { Platform, ProjectFileSystem, ProjectLocation } from '@pigeon/platform';
+import { detectFormat, sha256Hex, slugify } from '@pigeon/formats';
+import type { PickedFile, Platform, ProjectFileSystem, ProjectLocation } from '@pigeon/platform';
 import { createStore } from 'zustand';
 
 import { locationFolderName, locationKey } from './locations';
@@ -77,6 +77,16 @@ export interface AppState {
   createWorkspace: (name: string) => Promise<void>;
   /** Web: a new browser workspace from a project zip the user picks. */
   importProjectZip: () => Promise<void>;
+  /** A file waiting in the import dialog of the active project (PIGN-028). */
+  pendingImport: PickedFile | null;
+  setPendingImport: (file: PickedFile | null) => void;
+  /** Picks a file to import into the active project (the import dialog opens). */
+  pickImportFile: () => Promise<void>;
+  /**
+   * Welcome → "Import Postman file": picks a collection, creates a project named after it
+   * (asking where on desktop; a browser workspace on the web), then opens the import dialog.
+   */
+  importIntoNewProject: () => Promise<void>;
   /** Downloads / saves the open project's files as a zip. */
   exportProjectZip: () => Promise<void>;
   openLocation: (location: ProjectLocation) => Promise<void>;
@@ -95,6 +105,9 @@ export interface AppState {
 }
 
 export type AppStore = ReturnType<typeof createAppStore>;
+
+/** What the import file picker offers. */
+const IMPORT_ACCEPT = ['.json', 'application/json'];
 
 type AppPlatform = Pick<Platform, 'projects' | 'openProjectFs' | 'appState'> &
   Partial<Pick<Platform, 'files' | 'capabilities' | 'secrets'>>;
@@ -325,6 +338,52 @@ export function createAppStore(platform: AppPlatform) {
           const fs = await platform.openProjectFs(location);
           await initializeProject(fs, trimmed);
           await openSession(fs);
+        }),
+
+      pendingImport: null,
+      setPendingImport: (file) => set({ pendingImport: file }),
+
+      pickImportFile: async () => {
+        if (!platform.files) return;
+        const [picked] = await platform.files.pickFiles({ accept: IMPORT_ACCEPT });
+        if (picked) set({ pendingImport: picked });
+      },
+
+      importIntoNewProject: () =>
+        run(async () => {
+          if (!platform.files) throw new Error('Importing files is not available here.');
+          const [picked] = await platform.files.pickFiles({ accept: IMPORT_ACCEPT });
+          if (!picked) return;
+          const detected = detectFormat(picked.bytes);
+          if (detected.kind !== 'postman-collection') {
+            throw new Error(
+              detected.kind === 'rejected' || detected.kind === 'unknown'
+                ? detected.message
+                : 'Choose a Postman collection (v2.1 or v2.0).',
+            );
+          }
+          const info = detected.data['info'];
+          const name =
+            (typeof info === 'object' &&
+            info !== null &&
+            typeof (info as { name?: unknown }).name === 'string'
+              ? (info as { name: string }).name
+              : '') ||
+            picked.name.replace(/\.(postman_collection\.)?json$/i, '') ||
+            'Imported project';
+          let location: ProjectLocation | null;
+          if (platform.capabilities?.projectFolders !== 'none') {
+            location = await platform.projects.createProject(name);
+          } else if (platform.projects.createBrowserWorkspace) {
+            location = await platform.projects.createBrowserWorkspace(name);
+          } else {
+            throw new Error('This browser cannot store projects.');
+          }
+          if (!location) return;
+          const fs = await platform.openProjectFs(location);
+          if (!(await isPigeonProject(fs))) await initializeProject(fs, name);
+          await openSession(fs);
+          set({ pendingImport: picked });
         }),
 
       importProjectZip: () =>

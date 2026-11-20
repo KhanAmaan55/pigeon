@@ -1,0 +1,17 @@
+{
+  "id": "v1-collection",
+  "name": "Old collection",
+  "order": [
+    "r1"
+  ],
+  "folders": [],
+  "requests": [
+    {
+      "id": "r1",
+      "name": "Old",
+      "url": "http://x",
+      "method": "GET",
+      "collectionId": "v1-collection"
+    }
+  ]
+}

@@ -1,4 +1,12 @@
-import { AlertTriangle, Database, FileArchive, FolderOpen, FolderPlus, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  Database,
+  FileArchive,
+  FileInput,
+  FolderOpen,
+  FolderPlus,
+  X,
+} from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 
@@ -22,6 +30,7 @@ export function Welcome() {
   const createProject = useAppStore((s) => s.createProject);
   const createWorkspace = useAppStore((s) => s.createWorkspace);
   const importProjectZip = useAppStore((s) => s.importProjectZip);
+  const importIntoNewProject = useAppStore((s) => s.importIntoNewProject);
   const clearError = useAppStore((s) => s.clearError);
   /** Which "new project" form is open. */
   const [creating, setCreating] = useState<'folder' | 'workspace' | null>(null);
@@ -116,6 +125,16 @@ export function Welcome() {
               Open folder…
             </button>
           )}
+          <button
+            type="button"
+            data-testid="import-postman-file"
+            disabled={busy}
+            onClick={() => void importIntoNewProject()}
+            className="inline-flex h-8 items-center gap-2 rounded border border-border px-3 hover:bg-hover disabled:opacity-60"
+          >
+            <FileInput size={16} aria-hidden />
+            Import Postman file…
+          </button>
           {canUseWorkspaces && (
             <button
               type="button"

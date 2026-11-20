@@ -1,0 +1,122 @@
+{
+  "info": {
+    "_postman_id": "bodies",
+    "name": "Bodies",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "id": "raw-json",
+      "name": "Raw JSON",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"a\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/echo"
+      }
+    },
+    {
+      "id": "urlencoded",
+      "name": "URL encoded",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "a",
+              "value": "1",
+              "type": "text"
+            },
+            {
+              "key": "b",
+              "value": "2",
+              "disabled": true
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/echo"
+      }
+    },
+    {
+      "id": "formdata",
+      "name": "Form data",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "name",
+              "value": "Ada",
+              "type": "text"
+            },
+            {
+              "key": "avatar",
+              "type": "file",
+              "src": "/Users/ada/avatar.png"
+            },
+            {
+              "key": "docs",
+              "type": "file",
+              "src": [
+                "fixtures/a.txt",
+                "fixtures/b.txt"
+              ]
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/echo"
+      }
+    },
+    {
+      "id": "binary",
+      "name": "Binary file",
+      "request": {
+        "method": "PUT",
+        "body": {
+          "mode": "file",
+          "file": {
+            "src": "C:\\data\\upload.bin"
+          }
+        },
+        "url": "{{baseUrl}}/upload"
+      }
+    },
+    {
+      "id": "graphql-body",
+      "name": "GraphQL body",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "{ users { id } }",
+            "variables": "{}"
+          }
+        },
+        "url": "{{baseUrl}}/graphql"
+      }
+    },
+    {
+      "id": "disabled-body",
+      "name": "Disabled body",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "x",
+          "disabled": true
+        },
+        "url": "{{baseUrl}}/echo"
+      }
+    }
+  ]
+}

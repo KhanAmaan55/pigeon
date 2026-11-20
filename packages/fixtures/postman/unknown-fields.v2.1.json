@@ -1,0 +1,128 @@
+{
+  "info": {
+    "_postman_id": "unknown",
+    "name": "Unknown fields",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "x-info": {
+      "kept": true
+    },
+    "_exporter_id": "123"
+  },
+  "x-root": [
+    1,
+    2
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "v",
+        "type": "string"
+      }
+    ],
+    "x-auth": "kept"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4010",
+      "type": "string",
+      "x-var": 1
+    }
+  ],
+  "item": [
+    {
+      "id": "f1",
+      "name": "Folder",
+      "x-folder": {
+        "a": 1
+      },
+      "description": {
+        "content": "Folder docs",
+        "type": "text/markdown"
+      },
+      "variable": [
+        {
+          "key": "v",
+          "value": "1"
+        }
+      ],
+      "item": [
+        {
+          "id": "r1",
+          "name": "Request",
+          "x-item": true,
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true,
+            "followRedirects": false,
+            "x-ppb": 1
+          },
+          "variable": [
+            {
+              "key": "itemVar",
+              "value": "x"
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "x-request": "kept",
+            "proxy": {
+              "host": "proxy.local",
+              "port": 8080
+            },
+            "certificate": {
+              "name": "cert"
+            },
+            "header": [
+              {
+                "key": "X",
+                "value": "1",
+                "x-header": true
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/x?q=1#frag",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "x"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "1",
+                  "x-q": 1
+                }
+              ],
+              "hash": "frag"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "x-body": 1
+            }
+          },
+          "response": [
+            {
+              "id": "ur1",
+              "name": "OK",
+              "status": "OK",
+              "code": 200,
+              "header": [],
+              "cookie": [],
+              "body": "ok",
+              "x-example": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

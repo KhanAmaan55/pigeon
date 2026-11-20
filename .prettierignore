@@ -12,3 +12,6 @@ apps/desktop/src-tauri/gen/
 
 # Golden files: bytes are owned by the canonical serializer
 packages/fixtures/projects/
+
+# Imported samples: kept exactly as exported
+packages/fixtures/postman/

@@ -79,7 +79,9 @@ export type EditCommand =
   | { type: 'updateExample'; id: string; patch: ExamplePatch }
   | { type: 'renameExample'; id: string; name: string }
   | { type: 'duplicateExample'; id: string; newId: string }
-  | { type: 'deleteExample'; id: string };
+  | { type: 'deleteExample'; id: string }
+  /** A whole collection from an import (PIGN-028); its file key follows its (editable) name. */
+  | { type: 'importCollection'; collection: Collection; index?: number };
 
 /** An example to create: the command allocates its file key and links it to the request. */
 export type NewExample = Omit<ProjectExample, 'fileKey' | 'requestId'>;
@@ -156,6 +158,17 @@ export function touchedIds(model: ProjectModel, command: EditCommand): string[] 
       return [GLOBALS_ENTITY_ID];
     case 'createExample':
       return [command.requestId];
+    case 'importCollection': {
+      const ids = [command.collection.id];
+      const walk = (items: readonly ProjectItem[]) => {
+        for (const item of items) {
+          ids.push(item.id);
+          if (item.kind === 'folder') walk(item.children);
+        }
+      };
+      walk(command.collection.children);
+      return ids;
+    }
     case 'updateExample':
     case 'renameExample':
     case 'duplicateExample':
@@ -461,6 +474,28 @@ export function applyCommand(
           values: command.values,
         },
       };
+
+    case 'importCollection': {
+      const { collection } = command;
+      const ids = touchedIds(model, command);
+      const taken = ids.find((id) => entityExists(model, id));
+      if (taken) throw new CommandError(`An entity with id "${taken}" already exists`);
+      const imported: Collection = {
+        ...collection,
+        fileKey: allocateSlug(
+          slugify(collection.name, { kind: 'collection', id: collection.id }),
+          new Set(model.collections.map((c) => c.fileKey)),
+        ),
+      };
+      return {
+        ...model,
+        collections: insertAt(
+          model.collections,
+          imported,
+          command.index ?? model.collections.length,
+        ),
+      };
+    }
 
     case 'createExample': {
       if (findExample(model, command.example.id) || entityExists(model, command.example.id)) {

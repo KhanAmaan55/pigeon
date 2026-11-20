@@ -1,0 +1,189 @@
+{
+  "info": {
+    "_postman_id": "auth-types",
+    "name": "Auth types",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "id": "inherit",
+      "name": "Inherit",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/bearer"
+      }
+    },
+    {
+      "id": "noauth",
+      "name": "No auth",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/echo",
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
+      "id": "basic",
+      "name": "Basic",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/basic",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "user",
+              "type": "string"
+            },
+            {
+              "key": "password",
+              "value": "pass",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "apikey",
+      "name": "API key",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/echo",
+        "auth": {
+          "type": "apikey",
+          "apikey": [
+            {
+              "key": "in",
+              "value": "query",
+              "type": "string"
+            },
+            {
+              "key": "key",
+              "value": "api_key",
+              "type": "string"
+            },
+            {
+              "key": "value",
+              "value": "{{apiKey}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "digest",
+      "name": "Digest",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/echo",
+        "auth": {
+          "type": "digest",
+          "digest": [
+            {
+              "key": "username",
+              "value": "ada",
+              "type": "string"
+            },
+            {
+              "key": "algorithm",
+              "value": "MD5",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "oauth2",
+      "name": "OAuth 2.0",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/echo",
+        "auth": {
+          "type": "oauth2",
+          "oauth2": [
+            {
+              "key": "grant_type",
+              "value": "client_credentials",
+              "type": "string"
+            },
+            {
+              "key": "useBrowser",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "awsv4",
+      "name": "AWS",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/echo",
+        "auth": {
+          "type": "awsv4",
+          "awsv4": [
+            {
+              "key": "region",
+              "value": "eu-west-1",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "hawk",
+      "name": "Hawk",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/echo",
+        "auth": {
+          "type": "hawk",
+          "hawk": [
+            {
+              "key": "authId",
+              "value": "id",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ntlm",
+      "name": "NTLM",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/echo",
+        "auth": {
+          "type": "ntlm",
+          "ntlm": [
+            {
+              "key": "username",
+              "value": "u",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

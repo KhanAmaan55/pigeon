@@ -1,0 +1,55 @@
+{
+  "info": {
+    "_postman_id": "legacy",
+    "name": "Legacy v2.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": {
+      "username": "user",
+      "password": "pass",
+      "showPassword": false
+    }
+  },
+  "item": [
+    {
+      "id": "legacy-bearer",
+      "name": "Bearer",
+      "request": {
+        "method": "GET",
+        "header": "Accept: application/json\nX-Legacy: 1",
+        "url": "{{baseUrl}}/auth/bearer",
+        "auth": {
+          "type": "bearer",
+          "bearer": {
+            "token": "{{token}}"
+          }
+        }
+      },
+      "response": [
+        {
+          "id": "legacy-ex",
+          "name": "OK",
+          "status": "OK",
+          "code": 200,
+          "header": "Content-Type: application/json",
+          "body": "{\"ok\":true}",
+          "originalRequest": {
+            "method": "GET",
+            "header": "Accept: application/json",
+            "url": "{{baseUrl}}/auth/bearer"
+          }
+        }
+      ]
+    },
+    {
+      "id": "legacy-inherit",
+      "name": "Inherited basic",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/basic"
+      }
+    }
+  ]
+}

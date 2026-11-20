@@ -4,6 +4,12 @@ export { stringifyCanonical } from './canonical-json';
 export type { CanonicalJsonOptions, KeyOrderPath, KeyOrderSpec } from './canonical-json';
 export { sha256Hex } from './hash';
 export { beautifyJson } from './json-format';
+export type { DetectedFormat } from './detect';
+export { detectFormat } from './detect';
+export type { ImportOptions, ImportReport } from './postman/import';
+export { importPostmanCollection } from './postman/import';
+export { convertCollectionV20 } from './postman/collection-v20';
+export { collectionFromPostman, folderFromPostman } from './postman/collection';
 export { decodeBase64, encodeBase64 } from './base64';
 export {
   EXAMPLE_SUFFIX,

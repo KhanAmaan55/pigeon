@@ -1,0 +1,25 @@
+{
+  "info": {
+    "_postman_id": "graphql",
+    "name": "GraphQL",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "id": "gql",
+      "name": "Users query",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query Users($n: Int) { users(first: $n) { id name } }",
+            "variables": "{\"n\": 2}"
+          }
+        },
+        "url": "{{baseUrl}}/graphql"
+      }
+    }
+  ]
+}

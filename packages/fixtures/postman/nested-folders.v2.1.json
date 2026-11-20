@@ -1,0 +1,152 @@
+{
+  "info": {
+    "_postman_id": "nested",
+    "name": "Nested folders 🐦",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "id": "folder-5-1",
+      "name": "Level 5 — ñame",
+      "item": [
+        {
+          "id": "folder-4-1",
+          "name": "Level 4 — ñame",
+          "item": [
+            {
+              "id": "folder-3-1",
+              "name": "Level 3 — ñame",
+              "item": [
+                {
+                  "id": "folder-2-1",
+                  "name": "Level 2 — ñame",
+                  "item": [
+                    {
+                      "id": "folder-1-1",
+                      "name": "Level 1 — ñame",
+                      "item": [
+                        {
+                          "id": "leaf-1",
+                          "name": "Leaf ü",
+                          "request": {
+                            "method": "GET",
+                            "url": "{{baseUrl}}/leaf"
+                          }
+                        },
+                        {
+                          "id": "dup-a-1-1",
+                          "name": "Same name",
+                          "request": {
+                            "method": "GET",
+                            "url": "{{baseUrl}}/a"
+                          }
+                        },
+                        {
+                          "id": "dup-b-1-1",
+                          "name": "Same name",
+                          "request": {
+                            "method": "GET",
+                            "url": "{{baseUrl}}/b"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "dup-a-2-1",
+                      "name": "Same name",
+                      "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/a"
+                      }
+                    },
+                    {
+                      "id": "dup-b-2-1",
+                      "name": "Same name",
+                      "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/b"
+                      }
+                    }
+                  ],
+                  "auth": {
+                    "type": "noauth"
+                  }
+                },
+                {
+                  "id": "dup-a-3-1",
+                  "name": "Same name",
+                  "request": {
+                    "method": "GET",
+                    "url": "{{baseUrl}}/a"
+                  }
+                },
+                {
+                  "id": "dup-b-3-1",
+                  "name": "Same name",
+                  "request": {
+                    "method": "GET",
+                    "url": "{{baseUrl}}/b"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "dup-a-4-1",
+              "name": "Same name",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/a"
+              }
+            },
+            {
+              "id": "dup-b-4-1",
+              "name": "Same name",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/b"
+              }
+            }
+          ]
+        },
+        {
+          "id": "dup-a-5-1",
+          "name": "Same name",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/a"
+          }
+        },
+        {
+          "id": "dup-b-5-1",
+          "name": "Same name",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/b"
+          }
+        }
+      ]
+    },
+    {
+      "id": "folder-5-1",
+      "name": "Duplicate id folder",
+      "item": [
+        {
+          "id": "leaf-1",
+          "name": "Duplicate id request",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/dup"
+          }
+        }
+      ]
+    },
+    {
+      "id": "Ωmega",
+      "name": "日本語 リクエスト",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/unicode"
+      }
+    }
+  ]
+}

@@ -5,30 +5,24 @@
  * placeholder entity, and never hides the rest of the project. Unmanaged files are ignored.
  */
 
-import { authFromPostman } from '../postman/auth';
 import type { ProjectFileSystem, ProjectPath } from '@pigeon/platform';
 
 import { sha256Hex } from '../hash';
-import {
-  collectionVariableFromPostman,
-  environmentFromPostman,
-  globalsFromPostman,
-} from '../postman/environment';
+import { environmentFromPostman, globalsFromPostman } from '../postman/environment';
 import { EXAMPLE_SUFFIX, exampleBodyFromFile, exampleFromPostman } from '../postman/example';
+import { collectionFromPostman, folderFromPostman } from '../postman/collection';
 import { requestFromPostmanItem } from '../postman/item';
 import {
   asArray,
   asObject,
   asString,
   compareStrings,
-  isDescription,
   isObject,
   nonEmpty,
   without,
 } from '../postman/json';
 import type { JsonObject } from '../postman/json';
 import {
-  COLLECTION_SCHEMA,
   CollectionFileSchema,
   FolderFileSchema,
   ProjectFileSchema,
@@ -181,32 +175,12 @@ async function readCollection(context: ReadContext, fileKey: string): Promise<Co
     };
   }
 
-  const info = asObject(raw['info']);
   const pigeon = asObject(raw['_pigeon']);
-  const extra = without(raw, ['info', 'auth', 'event', 'variable', '_pigeon']);
-  const infoExtra = without(info, ['_postman_id', 'name', 'description', 'version', 'schema']);
-  if (info['schema'] !== undefined && info['schema'] !== COLLECTION_SCHEMA)
-    infoExtra['schema'] = info['schema'];
-  if (!isDescription(info['description']) && info['description'] !== undefined) {
-    infoExtra['description'] = info['description'];
-  }
-  if (nonEmpty(infoExtra)) extra['info'] = infoExtra;
-  const pigeonExtra = without(pigeon, ['order']);
-  if (nonEmpty(pigeonExtra)) extra['_pigeon'] = pigeonExtra;
-
-  return {
-    kind: 'collection',
-    id: asString(info['_postman_id']),
+  return collectionFromPostman(
+    raw,
     fileKey,
-    name: asString(info['name']),
-    ...(isDescription(info['description']) ? { description: info['description'] } : {}),
-    ...(typeof info['version'] === 'string' ? { version: info['version'] } : {}),
-    ...(raw['auth'] === undefined ? {} : { auth: authFromPostman(raw['auth']) }),
-    events: asArray(raw['event']),
-    variables: asArray(raw['variable']).map(collectionVariableFromPostman),
-    children: applyOrder(children, stringArray(pigeon['order']), path, context.problems),
-    extra,
-  };
+    applyOrder(children, stringArray(pigeon['order']), path, context.problems),
+  );
 }
 
 /** Requests (`*.request.json`) and folders (directories with `folder.json`) directly in `directory`. */
@@ -251,24 +225,11 @@ async function readFolder(
   }
 
   const pigeon = asObject(raw['_pigeon']);
-  const extra = without(raw, ['id', 'name', 'description', 'auth', 'event', 'variable', '_pigeon']);
-  if (!isDescription(raw['description']) && raw['description'] !== undefined)
-    extra['description'] = raw['description'];
-  const pigeonExtra = without(pigeon, ['order']);
-  if (nonEmpty(pigeonExtra)) extra['_pigeon'] = pigeonExtra;
-
-  return {
-    kind: 'folder',
-    id: asString(raw['id']),
+  return folderFromPostman(
+    raw,
     fileKey,
-    name: asString(raw['name']),
-    ...(isDescription(raw['description']) ? { description: raw['description'] } : {}),
-    ...(raw['auth'] === undefined ? {} : { auth: authFromPostman(raw['auth']) }),
-    events: asArray(raw['event']),
-    variables: asArray(raw['variable']).map(collectionVariableFromPostman),
-    children: applyOrder(children, stringArray(pigeon['order']), path, context.problems),
-    extra,
-  };
+    applyOrder(children, stringArray(pigeon['order']), path, context.problems),
+  );
 }
 
 async function readRequest(

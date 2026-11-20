@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Database,
   FileArchive,
+  FileInput,
   Folder,
   Library,
   Plus,
@@ -53,6 +54,7 @@ export function Explorer() {
 function ProjectExplorer({ project }: { project: OpenProject }) {
   const { session, store } = project;
   const exportZip = useAppStore((s) => s.exportProjectZip);
+  const pickImportFile = useAppStore((s) => s.pickImportFile);
   const platform = usePlatform();
   const model = useProjectState((s) => s.model, null);
   const problems = useProjectState((s) => s.problems, null);
@@ -279,6 +281,13 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
           data-testid="new-collection"
           disabled={readOnly}
           onClick={() => edit(() => newCollection(session, store))}
+        />
+        <IconButton
+          label="Import Postman collection (Ctrl/⌘ O)"
+          icon={<FileInput size={14} />}
+          data-testid="explorer-import"
+          disabled={readOnly}
+          onClick={() => void pickImportFile()}
         />
         <IconButton
           label="Export project (.zip)"

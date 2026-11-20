@@ -1,6 +1,7 @@
 import type { Platform } from '@pigeon/platform';
 
 import { TooltipProvider } from '../components/Tooltip';
+import { ImportDialog } from '../features/import-export/ImportDialog';
 import { InitProjectDialog } from '../features/projects/InitProjectDialog';
 import type { AppStore } from '../stores/app-store';
 import { AppStoreProvider } from '../stores/AppStoreProvider';
@@ -21,6 +22,7 @@ export function PigeonApp({ platform, appStore }: { platform: Platform; appStore
               <SettingsPersistence />
               <AppShell />
               <InitProjectDialog />
+              <ImportDialog />
             </TooltipProvider>
           </ThemeProvider>
         </PreferencesProvider>

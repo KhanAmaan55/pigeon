@@ -1,0 +1,126 @@
+{
+  "info": {
+    "_postman_id": "echo-basic",
+    "name": "Echo Basic",
+    "description": "Methods, params and headers",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "id": "get-echo",
+      "name": "GET echo",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Disabled",
+            "value": "1",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/echo?page=1&flag",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "echo"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "flag",
+              "value": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "post-echo",
+      "name": "POST echo",
+      "request": {
+        "method": "POST",
+        "header": "Content-Type: text/plain\nX-Trace: abc",
+        "body": {
+          "mode": "raw",
+          "raw": "hello"
+        },
+        "url": "{{baseUrl}}/echo"
+      }
+    },
+    {
+      "id": "custom-method",
+      "name": "PURGE cache",
+      "request": {
+        "method": "PURGE",
+        "url": {
+          "raw": "https://cdn.example.test/cache/:key",
+          "protocol": "https",
+          "host": [
+            "cdn",
+            "example",
+            "test"
+          ],
+          "path": [
+            "cache",
+            ":key"
+          ],
+          "variable": [
+            {
+              "key": "key",
+              "value": "home",
+              "description": "Cache key"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "string-request",
+      "name": "String request",
+      "request": "https://api.example.test/ping"
+    },
+    {
+      "name": "No id request",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/items/1"
+      }
+    },
+    {
+      "id": "mismatch",
+      "name": "Derived parts disagree",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "https://api.example.test/v2/users",
+          "protocol": "https",
+          "host": [
+            "api",
+            "example",
+            "test"
+          ],
+          "path": [
+            "v1",
+            "users"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4010",
+      "type": "string"
+    }
+  ]
+}

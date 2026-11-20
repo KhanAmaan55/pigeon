@@ -572,6 +572,41 @@ test.describe('examples', () => {
   });
 });
 
+test.describe('Postman import', () => {
+  test('drops a collection file on the window, previews and imports it', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Imported API');
+    await page.getByTestId('create-project-submit').click();
+    await expect(page.getByTestId('explorer')).toBeVisible();
+
+    const text = readFileSync(
+      join(import.meta.dirname, '../../packages/fixtures/postman/examples.v2.1.json'),
+      'utf8',
+    );
+    const dataTransfer = await page.evaluateHandle((content) => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([content], 'examples.v2.1.json', { type: 'application/json' }));
+      return transfer;
+    }, text);
+    await page.dispatchEvent('[data-testid="app-shell"]', 'dragover', { dataTransfer });
+    await page.dispatchEvent('[data-testid="app-shell"]', 'drop', { dataTransfer });
+
+    const dialog = page.getByTestId('import-dialog');
+    await expect(dialog.getByTestId('import-format')).toHaveText(
+      'Detected: Postman Collection v2.1',
+    );
+    await expect(dialog.getByTestId('import-count-examples')).toHaveText('5');
+    await dialog.getByTestId('import-write').click();
+    await expect(page.getByTestId('toast')).toContainText('Imported 1 request; wrote');
+    await expect(page.getByTestId('explorer-item').filter({ hasText: 'Examples' })).toBeVisible();
+    await page.getByTestId('explorer-examples-toggle').click();
+    await expect(
+      page.getByTestId('explorer-item').filter({ hasText: '404 Not Found' }),
+    ).toBeVisible();
+  });
+});
+
 test.describe('browser workspaces', () => {
   test('creates a workspace that survives a reload', async ({ page, browserName }) => {
     await gotoApp(page);

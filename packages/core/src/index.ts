@@ -56,6 +56,15 @@ export {
 
 export * from './variables/index';
 export { RequestExecutor } from './execution/executor';
+export type { CollectionImportPlan, ImportPreview } from './import/import-service';
+export {
+  planEntityIds,
+  previewImport,
+  previewImportFile,
+  renamePlan,
+  usedIds,
+} from './import/import-service';
+export type { ImportReport } from '@pigeon/formats';
 export { statusText } from './execution/status';
 export type { ExampleFromResponseOptions } from './examples/save';
 export {
