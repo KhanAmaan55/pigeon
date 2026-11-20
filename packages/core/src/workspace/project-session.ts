@@ -9,7 +9,7 @@ import { createEmptyProject, readProject } from '@pigeon/formats';
 import type { Platform, ProjectFileSystem, ProjectLocation, ProjectPath } from '@pigeon/platform';
 
 import type { EditCommand } from './commands';
-import { applyCommand, findItem, replaceItem, touchedIds } from './commands';
+import { applyCommand, findItem, placementOf, replaceItem, touchedIds } from './commands';
 import type {
   Collection,
   Folder,
@@ -98,8 +98,9 @@ export class ProjectSession {
   /** Applies an in-memory edit; the entity becomes *unsaved*. Throws for read-only projects. */
   apply(command: EditCommand): void {
     if (this.readOnly) throw new Error('This project is read-only.');
+    const touched = touchedIds(this.#working, command);
     this.#working = applyCommand(this.#working, command);
-    for (const id of touchedIds(command)) this.#unsaved.add(id);
+    for (const id of touched) this.#unsaved.add(id);
     this.#emit();
   }
 
@@ -114,10 +115,7 @@ export class ProjectSession {
   /** Drops the in-memory edits of `id`: the entity is back to its file version. */
   discardUnsaved(id: string): void {
     if (!this.#unsaved.delete(id)) return;
-    const base = findItem(this.#read.model, id);
-    this.#working = replaceItem(this.#working, id, (item) =>
-      base && base.kind === item.kind ? keepChildren(base, item) : null,
-    );
+    this.#working = restoreFromBase(this.#working, this.#read.model, id);
     this.#emit();
   }
 
@@ -174,6 +172,58 @@ export class ProjectSession {
   #emit(): void {
     for (const listener of [...this.#listeners]) listener();
   }
+}
+
+/**
+ * `working` with entity `id` back to its file version: an edited entity takes the base fields
+ * (keeping its current children), a created one disappears, a deleted one returns to its old
+ * place when that container still exists.
+ */
+function restoreFromBase(working: ProjectModel, base: ProjectModel, id: string): ProjectModel {
+  const baseCollection = base.collections.find((c) => c.id === id);
+  const workingCollection = working.collections.find((c) => c.id === id);
+  if (baseCollection || workingCollection) {
+    if (!baseCollection)
+      return { ...working, collections: working.collections.filter((c) => c.id !== id) };
+    if (!workingCollection) {
+      const index = base.collections.indexOf(baseCollection);
+      const collections = [...working.collections];
+      collections.splice(Math.min(index, collections.length), 0, baseCollection);
+      return { ...working, collections };
+    }
+    return {
+      ...working,
+      collections: working.collections.map((c) =>
+        c.id === id ? { ...baseCollection, children: c.children } : c,
+      ),
+    };
+  }
+  const baseItem = findItem(base, id);
+  const current = findItem(working, id);
+  if (current) {
+    return replaceItem(working, id, (item) =>
+      baseItem && baseItem.kind === item.kind ? keepChildren(baseItem, item) : null,
+    );
+  }
+  const placement = baseItem ? placementOf(base, id) : undefined;
+  if (!baseItem || !placement?.parentId) return working;
+  const parentId = placement.parentId;
+  const parentCollection = working.collections.find((c) => c.id === parentId);
+  const insert = <T extends { children: ProjectItem[] }>(container: T): T => {
+    const children = [...container.children];
+    children.splice(Math.min(placement.index, children.length), 0, baseItem);
+    return { ...container, children };
+  };
+  if (parentCollection) {
+    return {
+      ...working,
+      collections: working.collections.map((c) => (c === parentCollection ? insert(c) : c)),
+    };
+  }
+  if (findItem(working, parentId)?.kind !== 'folder') return working;
+  return replaceItem(working, parentId, (folder) =>
+    folder.kind === 'folder' ? insert(folder) : folder,
+  );
 }
 
 /** `entity` with the children of `current` (folder edits never carry their children). */

@@ -1,0 +1,10 @@
+{
+  "id": "list-orders",
+  "name": "List orders",
+  "request": {
+    "method": "GET",
+    "url": {
+      "raw": "{{baseUrl}}/orders"
+    }
+  }
+}

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import type { MemoryPlatform } from '@pigeon/platform';
 import { createMemoryPlatform, MemoryFs, MockTransport } from '@pigeon/platform';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -475,5 +475,187 @@ describe('request tabs (PIGN-016)', () => {
     await user.click(screen.getByTestId('send-button'));
     await waitFor(() => expect(transport.requests).toHaveLength(1));
     expect(transport.requests[0]!.body?.kind).toBe('file');
+  });
+});
+
+describe('explorer CRUD (PIGN-017)', () => {
+  async function openFixture() {
+    const { platform, fs } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    return { platform, fs, user };
+  }
+  const row = (name: string) =>
+    screen.getAllByTestId('explorer-item').find((item) => item.textContent?.includes(name))!;
+  const menu = async (name: string, action: string) => {
+    fireEvent.contextMenu(row(name));
+    fireEvent.click(await screen.findByTestId(action));
+  };
+  const renameTo = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+    const input = await screen.findByTestId('explorer-rename-input');
+    await act(async () => input.focus());
+    await user.keyboard('{Control>}a{/Control}');
+    await user.keyboard(`${name}{Enter}`);
+  };
+
+  it('creates collections, folders and requests from the menu and renames inline', async () => {
+    const { user } = await openFixture();
+    await user.click(screen.getByTestId('new-collection'));
+    await renameTo(user, 'Orders');
+    expect(names()).toContain('Orders');
+
+    await menu('Orders', 'menu-new-folder');
+    await renameTo(user, 'Ops');
+    await menu('Ops', 'menu-new-request');
+    // The new request opens pinned with the URL focused.
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('url-input')));
+    expect(tabNames()).toEqual(['New Request']);
+    expect(names().slice(-3)).toEqual(['Orders', 'Ops', 'GETNew Request']);
+    expect(row('New Request').getAttribute('data-unsaved')).toBe('true');
+
+    await act(async () =>
+      row('New Request').closest('[role="tree"]')!.dispatchEvent(new Event('focus')),
+    );
+    await menu('New Request', 'menu-rename');
+    await renameTo(user, 'Create order');
+    expect(names().slice(-1)).toEqual(['GETCreate order']);
+    expect(tabNames()).toEqual(['Create order']);
+  });
+
+  it('creates a request with Cmd/Ctrl+N in the selected container', async () => {
+    const { user } = await openFixture();
+    await user.click(screen.getByText('Billing API')); // selects (and collapses) Billing
+    await user.click(screen.getByText('Billing API'));
+    await user.keyboard('{Meta>}n{/Meta}');
+    await waitFor(() => expect(tabNames()).toEqual(['New Request']));
+    expect(names().slice(-1)).toEqual(['GETNew Request']);
+  });
+
+  it('duplicates and deletes, closing the tabs of deleted requests', async () => {
+    const { user } = await openFixture();
+    await menu('Get invoices', 'menu-duplicate');
+    expect(names()).toContain('GETGet invoices copy');
+
+    await user.click(screen.getByText('Admin'));
+    await user.click(screen.getByText('Nested'));
+    await user.dblClick(screen.getByText('Get audit log'));
+    expect(tabNames()).toEqual(['Get audit log']);
+    await menu('Admin', 'menu-delete');
+    expect((await screen.findByTestId('delete-dialog')).textContent).toContain(
+      'folder and everything in it',
+    );
+    await user.click(screen.getByTestId('delete-confirm'));
+    expect(names()).not.toContain('Admin');
+    expect(tabNames()).toEqual([]);
+  });
+
+  it('moves items by drag and drop and refuses a folder into its own child', async () => {
+    const { user } = await openFixture();
+    await user.click(screen.getByText('Admin'));
+    const transfer = {
+      setData: () => undefined,
+      getData: () => '',
+      effectAllowed: '',
+      dropEffect: '',
+    };
+    const drag = (from: string, to: string) => {
+      fireEvent.dragStart(row(from), { dataTransfer: transfer });
+      fireEvent.dragOver(row(to), { dataTransfer: transfer });
+      fireEvent.drop(row(to), { dataTransfer: transfer });
+      fireEvent.dragEnd(row(from), { dataTransfer: transfer });
+    };
+    // jsdom rows measure 0×0, so a drop lands in the middle: "inside" a folder, "after" a request.
+    drag('Pay invoice', 'Admin');
+    expect(names().slice(2, 7)).toEqual([
+      'Admin',
+      'DELDelete user',
+      'Nested',
+      'POSTPay invoice',
+      'POSTCreate user',
+    ]);
+    drag('Admin', 'Nested');
+    expect(names()[2]).toBe('Admin');
+    expect(names()).toContain('Nested');
+    drag('Create user', 'List users');
+    expect(names().slice(0, 3)).toEqual(['Users API', 'GETList users', 'POSTCreate user']);
+  });
+
+  it('filters by name and URL', async () => {
+    const { user } = await openFixture();
+    await act(async () => screen.getByTestId('explorer-filter').focus());
+    await user.keyboard('audit');
+    expect(names()).toEqual(['Users API', 'Admin', 'Nested', 'GETGet audit log']);
+    await user.keyboard('{Control>}a{/Control}{Backspace}/invoices/:id');
+    expect(names()).toEqual(['Billing API', 'POSTPay invoice']);
+    await user.keyboard('{Escape}');
+    expect(names()).toHaveLength(7);
+  });
+});
+
+describe('drop rules', () => {
+  it('resolves drops into moves and rejects impossible ones', async () => {
+    const { ProjectSession } = await import('@pigeon/core');
+    const { resolveDrop, fuzzyMatch } = await import('../src/features/explorer/actions');
+    const fs = new MemoryFs();
+    await copyInto(fs, fixtureDirectory);
+    const session = await ProjectSession.fromFs(fs);
+    expect(
+      resolveDrop(session, 'admin-folder', {
+        kind: 'folder',
+        id: 'nested-folder',
+        position: 'inside',
+      }),
+    ).toBeNull();
+    expect(
+      resolveDrop(session, 'admin-folder', {
+        kind: 'request',
+        id: 'get-audit',
+        position: 'before',
+      }),
+    ).toBeNull();
+    expect(
+      resolveDrop(session, 'list-users', {
+        kind: 'collection',
+        id: 'billing-collection',
+        position: 'before',
+      }),
+    ).toBeNull();
+    expect(
+      resolveDrop(session, 'list-users', { kind: 'request', id: 'list-users', position: 'after' }),
+    ).toBeNull();
+    expect(
+      resolveDrop(session, 'list-users', {
+        kind: 'request',
+        id: 'pay-invoice',
+        position: 'before',
+      }),
+    ).toEqual({
+      type: 'moveItem',
+      id: 'list-users',
+      parentId: 'billing-collection',
+      index: 1,
+    });
+    expect(
+      resolveDrop(session, 'billing-collection', {
+        kind: 'collection',
+        id: 'users-collection',
+        position: 'before',
+      }),
+    ).toEqual({
+      type: 'moveCollection',
+      id: 'billing-collection',
+      index: 0,
+    });
+    expect(
+      resolveDrop(session, 'billing-collection', {
+        kind: 'folder',
+        id: 'admin-folder',
+        position: 'inside',
+      }),
+    ).toBeNull();
+    expect(fuzzyMatch('List users', 'lsu')).toBe(true);
+    expect(fuzzyMatch('List users', 'xyz')).toBe(false);
   });
 });

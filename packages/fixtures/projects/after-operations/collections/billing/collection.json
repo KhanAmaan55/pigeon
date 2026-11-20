@@ -1,0 +1,14 @@
+{
+  "info": {
+    "_postman_id": "billing-collection",
+    "name": "Billing API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "_pigeon": {
+    "order": [
+      "get-invoices",
+      "pay-invoice",
+      "pay-invoice-copy"
+    ]
+  }
+}

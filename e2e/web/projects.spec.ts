@@ -32,6 +32,12 @@ const FIXTURE_TREE = [
   'POSTPay invoice',
 ];
 
+/** Loads the app and waits for the E2E hooks (installed after a dynamic import). */
+async function gotoApp(page: Page) {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__pigeonTest !== undefined);
+}
+
 async function openFixtureFolder(page: Page, extra: Record<string, string> = {}) {
   const files = { ...fixtureFiles(), ...extra };
   // Point a request at the test server so it can be sent.
@@ -50,7 +56,7 @@ test.describe('project folders (File System Access)', () => {
   test.skip(({ browserName }) => browserName !== 'chromium', 'folder access is Chromium-only');
 
   test('opens a folder, browses the explorer and sends a project request', async ({ page }) => {
-    await page.goto('/');
+    await gotoApp(page);
     await openFixtureFolder(page, { 'collections/billing/broken.request.json': '{ "id": ' });
     const items = page.getByTestId('explorer-item');
     // `broken` is not in `_pigeon.order`: appended alphabetically.
@@ -72,10 +78,11 @@ test.describe('project folders (File System Access)', () => {
   });
 
   test('reconnects to a folder after a reload', async ({ page }) => {
-    await page.goto('/');
+    await gotoApp(page);
     await openFixtureFolder(page);
     await page.evaluate(() => window.__pigeonTest!.simulatePermissionPromptAfterReload());
     await page.reload();
+    await page.waitForFunction(() => window.__pigeonTest !== undefined);
 
     const recent = page.getByTestId('recent-project').filter({ hasText: 'Basic project' });
     await expect(recent).toHaveAttribute('data-status', 'needs-permission');
@@ -84,7 +91,7 @@ test.describe('project folders (File System Access)', () => {
   });
 
   test('initializes an empty folder', async ({ page }) => {
-    await page.goto('/');
+    await gotoApp(page);
     await page.evaluate(() =>
       window.__pigeonTest!.preloadProject({ 'README.md': '# repo' }, 'empty-repo'),
     );
@@ -95,7 +102,7 @@ test.describe('project folders (File System Access)', () => {
   });
 
   test('FsAccessFs passes the filesystem conformance cases on OPFS', async ({ page }) => {
-    await page.goto('/');
+    await gotoApp(page);
     expect(await page.evaluate(() => window.__pigeonTest!.runFsConformance())).toEqual([]);
   });
 });
@@ -104,7 +111,7 @@ test.describe('request tabs', () => {
   test.skip(({ browserName }) => browserName !== 'chromium', 'uses a folder (Chromium-only)');
 
   test('preview, pin, edit, switch and close tabs', async ({ page }) => {
-    await page.goto('/');
+    await gotoApp(page);
     await openFixtureFolder(page);
     const items = page.getByTestId('explorer-item');
     const tabs = page.getByTestId('request-tab-name');
@@ -140,9 +147,52 @@ test.describe('request tabs', () => {
   });
 });
 
+test.describe('explorer CRUD', () => {
+  test('create, rename, move by drag and drop, and delete', async ({ page }) => {
+    // Runs on a browser workspace, so all three browsers cover it.
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('CRUD API');
+    await page.getByTestId('create-project-submit').click();
+    const items = page.getByTestId('explorer-item');
+
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await items.filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-folder').click();
+    await page.getByTestId('explorer-rename-input').fill('Admin');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await items.filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    await expect(page.getByTestId('url-input')).toBeFocused();
+    await page.getByTestId('url-input').fill('{{baseUrl}}/users');
+    await expect(items).toHaveText(['Users', 'Admin', 'GETNew Request']);
+
+    // Rename with F2 from the keyboard.
+    await items.filter({ hasText: 'New Request' }).click();
+    await page.getByRole('tree').press('F2');
+    await page.getByTestId('explorer-rename-input').fill('List users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await expect(page.getByTestId('request-tab-name')).toHaveText(['List users']);
+
+    // Drag the request into the folder.
+    await items.filter({ hasText: 'List users' }).dragTo(items.filter({ hasText: 'Admin' }));
+    await expect(items).toHaveText(['Users', 'Admin', 'GETList users']);
+    await expect(items.filter({ hasText: 'List users' })).toHaveAttribute('aria-level', '3');
+
+    // Delete the folder: its request's tab closes.
+    await items.filter({ hasText: 'Admin' }).click({ button: 'right' });
+    await page.getByTestId('menu-delete').click();
+    await page.getByTestId('delete-confirm').click();
+    await expect(items).toHaveText(['Users']);
+    await expect(page.getByTestId('request-tab-name')).toHaveCount(0);
+  });
+});
+
 test.describe('browser workspaces', () => {
   test('creates a workspace that survives a reload', async ({ page, browserName }) => {
-    await page.goto('/');
+    await gotoApp(page);
     // Folder buttons only where the browser can open folders.
     await expect(page.getByTestId('open-folder')).toHaveCount(browserName === 'chromium' ? 1 : 0);
     await page.getByTestId('new-browser-workspace').click();
@@ -161,7 +211,7 @@ test.describe('browser workspaces', () => {
   test('export zip → import zip gives identical files', async ({ page, browserName }) => {
     // Chromium saves through the native save picker, which can't be automated.
     test.skip(browserName === 'chromium', 'save picker');
-    await page.goto('/');
+    await gotoApp(page);
     await page.getByTestId('new-browser-workspace').click();
     await page.getByTestId('create-project-name').fill('Zip API');
     await page.getByTestId('create-project-submit').click();

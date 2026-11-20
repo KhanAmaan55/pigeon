@@ -1,0 +1,29 @@
+{
+  "id": "pay-invoice-copy",
+  "name": "Pay invoice copy",
+  "request": {
+    "method": "POST",
+    "body": {
+      "mode": "file",
+      "file": {
+        "src": "receipts/invoice.pdf"
+      }
+    },
+    "url": {
+      "raw": "https://billing.example.test/invoices/:id/pay",
+      "variable": [
+        {
+          "key": "id",
+          "value": "inv_1",
+          "description": "Invoice id"
+        }
+      ]
+    }
+  },
+  "protocolProfileBehavior": {
+    "followRedirects": false,
+    "maxRedirects": 3,
+    "strictSSL": false,
+    "disableBodyPruning": true
+  }
+}

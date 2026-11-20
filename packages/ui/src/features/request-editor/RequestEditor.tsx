@@ -1,11 +1,12 @@
 import { Send, X } from 'lucide-react';
 import { Tabs } from 'radix-ui';
 import type { KeyboardEvent, ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { hasBody } from '@pigeon/core';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import { takeUrlFocus } from '../explorer/actions';
 import { BodyTab } from './BodyTab';
 import { HeadersTab } from './HeadersTab';
 import { methodColorClass } from './methods';
@@ -30,9 +31,18 @@ export function RequestEditor() {
   const headerCount = useScratchRequest(
     (s) => s.request.headers.filter((h) => !h.disabled && h.key.trim() !== '').length,
   );
+  const requestId = useScratchRequest((s) => s.request.id);
+  const urlRef = useRef<HTMLInputElement>(null);
   const send = useScratchRequest((s) => s.send);
   const cancel = useScratchRequest((s) => s.cancel);
   const shortcut = usePlatform().os === 'macos' ? '⌘↵' : 'Ctrl+Enter';
+
+  // A request just created with "New request" starts with the URL focused.
+  // After the current event settles: a closing menu or dialog may still move focus.
+  useEffect(() => {
+    // Not cancelled on cleanup: StrictMode's second effect run would no longer see the request.
+    if (takeUrlFocus(requestId)) setTimeout(() => urlRef.current?.focus(), 0);
+  }, [requestId]);
 
   // Esc cancels the in-flight request, unless something else (a menu, a dialog) handled it.
   useEffect(() => {
@@ -81,6 +91,7 @@ export function RequestEditor() {
           ))}
         </select>
         <input
+          ref={urlRef}
           aria-label="URL"
           data-testid="url-input"
           value={url}

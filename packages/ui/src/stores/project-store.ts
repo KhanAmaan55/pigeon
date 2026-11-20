@@ -25,6 +25,13 @@ export interface ProjectState {
   selectedId: string | null;
   tabs: readonly TabRef[];
   activeTabId: string | null;
+  /** Entity being renamed inline in the explorer. */
+  renamingId: string | null;
+  /** Explorer filter text. */
+  filter: string;
+  startRename: (id: string) => void;
+  cancelRename: () => void;
+  setFilter: (filter: string) => void;
   toggle: (id: string) => void;
   setExpanded: (id: string, expanded: boolean) => void;
   select: (id: string | null) => void;
@@ -57,6 +64,11 @@ export function createProjectStore(session: ProjectSession) {
     selectedId: null,
     tabs: [],
     activeTabId: null,
+    renamingId: null,
+    filter: '',
+    startRename: (renamingId) => set({ renamingId }),
+    cancelRename: () => set({ renamingId: null }),
+    setFilter: (filter) => set({ filter }),
     toggle: (id) => get().setExpanded(id, !get().expanded[id]),
     setExpanded: (id, expanded) => {
       const next = { ...get().expanded };

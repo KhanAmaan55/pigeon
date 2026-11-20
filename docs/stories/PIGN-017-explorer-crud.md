@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-017 | 2 — Projects | MVP | Todo | PIGN-016 |
+| PIGN-017 | 2 — Projects | MVP | Done | PIGN-016 |
 
 ## Goal
 Create, rename, duplicate, delete, move, and reorder collections, folders, and requests in the explorer (in-memory edits through ProjectSession).
@@ -27,12 +27,12 @@ As a developer, I want to organize my API into collections and folders with drag
 - Persisting (PIGN-018), writing files (PIGN-019), cross-project moves.
 
 ## Acceptance criteria
-- [ ] All commands work via UI and keyboard, with undo not required.
-- [ ] Renaming "Get User" to "Get user by id" updates the entity's future `fileKey` to `get-user-by-id` (visible in a debug tooltip or verified by serialize test).
-- [ ] Moving a request into a folder with a same-slug item allocates `-2`.
-- [ ] Dropping a folder into its child is rejected.
-- [ ] Deleting a folder closes its open tabs (prompt if unsaved).
-- [ ] `serializeProject(workingModel)` after a sequence of operations matches an expected golden.
+- [x] All commands work via UI and keyboard, with undo not required.
+- [x] Renaming "Get User" to "Get user by id" updates the entity's future `fileKey` to `get-user-by-id` (visible in a debug tooltip or verified by serialize test).
+- [x] Moving a request into a folder with a same-slug item allocates `-2`.
+- [x] Dropping a folder into its child is rejected.
+- [x] Deleting a folder closes its open tabs (prompt if unsaved).
+- [x] `serializeProject(workingModel)` after a sequence of operations matches an expected golden.
 
 ## Technical notes
 - Keep commands pure functions `(model, cmd) → model` in `core/workspace/commands.ts`; ProjectSession just applies them.
@@ -48,3 +48,11 @@ As a developer, I want to organize my API into collections and folders with drag
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+- Commands in `core/workspace/commands.ts`: `createCollection`, `createFolder`, `createRequest`, `renameItem` (collections too), `duplicateItem` (deep copy, new ids from a `CommandContext`, "… copy" after the original), `deleteItem` (collections, folders recursively), `moveItem`, `moveCollection` (instead of a whole-order `reorderCollections`). New/renamed entities get `slugify` + `allocateSlug` against their siblings; moves keep the slug unless it collides. Commands carry their own ids so they stay pure; `touchedIds(model, command)` names the entity and every container whose order changes (all count as unsaved). `CommandError` for invalid commands (moving a folder into itself/descendants, broken containers, unknown ids).
+- `ProjectSession.discardUnsaved` now also restores deleted entities (at their file position, if the container still exists) and drops created ones.
+- Golden: `packages/fixtures/projects/after-operations` = `serializeProject` after a fixed sequence of commands (`UPDATE_GOLDEN=1 pnpm vitest run packages/core/test/commands.test.ts`).
+- Explorer: Radix context menu (New request / New folder / Rename / Duplicate / Delete), inline rename (F2, Enter commits, Esc cancels, blur commits), confirm dialog for deletes (mentions unsaved open requests, which are discarded and their tabs closed), keyboard (arrows, Enter opens pinned, F2, Del / Cmd·Ctrl+Backspace, Cmd·Ctrl+D, Cmd·Ctrl+F focuses the filter), Cmd·Ctrl+N (also Alt+N) for a new request in the selected container (pinned tab, URL focused), "+" for a new collection, a fuzzy filter on name + URL (ancestors of matches expanded), unsaved entities in italics with a dot.
+- Drag and drop uses native HTML5 DnD on the virtualized rows (no `@dnd-kit`): top/bottom quarter = before/after, middle = inside for containers; requests split in halves; collections only reorder among collections. `resolveDrop` in `features/explorer/actions.ts` decides, and refuses drops into the dragged folder or its descendants.
+- E2E hooks are installed after a dynamic import, so specs wait for `window.__pigeonTest` (`gotoApp`).

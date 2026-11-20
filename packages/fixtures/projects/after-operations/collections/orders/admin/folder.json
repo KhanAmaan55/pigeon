@@ -1,0 +1,9 @@
+{
+  "id": "orders-admin",
+  "name": "Admin",
+  "_pigeon": {
+    "order": [
+      "delete-user"
+    ]
+  }
+}

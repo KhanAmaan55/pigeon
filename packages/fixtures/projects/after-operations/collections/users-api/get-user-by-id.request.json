@@ -1,0 +1,51 @@
+{
+  "id": "list-users",
+  "name": "Get user by id",
+  "request": {
+    "method": "GET",
+    "header": [
+      {
+        "key": "Accept",
+        "value": "application/json",
+        "x-header": "kept"
+      }
+    ],
+    "body": {
+      "mode": "raw",
+      "raw": "{\"active\":true}",
+      "options": {
+        "raw": {
+          "language": "json"
+        }
+      },
+      "x-body": "kept"
+    },
+    "url": {
+      "raw": "{{baseUrl}}/users?limit=20",
+      "query": [
+        {
+          "key": "limit",
+          "value": "20"
+        }
+      ],
+      "x-url": "kept"
+    },
+    "description": "List all users",
+    "x-request": "kept"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "pm.variables.set('run', 'yes');"
+        ]
+      }
+    }
+  ],
+  "protocolProfileBehavior": {
+    "followRedirects": true,
+    "x-profile": "kept"
+  },
+  "x-item": "kept"
+}

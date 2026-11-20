@@ -1,0 +1,42 @@
+{
+  "id": "create-user",
+  "name": "Create user",
+  "request": {
+    "method": "POST",
+    "header": [
+      {
+        "key": "X-Unicode",
+        "value": "ユーザー ✓"
+      }
+    ],
+    "body": {
+      "mode": "formdata",
+      "formdata": [
+        {
+          "key": "name",
+          "value": "Ada",
+          "type": "text"
+        },
+        {
+          "key": "avatar",
+          "value": "",
+          "type": "file",
+          "contentType": "image/png",
+          "src": "fixtures/avatar.png"
+        },
+        {
+          "key": "docs",
+          "value": "",
+          "type": "file",
+          "src": [
+            "a.txt",
+            "b.txt"
+          ]
+        }
+      ]
+    },
+    "url": {
+      "raw": "{{baseUrl}}/users"
+    }
+  }
+}

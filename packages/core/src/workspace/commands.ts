@@ -1,10 +1,22 @@
 /**
  * Edit commands (docs/architecture.md §3.2): pure `(model, command) → model` functions with
- * structural sharing, so only the edited entity and its ancestors get new objects (React
+ * structural sharing, so only the edited entities and their ancestors get new objects (React
  * re-renders just what changed). `ProjectSession.apply` runs them.
+ *
+ * Structural commands (PIGN-017) keep file keys valid: new and renamed entities get a slug from
+ * their name (docs/file-format.md §4), and any collision within a directory (requests and
+ * folders share one namespace) gets `-2`, `-3`, …
  */
 
-import type { Collection, ProjectItem, ProjectModel, ProjectRequest } from '../model/project';
+import { allocateSlug, slugify } from '@pigeon/formats';
+
+import type {
+  Collection,
+  Folder,
+  ProjectItem,
+  ProjectModel,
+  ProjectRequest,
+} from '../model/project';
 
 /** Fields of a request the editor changes; `kind`, `id` and `fileKey` are not editable here. */
 export type RequestPatch = Partial<
@@ -23,25 +35,262 @@ export type RequestPatch = Partial<
   >
 >;
 
-export type EditCommand = { type: 'updateRequest'; id: string; patch: RequestPatch };
+export type EditCommand =
+  | { type: 'updateRequest'; id: string; patch: RequestPatch }
+  | { type: 'createCollection'; id: string; name: string; index?: number }
+  | { type: 'createFolder'; id: string; parentId: string; name: string; index?: number }
+  | {
+      type: 'createRequest';
+      id: string;
+      parentId: string;
+      name: string;
+      index?: number;
+      /** Initial content; defaults to an empty GET. */
+      request?: Partial<Omit<ProjectRequest, 'kind' | 'id' | 'fileKey' | 'name'>>;
+    }
+  | { type: 'renameItem'; id: string; name: string }
+  | { type: 'duplicateItem'; id: string; newId: string }
+  | { type: 'deleteItem'; id: string }
+  | { type: 'moveItem'; id: string; parentId: string; index: number }
+  | { type: 'moveCollection'; id: string; index: number };
 
-/** The ids of the entities a command changes. */
-export function touchedIds(command: EditCommand): string[] {
-  return [command.id];
+/** Context for commands that need fresh ids beyond the ones they carry (duplicates). */
+export interface CommandContext {
+  newId: () => string;
 }
 
-export function applyCommand(model: ProjectModel, command: EditCommand): ProjectModel {
+const defaultContext: CommandContext = { newId: () => crypto.randomUUID() };
+
+/** Where an entity sits: its container (`null` for collections) and index. */
+export interface Placement {
+  parentId: string | null;
+  index: number;
+}
+
+export class CommandError extends Error {
+  override readonly name = 'CommandError';
+}
+
+/**
+ * Ids of the entities whose files a command changes: the entity itself and every container whose
+ * child order changes. Used for unsaved tracking and, later, drafts.
+ */
+export function touchedIds(model: ProjectModel, command: EditCommand): string[] {
   switch (command.type) {
     case 'updateRequest':
-      return replaceItem(model, command.id, (item) => {
-        if (item.kind !== 'request') throw new Error(`"${command.id}" is not a request`);
-        if (item.broken) throw new Error(`"${item.name}" could not be loaded and is read-only`);
-        return { ...item, ...command.patch };
-      });
+    case 'renameItem':
+      return [command.id];
+    case 'createCollection':
+      return [command.id];
+    case 'createFolder':
+    case 'createRequest':
+      return [command.id, command.parentId];
+    case 'duplicateItem': {
+      const parent = placementOf(model, command.id)?.parentId;
+      return [command.newId, ...(parent ? [parent] : [])];
+    }
+    case 'deleteItem': {
+      const parent = placementOf(model, command.id)?.parentId;
+      return [command.id, ...(parent ? [parent] : [])];
+    }
+    case 'moveItem': {
+      const parent = placementOf(model, command.id)?.parentId;
+      return [
+        command.id,
+        command.parentId,
+        ...(parent && parent !== command.parentId ? [parent] : []),
+      ];
+    }
+    case 'moveCollection':
+      return [command.id];
   }
 }
 
-/** Finds an item anywhere in the model. */
+export function applyCommand(
+  model: ProjectModel,
+  command: EditCommand,
+  context: CommandContext = defaultContext,
+): ProjectModel {
+  switch (command.type) {
+    case 'updateRequest':
+      return replaceItem(model, command.id, (item) => {
+        if (item.kind !== 'request') throw new CommandError(`"${command.id}" is not a request`);
+        assertEditable(item);
+        return { ...item, ...command.patch };
+      });
+
+    case 'createCollection': {
+      assertNewId(model, command.id);
+      const collection: Collection = {
+        kind: 'collection',
+        id: command.id,
+        fileKey: allocateSlug(
+          slugify(command.name, { kind: 'collection', id: command.id }),
+          new Set(model.collections.map((c) => c.fileKey)),
+        ),
+        name: command.name,
+        events: [],
+        variables: [],
+        children: [],
+        extra: {},
+      };
+      return { ...model, collections: insertAt(model.collections, collection, command.index) };
+    }
+
+    case 'createFolder':
+    case 'createRequest': {
+      assertNewId(model, command.id);
+      const kind = command.type === 'createFolder' ? 'folder' : 'request';
+      return updateContainer(model, command.parentId, (container) => {
+        const fileKey = allocateSlug(
+          slugify(command.name, { kind, id: command.id }),
+          siblingKeys(container.children),
+        );
+        const item: ProjectItem =
+          command.type === 'createFolder'
+            ? {
+                kind: 'folder',
+                id: command.id,
+                fileKey,
+                name: command.name,
+                events: [],
+                variables: [],
+                children: [],
+                extra: {},
+              }
+            : {
+                kind: 'request',
+                method: 'GET',
+                url: { raw: '', query: [], pathVariables: [], extra: {} },
+                headers: [],
+                body: { mode: 'none' },
+                events: [],
+                settings: {},
+                extra: {},
+                ...command.request,
+                id: command.id,
+                fileKey,
+                name: command.name,
+              };
+        return { ...container, children: insertAt(container.children, item, command.index) };
+      });
+    }
+
+    case 'renameItem': {
+      const name = command.name.trim();
+      if (name === '') throw new CommandError('A name cannot be empty.');
+      const collectionIndex = model.collections.findIndex((c) => c.id === command.id);
+      if (collectionIndex !== -1) {
+        const collection = model.collections[collectionIndex]!;
+        assertEditable(collection);
+        const taken = new Set(
+          model.collections.filter((c) => c.id !== command.id).map((c) => c.fileKey),
+        );
+        const renamed = {
+          ...collection,
+          name,
+          fileKey: allocateSlug(slugify(name, { kind: 'collection', id: collection.id }), taken),
+        };
+        return {
+          ...model,
+          collections: model.collections.map((c, i) => (i === collectionIndex ? renamed : c)),
+        };
+      }
+      const placement = requirePlacement(model, command.id);
+      return updateContainer(model, placement.parentId!, (container) => ({
+        ...container,
+        children: container.children.map((child) => {
+          if (child.id !== command.id) return child;
+          assertEditable(child);
+          const taken = siblingKeys(container.children.filter((c) => c.id !== command.id));
+          return {
+            ...child,
+            name,
+            fileKey: allocateSlug(slugify(name, { kind: child.kind, id: child.id }), taken),
+          };
+        }),
+      }));
+    }
+
+    case 'duplicateItem': {
+      assertNewId(model, command.newId);
+      const collection = model.collections.find((c) => c.id === command.id);
+      if (collection) {
+        const copy: Collection = {
+          ...structuredClone(collection),
+          id: command.newId,
+          name: `${collection.name} copy`,
+          children: collection.children.map((child) => cloneWithNewIds(child, context)),
+        };
+        copy.fileKey = allocateSlug(
+          slugify(copy.name, { kind: 'collection', id: copy.id }),
+          new Set(model.collections.map((c) => c.fileKey)),
+        );
+        const index = model.collections.indexOf(collection);
+        return { ...model, collections: insertAt(model.collections, copy, index + 1) };
+      }
+      const placement = requirePlacement(model, command.id);
+      return updateContainer(model, placement.parentId!, (container) => {
+        const original = container.children[placement.index]!;
+        assertEditable(original);
+        const copy = {
+          ...cloneWithNewIds(original, context),
+          id: command.newId,
+          name: `${original.name} copy`,
+        };
+        copy.fileKey = allocateSlug(
+          slugify(copy.name, { kind: copy.kind, id: copy.id }),
+          siblingKeys(container.children),
+        );
+        return { ...container, children: insertAt(container.children, copy, placement.index + 1) };
+      });
+    }
+
+    case 'deleteItem': {
+      if (model.collections.some((c) => c.id === command.id)) {
+        return { ...model, collections: model.collections.filter((c) => c.id !== command.id) };
+      }
+      return replaceItem(model, command.id, () => null);
+    }
+
+    case 'moveItem': {
+      const placement = requirePlacement(model, command.id);
+      if (placement.parentId === null)
+        throw new CommandError('Collections are reordered with moveCollection.');
+      const item = findItem(model, command.id)!;
+      if (isSameOrDescendant(model, command.parentId, command.id)) {
+        throw new CommandError('A folder cannot be moved into itself or one of its folders.');
+      }
+      const target = findContainer(model, command.parentId);
+      if (!target) throw new CommandError(`No collection or folder with id "${command.parentId}"`);
+      assertEditable(target);
+      // Same container: adjust the index for the removal before re-inserting.
+      const sameParent = placement.parentId === command.parentId;
+      const index =
+        sameParent && placement.index < command.index ? command.index - 1 : command.index;
+      const without = replaceItem(model, command.id, () => null);
+      return updateContainer(without, command.parentId, (container) => {
+        const taken = siblingKeys(container.children);
+        const fileKey = taken.has(item.fileKey) ? allocateSlug(item.fileKey, taken) : item.fileKey;
+        const moved = fileKey === item.fileKey ? item : { ...item, fileKey };
+        return { ...container, children: insertAt(container.children, moved, index) };
+      });
+    }
+
+    case 'moveCollection': {
+      const index = model.collections.findIndex((c) => c.id === command.id);
+      if (index === -1) throw new CommandError(`No collection with id "${command.id}"`);
+      const collection = model.collections[index]!;
+      const rest = model.collections.filter((c) => c.id !== command.id);
+      const target = index < command.index ? command.index - 1 : command.index;
+      return { ...model, collections: insertAt(rest, collection, target) };
+    }
+  }
+}
+
+// --- Lookups ---------------------------------------------------------------------------------------
+
+/** Finds an item (folder or request) anywhere in the model. */
 export function findItem(model: ProjectModel, id: string): ProjectItem | undefined {
   const search = (items: readonly ProjectItem[]): ProjectItem | undefined => {
     for (const item of items) {
@@ -58,6 +307,45 @@ export function findItem(model: ProjectModel, id: string): ProjectItem | undefin
     if (found) return found;
   }
   return undefined;
+}
+
+/** A collection or folder by id. */
+export function findContainer(model: ProjectModel, id: string): Collection | Folder | undefined {
+  const collection = model.collections.find((c) => c.id === id);
+  if (collection) return collection;
+  const item = findItem(model, id);
+  return item?.kind === 'folder' ? item : undefined;
+}
+
+/** Where an entity sits, or `undefined` when it doesn't exist. */
+export function placementOf(model: ProjectModel, id: string): Placement | undefined {
+  const collectionIndex = model.collections.findIndex((c) => c.id === id);
+  if (collectionIndex !== -1) return { parentId: null, index: collectionIndex };
+  const search = (container: Collection | Folder): Placement | undefined => {
+    for (const [index, child] of container.children.entries()) {
+      if (child.id === id) return { parentId: container.id, index };
+      if (child.kind === 'folder') {
+        const found = search(child);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+  for (const collection of model.collections) {
+    const found = search(collection);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** True when `id` is `ancestorId` or lies below it. */
+export function isSameOrDescendant(model: ProjectModel, id: string, ancestorId: string): boolean {
+  if (id === ancestorId) return true;
+  const container = findContainer(model, ancestorId);
+  if (!container) return false;
+  const search = (items: readonly ProjectItem[]): boolean =>
+    items.some((item) => item.id === id || (item.kind === 'folder' && search(item.children)));
+  return search(container.children);
 }
 
 /**
@@ -95,6 +383,65 @@ export function replaceItem(
     if (next !== collection) collectionsChanged = true;
     return next;
   });
-  if (!found) throw new Error(`No item with id "${id}"`);
+  if (!found) throw new CommandError(`No item with id "${id}"`);
   return collectionsChanged ? { ...model, collections } : model;
+}
+
+// --- Helpers -----------------------------------------------------------------------------------------
+
+function updateContainer(
+  model: ProjectModel,
+  containerId: string,
+  update: (container: Collection | Folder) => Collection | Folder,
+): ProjectModel {
+  const collectionIndex = model.collections.findIndex((c) => c.id === containerId);
+  if (collectionIndex !== -1) {
+    const collection = model.collections[collectionIndex]!;
+    assertEditable(collection);
+    const next = update(collection) as Collection;
+    return {
+      ...model,
+      collections: model.collections.map((c, i) => (i === collectionIndex ? next : c)),
+    };
+  }
+  const folder = findItem(model, containerId);
+  if (folder?.kind !== 'folder')
+    throw new CommandError(`No collection or folder with id "${containerId}"`);
+  assertEditable(folder);
+  return replaceItem(model, containerId, (item) => update(item as Folder) as Folder);
+}
+
+function siblingKeys(children: readonly ProjectItem[]): Set<string> {
+  return new Set(children.map((child) => child.fileKey));
+}
+
+function insertAt<T>(list: readonly T[], item: T, index?: number): T[] {
+  const at = index === undefined ? list.length : Math.max(0, Math.min(list.length, index));
+  return [...list.slice(0, at), item, ...list.slice(at)];
+}
+
+function cloneWithNewIds(item: ProjectItem, context: CommandContext): ProjectItem {
+  const copy = structuredClone(item);
+  const renew = (entity: ProjectItem): ProjectItem =>
+    entity.kind === 'folder'
+      ? { ...entity, id: context.newId(), children: entity.children.map(renew) }
+      : { ...entity, id: context.newId() };
+  return renew(copy);
+}
+
+function assertEditable(entity: { broken?: true; name: string }): void {
+  if (entity.broken)
+    throw new CommandError(`"${entity.name}" could not be loaded and is read-only`);
+}
+
+function assertNewId(model: ProjectModel, id: string): void {
+  if (model.collections.some((c) => c.id === id) || findItem(model, id)) {
+    throw new CommandError(`An entity with id "${id}" already exists`);
+  }
+}
+
+function requirePlacement(model: ProjectModel, id: string): Placement {
+  const placement = placementOf(model, id);
+  if (!placement) throw new CommandError(`No item with id "${id}"`);
+  return placement;
 }

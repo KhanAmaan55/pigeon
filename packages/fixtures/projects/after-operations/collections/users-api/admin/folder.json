@@ -1,0 +1,9 @@
+{
+  "id": "admin-folder",
+  "name": "Admin",
+  "description": "Admin actions",
+  "x-folder": "kept",
+  "_pigeon": {
+    "x-pigeon": "kept"
+  }
+}
