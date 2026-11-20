@@ -1,6 +1,6 @@
 {
   "name": "@pigeon/web",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Pigeon web app: static SPA wiring @pigeon/ui to browser platform adapters.",
   "type": "module",

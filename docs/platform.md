@@ -164,15 +164,15 @@ All three OSes use the same `platform-desktop` package and the same Rust code:
 
 ### 5.2 macOS
 - WebView: WKWebView (WebKit). UI must be tested in WebKit (Playwright WebKit covers most rendering issues).
-- Keyboard: `Cmd` modifier; native app menu (Pigeon / File / Edit / View / Window / Help) with standard Edit items so copy/paste works.
-- Packaging: `.app` + `.dmg`, universal binary (arm64 + x86_64). Signing + notarization required for frictionless distribution (D-11).
+- Keyboard: `Cmd` modifier; native app menu (Pigeon / File / Edit / View / Window / Help) with standard Edit items so copy/paste works (`src-tauri/src/menu.rs`).
+- Packaging: `.app` + `.dmg`, universal binary (arm64 + x86_64), macOS 11+. Signing + notarization when the release secrets are set, unsigned otherwise (D-11; [release-checklist.md](release-checklist.md)).
 - App data: `~/Library/Application Support/<app-id>/`.
 - Filesystem: APFS is case-insensitive by default → slug rules produce lowercase names only.
 
 ### 5.3 Windows
 - WebView: WebView2 (Chromium). Installer must bootstrap WebView2 if missing (Tauri `webviewInstallMode`).
-- Keyboard: `Ctrl`; menu in-window (or none) — shortcuts must not depend on a native menu.
-- Packaging: NSIS `.exe` and/or `.msi`. Authenticode signing (D-11) avoids SmartScreen warnings.
+- Keyboard: `Ctrl`; an in-window menu bar with File / View / Help (no Edit menu: the webview handles editing keys) — shortcuts never depend on it. Menu commands reach the UI as `pigeon:menu` events → `pigeon:command` DOM events (`ui/src/app/commands.ts`); zoom (`CmdOrCtrl+= / - / 0`) is handled in Rust.
+- Packaging: NSIS `-setup.exe` (per-user install, WebView2 download bootstrapper) and `.msi`. Authenticode signing when the release secrets are set (D-11) avoids SmartScreen warnings.
 - App data: `%APPDATA%\<app-id>\`.
 - Filesystem: paths converted from POSIX to `\` only inside `platform-desktop`; reserved names (`CON`, `NUL`, `COM1`…) and trailing dots/spaces avoided by slug rules; MAX_PATH (260) — warn when project root + longest managed path > 240 chars (the write is still attempted); rename-over-existing is supported by Rust `std::fs::rename` (cargo-tested). Files may be locked by other processes (editors, antivirus) → writes, renames and removes retry up to 3 times with backoff (50/100/150 ms; Rust `with_retry`, NodeFs `withRetry`), then Save for Commit reports the file and goes on with the others.
 - Line endings: Pigeon always writes LF; project `.gitattributes` (`* text=auto eol=lf` for managed paths) prevents `core.autocrlf` churn.
@@ -180,10 +180,15 @@ All three OSes use the same `platform-desktop` package and the same Rust code:
 ### 5.4 Linux
 - WebView: WebKitGTK (4.1). Rendering/perf differ from Chromium — keep animations cheap; test in Playwright WebKit and on a real Linux CI runner.
 - Keyboard: `Ctrl`.
-- Packaging: AppImage and `.deb` (rpm optional).
+- Packaging: AppImage (needs FUSE 2 on some distributions, or `--appimage-extract-and-run`) and `.deb`.
 - App data: `$XDG_DATA_HOME/<app-id>/` (usually `~/.local/share/`).
 - Filesystem: case-sensitive; inotify watch limits — on watch failure fall back to "refresh on window focus" and show a status-bar notice.
 - Secrets (PIGN-053): Secret Service (GNOME Keyring/KWallet); fall back to local-state backend when unavailable.
+
+### 5.4.1 Versions, windows and releases (PIGN-041)
+- One version: the root `package.json` (`pnpm version:sync` copies it to the crate, the packages and `PIGEON_VERSION`/`User-Agent`; Tauri reads it via `tauri.conf.json` `"version": "../../../package.json"`).
+- The main window's size, position and maximized state are saved on close to `<app-data>/window-state.json` and restored at start (a position no longer on any monitor is ignored).
+- Releases: `.github/workflows/release.yml` on `v*` tags builds and smoke-tests all installers and drafts a GitHub release with `SHA256SUMS`; steps and manual checks in [release-checklist.md](release-checklist.md).
 
 ### 5.5 Offline
 Desktop works fully offline: no sign-in, no remote config, fonts and assets bundled, no update checks unless enabled by the user (later). Only user-initiated requests touch the network.

@@ -23,6 +23,7 @@ import { RunDialog, RunnerView } from '../features/runner/Runner';
 import { RUNNER_TAB_ID } from '../features/runner/tab';
 import type { OpenProject } from '../stores/app-store';
 import { useAppStore, useProjectState } from '../stores/AppStoreProvider';
+import { TOGGLE_DOCK_EVENT } from './commands';
 import { usePlatform } from './PlatformProvider';
 
 /** Cmd/Ctrl+Alt+L (docs/ui-ux.md §4). `code`, since Alt changes `key` on macOS (`¬`). */
@@ -56,7 +57,11 @@ export function MainArea() {
       toggleDock();
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener(TOGGLE_DOCK_EVENT, toggleDock);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener(TOGGLE_DOCK_EVENT, toggleDock);
+    };
   });
 
   const split = <EditorSplit dock={dock} onToggleDock={toggleDock} />;

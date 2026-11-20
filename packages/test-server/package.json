@@ -1,6 +1,6 @@
 {
   "name": "@pigeon/test-server",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Deterministic local HTTP server for unit, integration, E2E and Rust tests.",
   "type": "module",

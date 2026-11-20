@@ -4,7 +4,9 @@ import { Group, Panel } from 'react-resizable-panels';
 
 import { ResizeHandle } from '../components/ResizeHandle';
 import { Toast } from '../components/Toast';
-import { useAppStore } from '../stores/AppStoreProvider';
+import { useAppStore, useAppStoreApi } from '../stores/AppStoreProvider';
+import { newRequest } from '../features/explorer/actions';
+import { COMMAND_EVENT, TOGGLE_DOCK_EVENT } from './commands';
 import { ActivityBar } from './ActivityBar';
 import { MainArea } from './MainArea';
 import { Sidebar } from './Sidebar';
@@ -20,6 +22,41 @@ export function AppShell() {
   const pickImportFile = useAppStore((s) => s.pickImportFile);
   const notify = useAppStore((s) => s.notify);
   const [dragging, setDragging] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
+  const appStore = useAppStoreApi();
+
+  // App commands from the desktop menus (PIGN-041; `pigeon:command` DOM events, see
+  // apps/desktop/src/main.tsx). Each also has a shortcut or a control in the window.
+  useEffect(() => {
+    const onCommand = (event: Event) => {
+      const state = appStore.getState();
+      switch ((event as CustomEvent<string>).detail) {
+        case 'new-request':
+          if (!state.project) return state.notify('Open or create a project first.');
+          setView('collections');
+          newRequest(state.project.session, state.project.store);
+          return;
+        case 'open-project':
+          return void state.openFolder();
+        case 'import':
+          if (!state.project) return state.notify('Open or create a project first.');
+          return void state.pickImportFile();
+        case 'export-project':
+          if (!state.project) return state.notify('Open or create a project first.');
+          return void state.exportProjectZip();
+        case 'close-project':
+          return state.project ? state.closeProject() : undefined;
+        case 'toggle-sidebar':
+          return setSidebarHidden((hidden) => !hidden);
+        case 'toggle-response-layout':
+          return void window.dispatchEvent(new Event(TOGGLE_DOCK_EVENT));
+        case 'web-limitations':
+          return state.openHelp();
+      }
+    };
+    window.addEventListener(COMMAND_EVENT, onCommand);
+    return () => window.removeEventListener(COMMAND_EVENT, onCommand);
+  }, [appStore]);
 
   // Other features ask for a sidebar view (e.g. "Edit in project settings").
   useEffect(() => {
@@ -85,18 +122,28 @@ export function AppShell() {
     >
       <TopBar />
       <div className="flex min-h-0 flex-1">
-        <ActivityBar active={view} onSelect={setView} />
+        <ActivityBar
+          active={view}
+          onSelect={(next) => {
+            setView(next);
+            setSidebarHidden(false);
+          }}
+        />
         <Group orientation="horizontal" className="min-w-0 flex-1">
-          <Panel
-            id="sidebar-pane"
-            defaultSize={280}
-            minSize={180}
-            maxSize="50"
-            groupResizeBehavior="preserve-pixel-size"
-          >
-            <Sidebar view={view} />
-          </Panel>
-          <ResizeHandle direction="horizontal" testId="sidebar-resize-handle" />
+          {!sidebarHidden && (
+            <>
+              <Panel
+                id="sidebar-pane"
+                defaultSize={280}
+                minSize={180}
+                maxSize="50"
+                groupResizeBehavior="preserve-pixel-size"
+              >
+                <Sidebar view={view} />
+              </Panel>
+              <ResizeHandle direction="horizontal" testId="sidebar-resize-handle" />
+            </>
+          )}
           <Panel id="main-pane" minSize="30">
             <MainArea />
           </Panel>

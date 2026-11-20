@@ -1,5 +1,6 @@
 {
   "name": "pigeon",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.5.2",
@@ -15,7 +16,8 @@
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "clean": "tsc -b --clean",
     "test:e2e": "pnpm --filter @pigeon/web build:e2e && playwright test",
-    "test:perf": "vitest run --config vitest.perf.config.ts"
+    "test:perf": "vitest run --config vitest.perf.config.ts",
+    "version:sync": "node scripts/sync-version.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

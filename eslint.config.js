@@ -127,6 +127,11 @@ export default defineConfig(
     rules: { 'no-var': 'off' },
   },
   {
+    // Repository scripts run in Node (e.g. `pnpm version:sync`).
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+  },
+  {
     // Plain-JS probe that src-tauri injects into the webview (see src/smoke.rs).
     files: ['apps/desktop/src-tauri/src/**/*.js'],
     languageOptions: {

@@ -1,0 +1,212 @@
+name: Release
+
+# Desktop installers for macOS, Windows and Linux (PIGN-041, docs/release-checklist.md).
+# A `v*` tag (matching the root package.json version) builds every OS, smoke-tests the built
+# artifacts and attaches them with SHA256SUMS to a draft GitHub release. Run it by hand
+# (workflow_dispatch) to get the artifacts without a release. Separate from CI so pull requests
+# stay fast.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            target: universal-apple-darwin
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - name: Windows
+            os: windows-latest
+            target: ''
+            rust_targets: ''
+          - name: Linux
+            os: ubuntu-22.04
+            target: ''
+            rust_targets: ''
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAURI_DIR: apps/desktop/src-tauri
+      BUNDLE_DIR: apps/desktop/src-tauri/target/${{ matrix.target != '' && format('{0}/', matrix.target) || '' }}release/bundle
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb libfuse2
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ env.TAURI_DIR }} -> target
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check the version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          node scripts/sync-version.mjs --check
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the package.json version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      # Signing hooks (D-11): used when the secrets exist, otherwise an unsigned build with a
+      # warning (docs/release-checklist.md explains how to open unsigned builds).
+      - name: macOS signing
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ] || [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+            echo "::warning::macOS signing secrets are not set: the app is unsigned and not notarized."
+            exit 0
+          fi
+          # Tauri imports the certificate, signs, and notarizes when these are set.
+          {
+            echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE"
+            echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD"
+            echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY"
+            if [ -n "$APPLE_ID" ]; then
+              echo "APPLE_ID=$APPLE_ID"
+              echo "APPLE_PASSWORD=$APPLE_PASSWORD"
+              echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
+            else
+              echo "::warning::APPLE_ID is not set: the app is signed but not notarized." >&2
+            fi
+          } >> "$GITHUB_ENV"
+      - name: Windows signing
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE) {
+            Write-Output "::warning::Windows signing secrets are not set: the installer is unsigned (SmartScreen will warn)."
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP 'pigeon-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item $pfx
+          $config = @{ bundle = @{ windows = @{
+            certificateThumbprint = $cert.Thumbprint
+            digestAlgorithm = 'sha256'
+            timestampUrl = 'http://timestamp.digicert.com'
+          } } } | ConvertTo-Json -Depth 5
+          Set-Content -Path (Join-Path $env:RUNNER_TEMP 'tauri.signing.json') -Value $config
+          "SIGNING_ARGS=--config $env:RUNNER_TEMP\tauri.signing.json" | Out-File -Append $env:GITHUB_ENV
+
+      - name: tauri build
+        run: |
+          args=()
+          if [ -n "${{ matrix.target }}" ]; then args+=(--target "${{ matrix.target }}"); fi
+          # shellcheck disable=SC2086
+          pnpm --filter @pigeon/desktop tauri build "${args[@]}" ${SIGNING_ARGS:-}
+
+      # The smoke run (src/smoke.rs) on what users install, not only the build output.
+      - name: Smoke test the built artifacts (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          dmg=$(ls "$BUNDLE_DIR"/dmg/*.dmg)
+          hdiutil attach -nobrowse -readonly -mountpoint /tmp/pigeon-dmg "$dmg"
+          /tmp/pigeon-dmg/Pigeon.app/Contents/MacOS/pigeon --smoke | tee smoke.log
+          hdiutil detach /tmp/pigeon-dmg
+          grep -qx 'smoke-ok' smoke.log
+          archs=$(lipo -archs "$BUNDLE_DIR"/macos/Pigeon.app/Contents/MacOS/pigeon)
+          [[ "$archs" == *x86_64* && "$archs" == *arm64* ]] || { echo "::error::not universal: $archs"; exit 1; }
+      - name: Smoke test the built artifacts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          installer=$(ls "$BUNDLE_DIR"/nsis/*-setup.exe)
+          cmd //c "\"$(cygpath -w "$installer")\" /S /D=C:\\pigeon-smoke"
+          exe=$(ls /c/pigeon-smoke/*.exe | grep -vi uninstall | head -n 1)
+          "$exe" --smoke > smoke.log
+          cat smoke.log
+          grep -qx 'smoke-ok' <(tr -d '\r' < smoke.log)
+      - name: Smoke test the built artifacts (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          appimage=$(ls "$BUNDLE_DIR"/appimage/*.AppImage)
+          chmod +x "$appimage"
+          xvfb-run --auto-servernum "$appimage" --smoke | tee smoke-appimage.log
+          grep -qx 'smoke-ok' smoke-appimage.log
+          sudo apt-get install -y "./$(ls "$BUNDLE_DIR"/deb/*.deb)"
+          xvfb-run --auto-servernum pigeon --smoke | tee smoke-deb.log
+          grep -qx 'smoke-ok' smoke-deb.log
+
+      - name: Collect the artifacts
+        run: |
+          mkdir -p release
+          shopt -s nullglob
+          for file in "$BUNDLE_DIR"/dmg/*.dmg "$BUNDLE_DIR"/nsis/*.exe "$BUNDLE_DIR"/msi/*.msi \
+                      "$BUNDLE_DIR"/deb/*.deb "$BUNDLE_DIR"/appimage/*.AppImage; do
+            cp "$file" release/
+          done
+          ls -l release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pigeon-${{ env.VERSION }}-${{ matrix.name }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: draft release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          path: release
+          merge-multiple: true
+      - name: Checksums
+        working-directory: release
+        run: |
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" release/* --draft \
+              --title "Pigeon ${GITHUB_REF_NAME#v}" \
+              --notes "Installers for macOS (universal), Windows and Linux. Verify downloads with SHA256SUMS. Unsigned builds: see docs/release-checklist.md."
+          fi

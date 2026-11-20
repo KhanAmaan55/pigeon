@@ -7,6 +7,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { runAppCommand } from '../src/app/commands';
 import { PigeonApp } from '../src/app/PigeonApp';
 import { flattenTree, methodLabel } from '../src/features/explorer/tree';
 import { setEditorText } from './code-editor';
@@ -2463,4 +2464,35 @@ describe('long regression runs (PIGN-038)', () => {
     expect(screen.getByTestId('run-total-no-baseline').textContent).toBe('200 no baseline');
     expect(ticks).toBeGreaterThan(50);
   }, 60_000);
+});
+
+describe('app commands from the desktop menus (PIGN-041)', () => {
+  it('toggles the sidebar and the response layout, opens help, adds and closes', async () => {
+    const { platform } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    act(() => runAppCommand('new-request'));
+    expect((await screen.findByTestId('toast')).textContent).toContain('Open or create a project');
+
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    act(() => runAppCommand('toggle-sidebar'));
+    expect(screen.queryByTestId('sidebar')).toBeNull();
+    act(() => runAppCommand('toggle-sidebar'));
+    expect(screen.getByTestId('sidebar')).toBeTruthy();
+
+    act(() => runAppCommand('new-request'));
+    await waitFor(() => expect(tabNames()).toEqual(['New Request']));
+    const split = () => screen.getByTestId('request-response-split').getAttribute('data-dock');
+    expect(split()).toBe('bottom');
+    act(() => runAppCommand('toggle-response-layout'));
+    expect(split()).toBe('right');
+
+    act(() => runAppCommand('web-limitations'));
+    expect(await screen.findByTestId('web-limitations')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('web-limitations-close'));
+
+    act(() => runAppCommand('close-project'));
+    expect(await screen.findByTestId('welcome')).toBeTruthy();
+  });
 });

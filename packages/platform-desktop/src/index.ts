@@ -60,3 +60,4 @@ export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): 
     files: new DesktopFileExchange(),
   };
 }
+export { onMenuCommand } from './menu';

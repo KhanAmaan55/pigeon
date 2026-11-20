@@ -5,13 +5,13 @@ mod app_state;
 mod data_dir;
 mod files;
 mod http;
-#[cfg(target_os = "macos")]
 mod menu;
 mod project_fs;
 mod smoke;
 #[cfg(test)]
 mod test_server;
 mod watch;
+mod window_state;
 
 fn main() {
     // plugin-os injects the OS name into the webview; reading it needs no IPC permission.
@@ -21,13 +21,15 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(http::HttpState::default())
         .manage(watch::Watchers::default())
-        .setup(|app| project_fs::setup(app));
-
-    // Windows and Linux get no native menu: shortcuts must not depend on one (docs/platform.md §5).
-    #[cfg(target_os = "macos")]
-    {
-        builder = builder.menu(menu::build);
-    }
+        .manage(menu::Zoom::default())
+        .setup(|app| {
+            project_fs::setup(app)?;
+            window_state::setup(app)
+        })
+        .on_window_event(window_state::on_window_event)
+        // Shortcuts never depend on the menu (docs/platform.md §5): the UI handles its own keys.
+        .menu(menu::build)
+        .on_menu_event(menu::handle);
 
     // Tauri keeps only the last `invoke_handler`, so every command is registered here at once.
     builder = if smoke::requested(std::env::args()) {
