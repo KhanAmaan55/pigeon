@@ -1,4 +1,5 @@
 import type { ExecutionResult, NormalizedResponse } from '@pigeon/core';
+import { interpretGraphql } from '@pigeon/core';
 import {
   BookmarkPlus,
   CircleSlash,
@@ -11,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Tabs } from 'radix-ui';
 import type { ReactNode } from 'react';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
 import { useVolatileHeaders } from '../../app/preferences';
@@ -20,6 +21,7 @@ import { ExamplesTab, useRequestExamples } from '../examples/ExamplesTab';
 import { useScratchRequest } from '../request-editor/ScratchRequestProvider';
 import { suggestFileName } from './body-view';
 import { CopyButton } from './CopyButton';
+import { GraphqlErrorList, GraphqlErrorsChip } from './GraphqlSummary';
 import { ErrorCard } from './ErrorCard';
 import { HeadersTable } from './HeadersTable';
 import { StatusLine } from './StatusLine';
@@ -167,6 +169,11 @@ function ResponseTabs({
   const readOnly = useProjectState((s) => s.readOnly, false);
   const examples = useRequestExamples(requestId);
   const [savedExample, setSavedExample] = useState<string | null>(null);
+  const isGraphql = useScratchRequest((s) => s.request.body.mode === 'graphql');
+  const graphql = useMemo(
+    () => (isGraphql ? interpretGraphql(response) : undefined),
+    [isGraphql, response],
+  );
 
   const save = () => {
     setSaveState({ kind: 'idle' });
@@ -224,6 +231,7 @@ function ResponseTabs({
           )}
         </Tabs.List>
         <div className="ml-auto flex items-center gap-1">
+          {graphql && <GraphqlErrorsChip view={graphql} />}
           {savedExample !== null && saveState.kind === 'idle' && (
             <span role="status" data-testid="example-saved" className="text-xs text-fg-muted">
               Saved example “{savedExample}”
@@ -285,6 +293,7 @@ function ResponseTabs({
         value="body"
         className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
       >
+        {graphql && <GraphqlErrorList view={graphql} />}
         <Suspense
           fallback={<div aria-busy data-testid="response-body-loading" className="flex-1" />}
         >

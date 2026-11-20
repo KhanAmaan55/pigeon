@@ -144,8 +144,8 @@ export function flattenTree(
           kind: 'request',
           name: item.name,
           depth,
-          // A broken file has no meaningful method.
-          ...(item.broken ? {} : { method: item.method }),
+          // A broken file has no meaningful method; GraphQL requests show GQL (PIGN-032).
+          ...(item.broken ? {} : { method: item.body.mode === 'graphql' ? 'GQL' : item.method }),
           ...(item.examples.length > 0 ? { exampleCount: item.examples.length } : {}),
           ...(hasScripts(item.events) ? { scripts: true } : {}),
           hasChildren: item.examples.length > 0,

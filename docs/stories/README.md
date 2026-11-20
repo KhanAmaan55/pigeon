@@ -60,7 +60,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-029](PIGN-029-export-postman-collection.md) | Export Postman collection v2.1 | 5 Examples & Postman | MVP | 028 | Done |
 | [PIGN-030](PIGN-030-postman-environments-io.md) | Import/export Postman environments & globals | 5 Examples & Postman | MVP | 028, 025 | Done |
 | [PIGN-031](PIGN-031-scripts-tab.md) | Scripts tab (preserve & edit) | 5 Examples & Postman | MVP | 028 | Done |
-| [PIGN-032](PIGN-032-graphql-requests.md) | GraphQL requests | 6 GraphQL | MVP | 023 | Todo |
+| [PIGN-032](PIGN-032-graphql-requests.md) | GraphQL requests | 6 GraphQL | MVP | 023 | Done |
 | [PIGN-033](PIGN-033-comparison-engine.md) | Comparison engine: inference & structural diff | 7 Comparison | MVP | 001 | Todo |
 | [PIGN-034](PIGN-034-compare-ui.md) | Compare response against baseline (UI) | 7 Comparison | MVP | 027, 033 | Todo |
 | [PIGN-035](PIGN-035-field-rules.md) | Field rules: optional / ignore / nullable / dynamic | 7 Comparison | MVP | 034 | Todo |

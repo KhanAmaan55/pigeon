@@ -395,6 +395,16 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
                       newRequest(session, store, row.kind === 'request' ? row.parentId : row.id),
                     )
                   }
+                  onNewGraphql={() =>
+                    edit(() =>
+                      newRequest(
+                        session,
+                        store,
+                        row.kind === 'request' ? row.parentId : row.id,
+                        'graphql',
+                      ),
+                    )
+                  }
                   onNewFolder={() =>
                     edit(() =>
                       newFolder(session, store, row.kind === 'request' ? row.parentId! : row.id),
@@ -464,6 +474,7 @@ function RowMenu({
   readOnly,
   children,
   onNewRequest,
+  onNewGraphql,
   onNewFolder,
   onRename,
   onDuplicate,
@@ -476,6 +487,7 @@ function RowMenu({
   readOnly: boolean;
   children: ReactNode;
   onNewRequest: () => void;
+  onNewGraphql: () => void;
   onNewFolder: () => void;
   onRename: () => void;
   onDuplicate: () => void;
@@ -515,6 +527,7 @@ function RowMenu({
           {!row.deleted && row.kind !== 'example' && (
             <>
               {item('New request', onNewRequest, 'menu-new-request', 'Ctrl/⌘ N')}
+              {item('New GraphQL request', onNewGraphql, 'menu-new-graphql')}
               {item('New folder', onNewFolder, 'menu-new-folder')}
               <ContextMenu.Separator className="my-1 h-px bg-border" />
               {row.kind !== 'request' && item('Variables', onVariables, 'menu-variables')}

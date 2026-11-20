@@ -9,6 +9,7 @@ import { useVariableScopes } from '../../../components/VariableInput';
 import { KeyValueTable } from '../../../components/KeyValueTable';
 import { beautifyJson } from '../../../lib/json-format';
 import { useScratchRequest } from '../ScratchRequestProvider';
+import { GraphqlBody } from './GraphqlBody';
 import { FileChip, FilePicker } from './FilePicker';
 import { FormDataTable } from './FormDataTable';
 
@@ -18,6 +19,7 @@ const MODES: ReadonlyArray<{ mode: BodyMode; label: string }> = [
   { mode: 'urlencoded', label: 'x-www-form-urlencoded' },
   { mode: 'raw', label: 'raw' },
   { mode: 'file', label: 'binary' },
+  { mode: 'graphql', label: 'GraphQL' },
 ];
 
 const LANGUAGES: ReadonlyArray<{ language: RawLanguage; label: string }> = [
@@ -65,6 +67,7 @@ export function BodyTab() {
       {body.mode === 'urlencoded' && <UrlencodedBody body={body} />}
       {body.mode === 'formdata' && <FormDataBody body={body} />}
       {body.mode === 'file' && <BinaryBody body={body} />}
+      {body.mode === 'graphql' && <GraphqlBody body={body} />}
     </div>
   );
 }

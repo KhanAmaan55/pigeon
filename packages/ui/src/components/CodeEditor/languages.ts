@@ -5,7 +5,7 @@
 
 import type { Extension } from '@codemirror/state';
 
-export const CODE_LANGUAGES = ['json', 'xml', 'html', 'javascript', 'text'] as const;
+export const CODE_LANGUAGES = ['json', 'xml', 'html', 'javascript', 'graphql', 'text'] as const;
 export type CodeLanguage = (typeof CODE_LANGUAGES)[number];
 
 /** The extensions for `language`; `lint` adds JSON syntax diagnostics (inline + gutter). */
@@ -23,6 +23,13 @@ export async function loadLanguage(language: CodeLanguage, lint: boolean): Promi
       return (await import('@codemirror/lang-html')).html();
     case 'javascript':
       return (await import('@codemirror/lang-javascript')).javascript();
+    case 'graphql': {
+      const [{ StreamLanguage }, { graphqlParser }] = await Promise.all([
+        import('@codemirror/language'),
+        import('./graphql-language'),
+      ]);
+      return StreamLanguage.define(graphqlParser);
+    }
     case 'text':
       return [];
   }

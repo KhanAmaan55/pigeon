@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-032 | 6 — GraphQL | MVP | Todo | PIGN-023 |
+| PIGN-032 | 6 — GraphQL | MVP | Done | PIGN-023 |
 
 ## Goal
 First-class GraphQL over HTTP: query editor, variables JSON editor, operation name, Postman `graphql` body mode compatibility, and a GraphQL-aware response view.
@@ -27,10 +27,10 @@ As a developer building a GraphQL API, I want to write queries with variables an
 - Introspection, schema-aware autocomplete (PIGN-055), subscriptions (future).
 
 ## Acceptance criteria
-- [ ] Query against test server `/graphql` returns data; a query producing errors shows the errors chip and list.
-- [ ] Invalid variables JSON blocks sending with an inline error.
-- [ ] GraphQL fixture imports and exports round-trip.
-- [ ] Works on desktop and web (test server has CORS).
+- [x] Query against test server `/graphql` returns data; a query producing errors shows the errors chip and list.
+- [x] Invalid variables JSON blocks sending with an inline error.
+- [x] GraphQL fixture imports and exports round-trip.
+- [x] Works on desktop and web (test server has CORS).
 
 ## Technical notes
 - Operation detection: lightweight regex/tokenizer for `query|mutation|subscription Name` — no full GraphQL parser needed yet.
@@ -44,3 +44,9 @@ As a developer building a GraphQL API, I want to write queries with variables an
 
 ## Definition of done
 Standard DoD. Milestone **M4** reached.
+
+## Implementation notes
+- Model: body mode `graphql { query, variables (JSON text), operationName? }` in formats and core (`BODY_MODES`, `emptyBody`). Postman mapping: `graphql.query` / `graphql.variables` (string; objects from other tools become text), unknown `graphql` keys kept; the operation name is stored in the item's `_pigeon.operationName` unless the file already keeps `graphql.operationName` (documented in compatibility §A.2). The old "unsupported body" path now only covers truly unknown modes.
+- Execution: `meta.protocol = 'graphql'`; variables are resolved in the query and variables text; `graphqlVariablesError` blocks sending (`invalid-request`) for invalid JSON or a non-object; POST sends `{"query","variables","operationName"}` with the variables text inserted as written (big numbers keep their digits) and `Content-Type: application/json`; GET puts `query`, `variables`, `operationName` in the query string and sends no body. `graphqlOperations` (lightweight tokenizer skipping strings, block strings and comments; depth-0 operations, shorthand `{ }` counts as an anonymous query) and `interpretGraphql` (`data`, `errors` with path/locations) in `core/execution/graphql.ts`.
+- UI: Body tab mode **GraphQL** with a query editor (a small CodeMirror stream mode for GraphQL), a JSON variables editor side by side with an inline error, and an operation name field that becomes a picker when the document has several named operations. Response: `errors: N` chip next to the actions and the error list (message, path, locations) above the body. Explorer context menu **New GraphQL request** (POST, empty GraphQL body); GraphQL requests show `GQL` in the explorer.
+- Tests: mapping (operation name placement, object variables), prepare POST/GET/validation, operation detection, response interpretation, UI flow (invalid variables block sending, errors chip and list), E2E against the test server's `/graphql` (data and a deliberate error) in Chromium, Firefox and WebKit. The GraphQL fixture round-trips through import/export (PIGN-029 suite). Desktop uses the same core path through the native transport.

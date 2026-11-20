@@ -1,5 +1,5 @@
 /**
- * Request body model (docs/data-model.md §4): every Postman body mode except GraphQL (PIGN-032).
+ * Request body model (docs/data-model.md §4): every Postman body mode, GraphQL included.
  * The request stores only the active mode, like Postman; the editor keeps the other modes'
  * content in its own state while the user switches between them.
  */
@@ -31,7 +31,7 @@ export type KeyValue = z.infer<typeof KeyValueSchema>;
 export const RAW_LANGUAGES = ['json', 'text', 'xml', 'html', 'javascript'] as const;
 export type RawLanguage = (typeof RAW_LANGUAGES)[number];
 
-export const BODY_MODES = ['none', 'raw', 'urlencoded', 'formdata', 'file'] as const;
+export const BODY_MODES = ['none', 'raw', 'urlencoded', 'formdata', 'file', 'graphql'] as const;
 export type BodyMode = (typeof BODY_MODES)[number];
 
 /** A form-data row: a text field, or one or more files (`src`, see `fileRefFromSrc`). */
@@ -58,6 +58,14 @@ export const BodySchema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('formdata'), params: z.array(FormDataParamSchema), ...common }),
   /** Binary body; `src` is unset until a file is chosen. */
   z.object({ mode: z.literal('file'), src: z.string().optional(), ...common }),
+  /** GraphQL over HTTP (PIGN-032): `variables` is JSON text (empty = none). */
+  z.object({
+    mode: z.literal('graphql'),
+    query: z.string(),
+    variables: z.string(),
+    operationName: z.string().optional(),
+    ...common,
+  }),
 ]);
 export type Body = z.infer<typeof BodySchema>;
 export type BodyOf<M extends BodyMode> = Extract<Body, { mode: M }>;
@@ -75,6 +83,8 @@ export function emptyBody(mode: BodyMode): Body {
       return { mode: 'formdata', params: [] };
     case 'file':
       return { mode: 'file' };
+    case 'graphql':
+      return { mode: 'graphql', query: '', variables: '' };
   }
 }
 

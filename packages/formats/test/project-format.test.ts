@@ -270,15 +270,65 @@ describe('Postman item mapping', () => {
     requestToPostmanItem(requestFromPostmanItem(item, 'key'));
 
   it('preserves unsupported body modes verbatim', () => {
-    const body = { mode: 'graphql', graphql: { query: '{ me { id } }', variables: '' } };
+    const body = { mode: 'soap', soap: { envelope: '<x/>' } };
+    const item = {
+      id: 's',
+      name: 'S',
+      request: { method: 'POST', url: { raw: '/soap' }, body },
+    };
+    const request = requestFromPostmanItem(item, 's');
+    expect(request.body.mode).toBe('none');
+    expect(roundTrip(item)).toEqual(item);
+  });
+
+  it('maps GraphQL bodies; the operation name lives in _pigeon unless the file has it (PIGN-032)', () => {
+    const body = { mode: 'graphql', graphql: { query: '{ me { id } }', variables: '{"a": 1}' } };
     const item = {
       id: 'g',
       name: 'G',
       request: { method: 'POST', url: { raw: '/graphql' }, body },
     };
     const request = requestFromPostmanItem(item, 'g');
-    expect(request.body.mode).toBe('none');
+    expect(request.body).toEqual({
+      mode: 'graphql',
+      query: '{ me { id } }',
+      variables: '{"a": 1}',
+    });
     expect(roundTrip(item)).toEqual(item);
+
+    const named = requestFromPostmanItem({ ...item, _pigeon: { operationName: 'Me' } }, 'g');
+    expect(named.body).toMatchObject({ operationName: 'Me' });
+    expect(
+      requestToPostmanItem({ ...named, body: { ...named.body, operationName: 'Other' } as never }),
+    ).toMatchObject({
+      _pigeon: { operationName: 'Other' },
+      request: { body: { graphql: { query: '{ me { id } }' } } },
+    });
+    // A file that keeps operationName (and unknown keys) inside `graphql` gets it back there.
+    const inline = {
+      ...item,
+      request: {
+        ...item.request,
+        body: {
+          mode: 'graphql',
+          graphql: { query: 'q', variables: '', operationName: 'Q', 'x-g': 1 },
+        },
+      },
+    };
+    expect(requestFromPostmanItem(inline, 'g').body).toMatchObject({ operationName: 'Q' });
+    expect(roundTrip(inline)).toEqual(inline);
+    // Variables given as an object (not Postman) become JSON text.
+    const objectVariables = requestFromPostmanItem(
+      {
+        ...item,
+        request: {
+          ...item.request,
+          body: { mode: 'graphql', graphql: { query: 'q', variables: { a: 1 } } },
+        },
+      },
+      'g',
+    );
+    expect(objectVariables.body).toMatchObject({ variables: '{\n  "a": 1\n}' });
   });
 
   it('keeps raw options and an unknown raw language unchanged', () => {

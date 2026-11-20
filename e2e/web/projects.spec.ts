@@ -695,6 +695,53 @@ test.describe('scripts', () => {
   });
 });
 
+test.describe('GraphQL', () => {
+  test('queries the test server with variables and shows GraphQL errors', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('GraphQL API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    const collection = page.getByTestId('explorer-item').filter({ hasText: 'Users' });
+    await collection.click({ button: 'right' });
+    await page.getByTestId('menu-new-graphql').click();
+    await expect(
+      page
+        .getByTestId('explorer-item')
+        .filter({ hasText: 'New GraphQL Request' })
+        .getByTestId('explorer-method'),
+    ).toHaveText('GQL');
+    await page.getByTestId('url-input').fill(`${TEST_SERVER_URL}/graphql`);
+    await page.getByTestId('body-tab').click();
+
+    await page.getByTestId('graphql-query').click();
+    await page.keyboard.type('query One($id: ID!) { user(id: $id) { name } }');
+    await page.getByTestId('graphql-variables').click();
+    await page.keyboard.type('{ "id": ');
+    await expect(page.getByTestId('graphql-variables-error')).toBeVisible();
+    await page.keyboard.type('"1" }');
+    await expect(page.getByTestId('graphql-variables-error')).toHaveCount(0);
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+    await expect(page.getByTestId('response-panel')).toContainText('Ada Lovelace');
+    await expect(page.getByTestId('graphql-errors-chip')).toHaveCount(0);
+
+    await page.getByTestId('graphql-query').click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('{ error }');
+    await page.getByTestId('graphql-variables').click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Backspace');
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('graphql-errors-chip')).toHaveText('errors: 1');
+    await expect(page.getByTestId('graphql-errors')).toContainText(
+      'Deliberate error from the test server',
+    );
+  });
+});
+
 test.describe('Postman export', () => {
   test('downloads a collection as a Postman v2.1 file', async ({ page, browserName }) => {
     // Chromium saves through the native save picker, which can't be automated.

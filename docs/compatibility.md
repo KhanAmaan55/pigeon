@@ -45,7 +45,7 @@ The official v2.1 JSON Schema is vendored in `packages/fixtures/postman/schema/c
 | `body.mode: formdata` (text) | `FormDataParam kind:text` | | Full |
 | `body.mode: formdata` (file, `src`) | `FormDataParam kind:file` | | Partial — absolute paths are machine-specific; see §A.4 |
 | `body.mode: file` (`src`, `content`) | `Body.file` | | Partial — same path caveat |
-| `body.mode: graphql` (`query`, `variables`) | `Body.graphql` | | Full |
+| `body.mode: graphql` (`query`, `variables`) | `Body.graphql` | | Full. `variables` stays JSON text (an object from other tools becomes text). Postman has no operation name field: Pigeon keeps it in the item's `_pigeon.operationName`, or in `graphql.operationName` when the file already has it there |
 | `body.disabled`, `body.options.*` | `extra` | | Preserved |
 | `auth` noauth / basic / bearer / apikey | `Auth` typed | | Full (executed) |
 | `auth` digest / awsv4 / oauth2 | `Auth unsupported` | preserved verbatim | Preserved; executed in PIGN-046/047 |

@@ -39,7 +39,9 @@ export type ProjectBody =
   | ({ mode: 'raw'; raw: string; language: RawLanguage } & BodyCommon)
   | ({ mode: 'urlencoded'; params: ProjectKeyValue[] } & BodyCommon)
   | ({ mode: 'formdata'; params: ProjectFormDataParam[] } & BodyCommon)
-  | ({ mode: 'file'; src?: string } & BodyCommon);
+  | ({ mode: 'file'; src?: string } & BodyCommon)
+  /** Postman `graphql` mode (PIGN-032): `variables` is JSON text, as Postman stores it. */
+  | ({ mode: 'graphql'; query: string; variables: string; operationName?: string } & BodyCommon);
 
 export interface ProjectUrl {
   raw: string;

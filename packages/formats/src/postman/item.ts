@@ -69,7 +69,11 @@ export function requestFromPostmanItem(item: JsonObject, fileKey: string): Proje
   const method = asString(take(requestRest, 'method')).toUpperCase();
   const url = urlFromPostman(take(requestRest, 'url'));
   const headers = asArray(take(requestRest, 'header')).map(keyValueFromPostman);
-  const body = bodyFromPostman(take(requestRest, 'body'));
+  let body = bodyFromPostman(take(requestRest, 'body'));
+  // GraphQL operation name: Postman has no field for it, Pigeon keeps it in `_pigeon`.
+  if (body.mode === 'graphql' && typeof pigeon['operationName'] === 'string') {
+    body = { ...body, operationName: take(pigeon, 'operationName') as string };
+  }
   if (nonEmpty(requestRest)) extra['request'] = requestRest;
   if (nonEmpty(profile)) extra['protocolProfileBehavior'] = profile;
   if (nonEmpty(pigeon)) extra['_pigeon'] = pigeon;
@@ -172,6 +176,28 @@ export function bodyFromPostman(value: unknown): ProjectBody {
       if (nonEmpty(file)) rest['file'] = file;
       return { mode, ...(src === undefined ? {} : { src }), ...common() };
     }
+    case 'graphql': {
+      const graphql = { ...asObject(take(rest, 'graphql')) };
+      const query = asString(take(graphql, 'query'));
+      const variables = take(graphql, 'variables');
+      // Postman stores variables as JSON text; an object (other tools) is written as text.
+      const variablesText =
+        typeof variables === 'string'
+          ? variables
+          : variables === undefined || variables === null
+            ? ''
+            : JSON.stringify(variables, null, 2);
+      const operationName =
+        typeof graphql['operationName'] === 'string' ? graphql['operationName'] : undefined;
+      if (nonEmpty(graphql)) rest['graphql'] = graphql;
+      return {
+        mode,
+        query,
+        variables: variablesText,
+        ...(operationName === undefined ? {} : { operationName }),
+        ...common(),
+      };
+    }
     case undefined:
     case 'none':
       return { mode: 'none', ...common() };
@@ -192,7 +218,17 @@ export function requestToPostmanItem(request: ProjectRequest): JsonObject {
   } = request.extra;
   const { timeoutMs, ...profileSettings } = request.settings;
   const profile = { ...asObject(profileExtra), ...profileSettings };
-  const pigeon = { ...asObject(pigeonExtra), ...(timeoutMs === undefined ? {} : { timeoutMs }) };
+  const graphqlName =
+    request.body.mode === 'graphql' &&
+    request.body.operationName !== undefined &&
+    !('operationName' in asObject(asObject(request.body.extra)['graphql']))
+      ? request.body.operationName
+      : undefined;
+  const pigeon = {
+    ...asObject(pigeonExtra),
+    ...(timeoutMs === undefined ? {} : { timeoutMs }),
+    ...(graphqlName === undefined ? {} : { operationName: graphqlName }),
+  };
   const body = bodyToPostman(request.body);
 
   return {
@@ -285,6 +321,25 @@ export function bodyToPostman(body: ProjectBody): JsonObject | undefined {
         ...(body.src === undefined ? {} : { src: body.src }),
       };
       return { ...extra, mode: 'file', file, ...disabled };
+    }
+    case 'graphql': {
+      // The operation name lives in `graphql` only when the file had it there (otherwise in
+      // the item's `_pigeon.operationName`, see `requestToPostmanItem`).
+      const graphql = asObject(extra['graphql']);
+      const { operationName: _operationName, ...graphqlExtra } = graphql;
+      return {
+        ...extra,
+        mode: 'graphql',
+        graphql: {
+          ...graphqlExtra,
+          query: body.query,
+          variables: body.variables,
+          ...('operationName' in graphql && body.operationName !== undefined
+            ? { operationName: body.operationName }
+            : {}),
+        },
+        ...disabled,
+      };
     }
   }
 }

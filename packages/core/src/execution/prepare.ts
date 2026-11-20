@@ -14,7 +14,7 @@ import { PIGEON_VERSION } from '../version';
 import type { EncodedBody } from './body';
 import { applyAuth, resolveAuth } from './auth/index';
 import { scriptsNotRunWarning } from './scripts';
-import { encodeBody } from './body';
+import { encodeBody, graphqlVariablesError } from './body';
 import type { ExecutionContext, ExecutionError, Result } from './types';
 import { prunesBody, validateBody } from './validate';
 
@@ -74,6 +74,13 @@ export function resolveRequest(request: Request, resolver: VariableResolver): Re
     case 'file':
       if (body.src !== undefined) body = { ...body, src: resolveSrc(body.src) };
       break;
+    case 'graphql':
+      body = {
+        ...body,
+        query: resolver.resolve(body.query),
+        variables: resolver.resolve(body.variables),
+      };
+      break;
     case 'none':
       break;
   }
@@ -117,7 +124,26 @@ export async function prepareRequest(
   const built = normalizeUrl(buildRequestUrl(request.url));
   if (!built.ok) return built;
   const authWarnings = [...auth.warnings];
-  const url = addQueryParams(built.value, auth.query, authWarnings);
+  // GraphQL (PIGN-032): variables must be JSON; GET sends the operation in the query string.
+  const graphql =
+    request.body.mode === 'graphql' && !request.body.disabled ? request.body : undefined;
+  if (graphql) {
+    const problem = graphqlVariablesError(graphql.variables);
+    if (problem) return invalid('invalid-request', problem);
+  }
+  const graphqlGet = graphql !== undefined && method === 'GET' && graphql.query.trim() !== '';
+  const graphqlParams: Array<[string, string]> = graphqlGet
+    ? [
+        ['query', graphql.query],
+        ...(graphql.variables.trim() === ''
+          ? []
+          : ([['variables', graphql.variables.trim()]] as Array<[string, string]>)),
+        ...(graphql.operationName
+          ? ([['operationName', graphql.operationName]] as Array<[string, string]>)
+          : []),
+      ]
+    : [];
+  const url = addQueryParams(built.value, [...graphqlParams, ...auth.query], authWarnings);
 
   const headers: Array<[string, string]> = [];
   for (const header of request.headers) {
@@ -142,7 +168,7 @@ export async function prepareRequest(
     headers.push([name, value]);
   }
 
-  const encoding = encodeBody(request.body);
+  const encoding = encodeBody(graphqlGet ? { mode: 'none' } : request.body);
   const checked = validateBody(method, encoding.encoded, request.settings, ctx.capabilities);
   if (!checked.ok) return checked;
   const { encoded } = checked.value;
@@ -178,7 +204,7 @@ export async function prepareRequest(
       meta: {
         requestId: request.id,
         ...(ctx.projectId === null ? {} : { projectId: ctx.projectId }),
-        protocol: 'http',
+        protocol: graphql ? 'graphql' : 'http',
         unresolved: [...variables.unresolved, ...variables.cycles],
         // Auth credentials are masked in results like secrets (PIGN-026).
         secretValues: [
@@ -256,7 +282,9 @@ export function autoHeaders(
     Partial<Pick<Capabilities, 'canSendBodyWithGet'>>,
 ): AutoHeader[] {
   const method = request.method?.trim().toUpperCase();
-  let { encoded } = encodeBody(request.body);
+  // A GraphQL GET sends its operation in the query string, so it has no body.
+  const graphqlGet = request.body.mode === 'graphql' && method === 'GET';
+  let { encoded } = graphqlGet ? { encoded: undefined } : encodeBody(request.body);
   if (
     encoded &&
     method !== undefined &&

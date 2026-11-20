@@ -75,6 +75,7 @@ describe('Body tab', () => {
       'urlencoded',
       'raw',
       'file',
+      'graphql',
     ]);
     expect((screen.getByTestId('body-mode-none') as HTMLInputElement).checked).toBe(true);
     expect(screen.queryByTestId('body-tab-indicator')).toBeNull();

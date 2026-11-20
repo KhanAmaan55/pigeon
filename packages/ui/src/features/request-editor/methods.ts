@@ -7,6 +7,8 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: 'text-method-delete',
   HEAD: 'text-method-head',
   OPTIONS: 'text-method-options',
+  /** GraphQL requests in the explorer (PIGN-032). */
+  GQL: 'text-method-options',
 };
 
 export function methodColorClass(method: string): string {

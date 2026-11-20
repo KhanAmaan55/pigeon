@@ -61,11 +61,23 @@ export function newRequest(
   session: ProjectSession,
   store: ProjectStore,
   parentId?: string | null,
+  kind: 'http' | 'graphql' = 'http',
 ): string | null {
   let target = parentId ?? targetContainerId(session, store.getState().selectedId);
   if (!target) target = newCollection(session, store);
   const id = crypto.randomUUID();
-  session.apply({ type: 'createRequest', id, parentId: target, name: 'New Request' });
+  session.apply({
+    type: 'createRequest',
+    id,
+    parentId: target,
+    // "New GraphQL request" (PIGN-032): POST with an empty GraphQL body.
+    ...(kind === 'graphql'
+      ? {
+          name: 'New GraphQL Request',
+          request: { method: 'POST', body: { mode: 'graphql', query: '', variables: '' } },
+        }
+      : { name: 'New Request' }),
+  });
   const state = store.getState();
   state.setExpanded(target, true);
   state.cancelRename();

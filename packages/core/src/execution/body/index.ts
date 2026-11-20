@@ -5,7 +5,7 @@
 
 import type { PreparedBody } from '@pigeon/platform';
 
-import type { Body, RawLanguage } from '../../model/body';
+import type { Body, BodyOf, RawLanguage } from '../../model/body';
 import { fileNameFromSrc, fileRefFromSrc, fileSources } from '../../model/body';
 import { mediaTypeForFileName, OCTET_STREAM } from './media-types';
 import { toMultipartParts } from './multipart';
@@ -84,6 +84,41 @@ export function encodeBody(body: Body): BodyEncoding {
         warnings: [],
       };
     }
+    case 'graphql': {
+      if (body.query.trim() === '') return { warnings: [] };
+      return {
+        encoded: {
+          body: { kind: 'bytes', bytes: encoder.encode(graphqlPayload(body)) },
+          contentType: 'application/json',
+        },
+        warnings: [],
+      };
+    }
+  }
+}
+
+/**
+ * The GraphQL-over-HTTP JSON payload (docs/api-execution.md §5). The variables text is inserted
+ * as written (after validation), so numbers like `12345678901234567890` keep their digits.
+ */
+export function graphqlPayload(body: BodyOf<'graphql'>): string {
+  const variables = body.variables.trim();
+  return `{"query":${JSON.stringify(body.query)}${variables === '' ? '' : `,"variables":${variables}`}${
+    body.operationName ? `,"operationName":${JSON.stringify(body.operationName)}` : ''
+  }}`;
+}
+
+/** Why the GraphQL variables can't be sent, or `undefined` when they are fine (or empty). */
+export function graphqlVariablesError(variables: string): string | undefined {
+  if (variables.trim() === '') return undefined;
+  try {
+    const parsed: unknown = JSON.parse(variables);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return 'GraphQL variables must be a JSON object.';
+    }
+    return undefined;
+  } catch (error) {
+    return `GraphQL variables are not valid JSON: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
 
@@ -107,5 +142,7 @@ export function hasBody(body: Body): boolean {
       );
     case 'file':
       return body.src !== undefined && body.src !== '';
+    case 'graphql':
+      return body.query.trim() !== '';
   }
 }

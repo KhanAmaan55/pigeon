@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PigeonApp } from '../src/app/PigeonApp';
 import { flattenTree, methodLabel } from '../src/features/explorer/tree';
+import { setEditorText } from './code-editor';
 import { createAppStore } from '../src/stores/app-store';
 import { locationFolderName, locationKey, locationLabel } from '../src/stores/locations';
 
@@ -1933,5 +1934,61 @@ describe('scripts tab (PIGN-031)', () => {
     expect(
       (within(section).getByTestId('script-prerequest-enabled') as HTMLInputElement).disabled,
     ).toBe(true);
+  });
+});
+
+describe('GraphQL requests (PIGN-032)', () => {
+  it('creates a GraphQL request, validates variables and shows GraphQL errors', async () => {
+    const transport = new MockTransport().on(
+      { url: /./ },
+      {
+        headers: [['Content-Type', 'application/json']],
+        body: JSON.stringify({
+          data: { fail: null },
+          errors: [
+            { message: 'Intentional failure', path: ['fail'], locations: [{ line: 1, column: 3 }] },
+          ],
+        }),
+      },
+    );
+    const { platform } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+
+    fireEvent.contextMenu(screen.getByText('Billing API'));
+    fireEvent.click(await screen.findByTestId('menu-new-graphql'));
+    const row = (await screen.findAllByTestId('explorer-item')).find((r) =>
+      r.textContent?.includes('New GraphQL Request'),
+    )!;
+    expect(within(row).getByTestId('explorer-method').textContent).toBe('GQL');
+    await act(async () => screen.getByTestId('url-input').focus());
+    await user.keyboard('http://localhost:4010/graphql');
+    await act(async () => screen.getByTestId('body-tab').focus());
+    expect((screen.getByTestId('body-mode-graphql') as HTMLInputElement).checked).toBe(true);
+    expect(await screen.findByTestId('graphql-query')).toBeTruthy();
+
+    // Invalid variables: inline error, and sending is blocked.
+    fireEvent.change(screen.getByTestId('graphql-operation'), { target: { value: '' } });
+    const editor = await screen.findByTestId('graphql-variables');
+    setEditorText(editor, '{ broken');
+    expect((await screen.findByTestId('graphql-variables-error')).textContent).toMatch(
+      /not valid JSON/,
+    );
+    await user.click(screen.getByTestId('send-button'));
+    expect((await screen.findByTestId('response-panel')).textContent).toMatch(/not valid JSON/);
+    expect(transport.requests).toHaveLength(0);
+
+    setEditorText(editor, '');
+    await waitFor(() => expect(screen.queryByTestId('graphql-variables-error')).toBeNull());
+    setEditorText(screen.getByTestId('graphql-query'), '{ fail }');
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(1));
+    expect(transport.requests[0]!.method).toBe('POST');
+    expect(transport.requests[0]!.meta.protocol).toBe('graphql');
+    expect((await screen.findByTestId('graphql-errors-chip')).textContent).toBe('errors: 1');
+    expect(screen.getByTestId('graphql-errors').textContent).toContain('Intentional failure');
+    expect(screen.getByTestId('graphql-errors').textContent).toContain('path: fail · at 1:3');
   });
 });

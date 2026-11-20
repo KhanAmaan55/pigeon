@@ -76,6 +76,8 @@ export {
 export type { ImportReport } from '@pigeon/formats';
 export { statusText } from './execution/status';
 export { scriptsNotRun, scriptsNotRunWarning } from './execution/scripts';
+export type { GraphqlError, GraphqlOperation, GraphqlView } from './execution/graphql';
+export { graphqlOperations, interpretGraphql } from './execution/graphql';
 export type { ScriptListen, ScriptView } from '@pigeon/formats';
 export { hasScripts, readScript, writeScript } from '@pigeon/formats';
 export type { ExampleFromResponseOptions } from './examples/save';
@@ -182,6 +184,8 @@ export {
   encodeFormUrlencoded,
   FORM_URLENCODED,
   formEncode,
+  graphqlPayload,
+  graphqlVariablesError,
   hasBody,
   mediaTypeForFileName,
   OCTET_STREAM,
