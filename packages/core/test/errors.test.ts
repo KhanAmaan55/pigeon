@@ -8,6 +8,7 @@ import {
   createExecutionContext,
   createRequest,
   ERROR_TITLES,
+  hasShortSecret,
   isMixedContent,
   maskHeaders,
   maskSecrets,
@@ -189,9 +190,16 @@ describe('RequestExecutor error classification', () => {
 });
 
 describe('maskSecrets', () => {
-  it('masks every occurrence of every non-empty secret', () => {
-    expect(maskSecrets('Bearer abc abc', ['abc', ''])).toBe(`Bearer ${SECRET_MASK} ${SECRET_MASK}`);
-    expect(maskHeaders([['Authorization', 'Bearer t0k']], ['t0k'])).toEqual([
+  it('masks every occurrence of every secret of 4+ characters, longest first', () => {
+    expect(maskSecrets('Bearer abcd abcd', ['abcd', ''])).toBe(
+      `Bearer ${SECRET_MASK} ${SECRET_MASK}`,
+    );
+    expect(maskSecrets('key=abcdef', ['abcd', 'abcdef'])).toBe(`key=${SECRET_MASK}`);
+    // Too short to mask in free text: left alone, and flagged.
+    expect(maskSecrets('a t0k b', ['t0k'])).toBe('a t0k b');
+    expect(hasShortSecret(['t0k'])).toBe(true);
+    expect(hasShortSecret(['', 'long-enough'])).toBe(false);
+    expect(maskHeaders([['Authorization', 'Bearer t0ken']], ['t0ken'])).toEqual([
       ['Authorization', `Bearer ${SECRET_MASK}`],
     ]);
   });

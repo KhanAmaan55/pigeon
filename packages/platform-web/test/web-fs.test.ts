@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { FsAccessFs } from '../src/fs-access-fs';
 import { openPigeonDb } from '../src/idb';
 import { IdbAppState } from '../src/idb-app-state';
+import { IdbSecretStore } from '../src/secrets';
 import { deleteWorkspace, IdbFs } from '../src/idb-fs';
 import { FakeDirectory } from './fake-handles';
 
@@ -90,5 +91,22 @@ describe('IdbAppState', () => {
     const [key] = keys.map(String);
     expect(keys).toHaveLength(1);
     expect(key!.startsWith('project:p\u0000state.bak-')).toBe(true);
+  });
+});
+
+describe('IdbSecretStore', () => {
+  it('keeps secrets per project next to (not inside) the app state', async () => {
+    const db = await freshDb();
+    const secrets = new IdbSecretStore(async () => db);
+    const state = new IdbAppState(async () => db);
+    await secrets.set('p1', 'env:a\u0000token', 's3cret');
+    await secrets.set('p2', 'env:a\u0000token', 'other');
+    await state.set('project:p1', 'state', { x: 1 });
+    expect(await secrets.getAll('p1')).toEqual({ 'env:a\u0000token': 's3cret' });
+    expect(await secrets.get('p2', 'env:a\u0000token')).toBe('other');
+    expect(JSON.stringify(await state.get('project:p1', 'state'))).not.toContain('s3cret');
+    await secrets.delete('p1', 'env:a\u0000token');
+    expect(await secrets.getAll('p1')).toEqual({});
+    expect(secrets.backend).toBe('indexeddb');
   });
 });

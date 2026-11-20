@@ -1,17 +1,26 @@
 /**
- * Secret masking for anything shown or stored about a sent request (results, timeline, history).
- * A stub until secret variables land (PIGN-025): it masks the values it is given, and
- * `PreparedRequest.meta.secretValues` stays empty until then.
+ * Secret masking for anything shown or stored about a sent request (results, timeline, error
+ * details, history): `PreparedRequest.meta.secretValues` holds the resolved values of secret
+ * variables (PIGN-025).
+ *
+ * Values shorter than {@link MIN_MASKED_LENGTH} are not masked in free text (they would match
+ * everywhere); a result that used one is flagged so it is never stored (`hasShortSecret`).
  */
 
 export const SECRET_MASK = '••••••';
+export const MIN_MASKED_LENGTH = 4;
 
-/** `text` with every non-empty secret value replaced by {@link SECRET_MASK}. */
+/** `text` with every secret value (longest first) replaced by {@link SECRET_MASK}. */
 export function maskSecrets(text: string, secrets: readonly string[]): string {
-  return secrets.reduce(
-    (masked, secret) => (secret === '' ? masked : masked.split(secret).join(SECRET_MASK)),
-    text,
-  );
+  return [...secrets]
+    .filter((secret) => secret.length >= MIN_MASKED_LENGTH)
+    .sort((a, b) => b.length - a.length)
+    .reduce((masked, secret) => masked.split(secret).join(SECRET_MASK), text);
+}
+
+/** True when some secret is too short to be masked in free text. */
+export function hasShortSecret(secrets: readonly string[]): boolean {
+  return secrets.some((secret) => secret.length > 0 && secret.length < MIN_MASKED_LENGTH);
 }
 
 /** Headers with secret values masked; names are never secret. */

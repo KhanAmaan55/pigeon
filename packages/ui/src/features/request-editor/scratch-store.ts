@@ -37,6 +37,11 @@ export interface RequestBinding {
   projectFs: ProjectFileSystem;
   /** Variables of the selected environment etc., built at send time (PIGN-023). */
   scopes?: () => VariableScopes;
+  /**
+   * "Move to a secret variable" (PIGN-025): creates a secret variable holding `value` as its
+   * (local) current value and returns its name, or `null` when the project can't.
+   */
+  moveToSecret?: (suggestedName: string, value: string) => string | null;
 }
 
 export interface ScratchRequestState {
@@ -44,6 +49,8 @@ export interface ScratchRequestState {
   request: Request;
   /** The open project's files when the request belongs to one ("Pick from project folder"). */
   projectFs: ProjectFileSystem | null;
+  /** See `RequestBinding.moveToSecret`; `null` for the scratch request. */
+  moveToSecret: ((suggestedName: string, value: string) => string | null) | null;
   status: 'idle' | 'sending';
   /** Latest finished execution. */
   result: ExecutionResult | null;
@@ -100,6 +107,7 @@ export function createScratchRequestStore(
     return {
       request: binding ? binding.read() : createRequest({ name: 'Scratch request' }),
       projectFs: binding?.projectFs ?? null,
+      moveToSecret: binding?.moveToSecret ?? null,
       status: 'idle',
       result: null,
       setMethod: (method) => update({ method: method.toUpperCase() }),

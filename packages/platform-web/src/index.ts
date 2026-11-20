@@ -6,6 +6,7 @@ import { WebFileExchange } from './files';
 import { openPigeonDb } from './idb';
 import { IdbAppState } from './idb-app-state';
 import { WebProjectLocator } from './project-locator';
+import { IdbSecretStore } from './secrets';
 
 export type { FetchTransportOptions } from './fetch-transport';
 export { FetchTransport } from './fetch-transport';
@@ -18,6 +19,7 @@ export type { WorkspaceRecord } from './idb-fs';
 export { deleteWorkspace, IdbFs } from './idb-fs';
 export type { HandleRecord, HandleStore, WebProjectLocatorOptions } from './project-locator';
 export { WebProjectLocator } from './project-locator';
+export { IdbSecretStore } from './secrets';
 /** Re-exported for existing callers; the list lives in `@pigeon/platform`. */
 export { isForbiddenHeader } from '@pigeon/platform';
 
@@ -99,5 +101,6 @@ export function createWebPlatform(): Platform {
     projects,
     openProjectFs: (loc) => projects.open(loc),
     appState: new IdbAppState(getDb),
+    secrets: new IdbSecretStore(getDb),
   };
 }

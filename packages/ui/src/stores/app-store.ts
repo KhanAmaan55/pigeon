@@ -97,7 +97,7 @@ export interface AppState {
 export type AppStore = ReturnType<typeof createAppStore>;
 
 type AppPlatform = Pick<Platform, 'projects' | 'openProjectFs' | 'appState'> &
-  Partial<Pick<Platform, 'files' | 'capabilities'>>;
+  Partial<Pick<Platform, 'files' | 'capabilities' | 'secrets'>>;
 
 export function createAppStore(platform: AppPlatform) {
   return createStore<AppState>()((set, get) => {
@@ -210,6 +210,7 @@ export function createAppStore(platform: AppPlatform) {
       let duplicateOf: ProjectLocation | undefined;
       const session = await ProjectSession.fromFs(fs, {
         appState: platform.appState,
+        ...(platform.secrets ? { secrets: platform.secrets } : {}),
         localKey: async (projectId) => {
           const resolved = await resolveLocalKey(projectId, fs.root);
           duplicateOf = resolved.duplicateOf;

@@ -1,5 +1,9 @@
 import type { ProjectEnvVariable, ProjectSession } from '@pigeon/core';
-import { RotateCcw, Upload } from 'lucide-react';
+import { Copy, Eye, RotateCcw, Upload } from 'lucide-react';
+import { Dialog } from 'radix-ui';
+import { useEffect, useState } from 'react';
+
+import { usePlatform } from '../../app/PlatformProvider';
 
 import type { KeyValueColumn } from '../../components/KeyValueTable';
 import { KeyValueTable } from '../../components/KeyValueTable';
@@ -105,46 +109,46 @@ export function VariablesEditor({
 }: VariablesEditorProps) {
   const current = useProjectState((s) => s.currentValues[scope] ?? NO_VALUES, NO_VALUES);
   const defaultType = types[0]!.value;
+  const [unsecure, setUnsecure] = useState<{ apply: () => void; key: string } | null>(null);
+  const showBrowserNotice =
+    session.secretBackend === 'indexeddb' && values.some((v) => v.type === 'secret');
   const currentColumn: KeyValueColumn<VariableRow> = {
     id: 'current',
     header: 'Current value',
     headerTitle:
       'Local only: never written to project files or committed. Overrides the shared value on this machine.',
-    render: (row, _update, isDraft) => {
-      const secret = row.type === 'secret';
-      return (
-        <input
-          aria-label="Current value"
-          data-testid="env-current-value"
-          type={secret ? 'password' : 'text'}
-          disabled={isDraft || row.key === ''}
-          value={current[row.key] ?? ''}
-          placeholder={isDraft ? '' : row.value}
-          spellCheck={false}
-          autoComplete="off"
-          onChange={(event) =>
-            session.setCurrentValue(
-              scope,
-              row.key,
-              event.target.value === '' ? undefined : event.target.value,
-            )
-          }
-          className={cellInput}
-        />
-      );
-    },
+    render: (row, _update, isDraft) => (
+      <CurrentValueCell
+        secret={row.type === 'secret'}
+        disabled={isDraft || row.key === ''}
+        value={current[row.key] ?? ''}
+        placeholder={isDraft ? '' : row.type === 'secret' ? '' : row.value}
+        onChange={(value) =>
+          session.setCurrentValue(scope, row.key, value === '' ? undefined : value)
+        }
+      />
+    ),
   };
   const typeColumn: KeyValueColumn<VariableRow> = {
     id: 'type',
     header: 'Type',
-    headerTitle: 'Secret values are masked (secret storage arrives with secret variables).',
+    headerTitle:
+      'Secret values are masked, kept in secret storage (never local state or project files) and masked in results.',
     render: (row, update) => (
       <select
         aria-label="Type"
         data-testid="env-variable-type"
         value={types.some((t) => t.value === row.type) ? row.type : defaultType}
         disabled={readOnly}
-        onChange={(event) => update({ ...row, type: event.target.value })}
+        onChange={(event) => {
+          const next = { ...row, type: event.target.value };
+          // Leaving "secret" moves the current value into plain local state: confirm first.
+          if (row.type === 'secret' && next.type !== 'secret' && current[row.key] !== undefined) {
+            setUnsecure({ apply: () => update(next), key: row.key });
+          } else {
+            update(next);
+          }
+        }}
         className="h-7 rounded-sm border border-transparent bg-transparent px-1 text-sm hover:border-border"
       >
         {types.map((type) => (
@@ -188,6 +192,7 @@ export function VariablesEditor({
           </button>
         )}
       </div>
+      {showBrowserNotice && <BrowserSecretsNotice />}
       <p className="shrink-0 px-3 pt-2 text-xs text-fg-muted">
         <strong className="text-fg">Shared values</strong> are written to <code>{file}</code> and
         committed. <strong className="text-fg">Current values</strong> stay on this machine.
@@ -223,6 +228,160 @@ export function VariablesEditor({
           newRow={() => ({ key: '', value: '', type: defaultType })}
         />
       </div>
+      <Dialog.Root open={unsecure !== null} onOpenChange={(open) => !open && setUnsecure(null)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black/40" />
+          <Dialog.Content
+            data-testid="unsecure-dialog"
+            className="fixed top-1/2 left-1/2 w-[min(26rem,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
+          >
+            <Dialog.Title className="text-base font-semibold">
+              Stop treating “{unsecure?.key}” as secret?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-fg-muted">
+              Its current value moves out of secret storage into normal local state, and it is no
+              longer masked in results.
+            </Dialog.Description>
+            <div className="mt-4 flex justify-end gap-2">
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  className="h-8 rounded border border-border px-3 hover:bg-hover"
+                >
+                  Cancel
+                </button>
+              </Dialog.Close>
+              <button
+                type="button"
+                data-testid="unsecure-confirm"
+                onClick={() => {
+                  unsecure?.apply();
+                  setUnsecure(null);
+                }}
+                className="h-8 rounded border border-fail px-3 font-semibold text-fail hover:bg-fail/10"
+              >
+                Make it a default variable
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </div>
+  );
+}
+
+/** A current value; secrets are masked, shown while the eye is held, and can be copied. */
+function CurrentValueCell({
+  secret,
+  disabled,
+  value,
+  placeholder,
+  onChange,
+}: {
+  secret: boolean;
+  disabled: boolean;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  if (!secret) {
+    return (
+      <input
+        aria-label="Current value"
+        data-testid="env-current-value"
+        disabled={disabled}
+        value={value}
+        placeholder={placeholder}
+        spellCheck={false}
+        autoComplete="off"
+        onChange={(event) => onChange(event.target.value)}
+        className={cellInput}
+      />
+    );
+  }
+  return (
+    <div className="flex items-center gap-0.5">
+      <input
+        aria-label="Current value"
+        data-testid="env-current-value"
+        type={revealed ? 'text' : 'password'}
+        disabled={disabled}
+        value={value}
+        placeholder={placeholder}
+        spellCheck={false}
+        autoComplete="off"
+        onChange={(event) => onChange(event.target.value)}
+        className={cellInput}
+      />
+      <button
+        type="button"
+        aria-label="Hold to reveal"
+        title="Hold to reveal"
+        data-testid="secret-reveal"
+        disabled={disabled || value === ''}
+        onPointerDown={() => setRevealed(true)}
+        onPointerUp={() => setRevealed(false)}
+        onPointerLeave={() => setRevealed(false)}
+        onKeyDown={(event) => event.key === ' ' && setRevealed(true)}
+        onKeyUp={() => setRevealed(false)}
+        className="shrink-0 rounded p-1 text-fg-muted hover:text-fg disabled:opacity-40"
+      >
+        <Eye size={12} aria-hidden />
+      </button>
+      <button
+        type="button"
+        aria-label="Copy value"
+        title="Copy value"
+        data-testid="secret-copy"
+        disabled={disabled || value === ''}
+        onClick={() => void navigator.clipboard?.writeText(value)}
+        className="shrink-0 rounded p-1 text-fg-muted hover:text-fg disabled:opacity-40"
+      >
+        <Copy size={12} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+const NOTICE_KEY = 'secretsNoticeDismissed';
+
+/** One-time web notice (docs/platform.md §6.4): secrets live unencrypted in this browser profile. */
+function BrowserSecretsNotice() {
+  const { appState } = usePlatform();
+  const [dismissed, setDismissed] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void appState.get<boolean>('app', NOTICE_KEY).then(
+      (value) => !cancelled && setDismissed(value === true),
+      () => !cancelled && setDismissed(false),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [appState]);
+  if (dismissed !== false) return null;
+  return (
+    <div
+      role="note"
+      data-testid="browser-secrets-notice"
+      className="flex shrink-0 items-start gap-2 border-b border-border bg-warn/10 px-3 py-1.5 text-xs text-fg"
+    >
+      <span className="min-w-0 flex-1">
+        Secrets are stored in this browser profile, unencrypted. Don't use production credentials on
+        shared machines.
+      </span>
+      <button
+        type="button"
+        data-testid="browser-secrets-dismiss"
+        onClick={() => {
+          setDismissed(true);
+          void appState.set('app', NOTICE_KEY, true);
+        }}
+        className="shrink-0 rounded border border-border bg-surface px-2 py-0.5 hover:bg-hover"
+      >
+        Got it
+      </button>
     </div>
   );
 }

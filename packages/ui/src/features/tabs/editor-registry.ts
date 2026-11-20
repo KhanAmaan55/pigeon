@@ -60,10 +60,44 @@ export function getTabEditor(
       projectId: session.localKey || session.id,
       projectFs: session.fs,
       scopes: () => projectScopes(session, requestId),
+      moveToSecret: (suggestedName, value) => moveToSecret(session, suggestedName, value),
     });
     registry.set(requestId, editor);
   }
   return editor;
+}
+
+/**
+ * Creates a secret variable in the selected environment (globals without one) whose current value
+ * is `value`, and returns its (unique) name. The shared value stays empty, so nothing secret
+ * reaches the project files.
+ */
+export function moveToSecret(
+  session: ProjectSession,
+  suggestedName: string,
+  value: string,
+): string | null {
+  if (session.readOnly) return null;
+  const environment = session.selectedEnvironmentId
+    ? session.findEnvironment(session.selectedEnvironmentId)
+    : undefined;
+  const existing = environment?.values ?? session.getWorkingModel().globals?.values ?? [];
+  const base = suggestedName.replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'secret';
+  let name = base;
+  for (let i = 2; existing.some((v) => v.key === name); i++) name = `${base}${i}`;
+  const variable = { key: name, value: '', type: 'secret', enabled: true };
+  if (environment) {
+    session.apply({
+      type: 'setEnvironmentValues',
+      id: environment.id,
+      values: [...environment.values, variable],
+    });
+    session.setCurrentValue(`env:${environment.id}`, name, value);
+  } else {
+    session.apply({ type: 'setGlobals', values: [...existing, variable] });
+    session.setCurrentValue('globals', name, value);
+  }
+  return name;
 }
 
 /** The variables a request (or container) in this project resolves against right now. */

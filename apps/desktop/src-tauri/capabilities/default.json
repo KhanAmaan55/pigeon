@@ -23,6 +23,8 @@
     "allow-project-unwatch",
     "allow-app-state-read",
     "allow-app-state-write",
-    "allow-app-state-backup"
+    "allow-app-state-backup",
+    "allow-secrets-read",
+    "allow-secrets-write"
   ]
 }

@@ -1375,3 +1375,99 @@ describe('collection variables & globals (PIGN-024)', () => {
     });
   });
 });
+
+describe('secret variables (PIGN-025)', () => {
+  async function openFixture(transport = new MockTransport().on({ url: /./ }, { body: 'ok' })) {
+    const { platform, fs } = await fixturePlatform(transport);
+    await fs.writeFileAtomic(
+      'environments/local.postman_environment.json',
+      JSON.stringify({
+        id: 'local',
+        name: 'Local',
+        values: [{ key: 'baseUrl', value: 'http://local.test', enabled: true }],
+      }),
+    );
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await act(async () => screen.getByTestId('environment-selector').focus());
+    await user.keyboard('{Enter}');
+    await user.click(
+      (await screen.findAllByTestId('environment-option')).find((o) => o.textContent === 'Local')!,
+    );
+    return { platform, fs, user, transport };
+  }
+
+  it('moves a literal Authorization value into a secret variable and masks it in the timeline', async () => {
+    const { platform, fs, user, transport } = await openFixture();
+    await user.dblClick(screen.getByText('List users'));
+    await act(async () => screen.getByTestId('headers-tab').focus());
+    const table = screen.getByTestId('headers-table');
+    await act(async () => within(table).getAllByLabelText('Key').at(-1)!.focus());
+    await user.keyboard('Authorization');
+    await act(async () => within(table).getAllByLabelText('Value').at(-2)!.focus());
+    await user.keyboard('Bearer live-token-123');
+    await user.click(await screen.findByTestId('move-to-secret'));
+
+    expect((within(table).getAllByLabelText('Value').at(-2) as HTMLInputElement).value).toBe(
+      'Bearer {{token}}',
+    );
+    expect(screen.queryByTestId('literal-secret-hint')).toBeNull();
+    expect(await platform.secrets.getAll('project-basic')).toEqual({
+      'env:local\u0000token': 'live-token-123',
+    });
+
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(1));
+    expect(transport.requests[0]!.headers).toContainEqual([
+      'Authorization',
+      'Bearer live-token-123',
+    ]);
+    await act(async () => screen.getByTestId('response-timeline-tab').focus());
+    const timeline = await screen.findByTestId('response-timeline');
+    expect(timeline.textContent).not.toContain('live-token-123');
+    expect(timeline.textContent).toContain('Bearer ••••••');
+
+    // Nothing secret reaches the files.
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(() => expect(screen.getByTestId('toast')).toBeTruthy());
+    for (const entry of await fs.list('', { recursive: true })) {
+      if (entry.kind === 'file')
+        expect(await fs.readText(entry.path)).not.toContain('live-token-123');
+    }
+  });
+
+  it('masks secret current values, reveals them while held, and confirms leaving secret', async () => {
+    const { user } = await openFixture();
+    fireEvent.click(screen.getByTestId('activity-environments'));
+    fireEvent.click(
+      (await screen.findAllByTestId('environment-item')).find((e) =>
+        e.textContent?.includes('Local'),
+      )!,
+    );
+    const table = await screen.findByTestId('env-variables');
+    await act(async () => within(table).getAllByLabelText('Key').at(-1)!.focus());
+    await user.keyboard('apiKey');
+    fireEvent.change(within(table).getAllByTestId('env-variable-type')[1]!, {
+      target: { value: 'secret' },
+    });
+    const current = within(table).getAllByTestId('env-current-value')[1] as HTMLInputElement;
+    await act(async () => current.focus());
+    await user.keyboard('k-123456');
+    expect(current.type).toBe('password');
+    const reveal = within(table).getByTestId('secret-reveal');
+    fireEvent.pointerDown(reveal);
+    expect(current.type).toBe('text');
+    fireEvent.pointerUp(reveal);
+    expect(current.type).toBe('password');
+
+    fireEvent.change(within(table).getAllByTestId('env-variable-type')[1]!, {
+      target: { value: 'default' },
+    });
+    await user.click(await screen.findByTestId('unsecure-confirm'));
+    expect((within(table).getAllByTestId('env-current-value')[1] as HTMLInputElement).type).toBe(
+      'text',
+    );
+  });
+});

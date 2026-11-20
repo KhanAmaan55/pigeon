@@ -82,6 +82,8 @@ export interface NormalizedResponse extends RawResponse {
 
 export interface ExecutionResult {
   id: Id;
+  /** A secret too short to mask was sent: never store this result (PIGN-025). */
+  containsUnmaskedSecrets?: boolean;
   requestId?: Id;
   environmentId: Id | null;
   /** ISO timestamp. */

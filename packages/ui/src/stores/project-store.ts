@@ -60,8 +60,6 @@ export interface ProjectState {
   refresh: () => Promise<void>;
 }
 
-const NO_VALUES: Readonly<Record<string, Readonly<Record<string, string>>>> = {};
-
 export type ProjectStore = ReturnType<typeof createProjectStore> & { dispose: () => void };
 
 export function createProjectStore(session: ProjectSession) {
@@ -80,7 +78,7 @@ export function createProjectStore(session: ProjectSession) {
       unsaved: Object.fromEntries(session.unsavedIds().map((id) => [id, true as const])),
       changes,
       selectedEnvironmentId: session.selectedEnvironmentId,
-      currentValues: session.localState?.currentValues ?? NO_VALUES,
+      currentValues: session.allCurrentValues(),
       external: Object.fromEntries(session.externallyChanged().map((id) => [id, true as const])),
       deleted: session.deletedEntities(),
     };

@@ -422,6 +422,45 @@ test.describe('collection variables', () => {
   });
 });
 
+test.describe('secret variables', () => {
+  test('secret current values are masked, revealed while held, and kept after a reload', async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Secret API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('activity-environments').click();
+    await page.getByTestId('new-environment').click();
+    await page.getByTestId('environment-rename-input').fill('Prod');
+    await page.getByTestId('environment-rename-input').press('Enter');
+    const table = page.getByTestId('env-variables');
+    await table.getByLabel('Key').last().fill('token');
+    await table.getByTestId('env-variable-type').first().selectOption('secret');
+    const current = table.getByTestId('env-current-value').first();
+    await current.fill('live-token-123');
+    await expect(current).toHaveAttribute('type', 'password');
+    await expect(page.getByTestId('browser-secrets-notice')).toBeVisible();
+
+    const reveal = table.getByTestId('secret-reveal');
+    await reveal.hover();
+    await page.mouse.down();
+    await expect(current).toHaveAttribute('type', 'text');
+    await page.mouse.up();
+    await expect(current).toHaveAttribute('type', 'password');
+
+    await page.getByTestId('browser-secrets-dismiss').click();
+    await table.getByLabel('Key').first().press('ControlOrMeta+s');
+    await expect(page.getByTestId('request-tab-unsaved')).toHaveCount(0);
+    await page.waitForTimeout(700); // tabs and UI state are written after a short debounce
+    await page.reload();
+    await page.getByTestId('activity-environments').click();
+    await page.getByTestId('environment-item').filter({ hasText: 'Prod' }).click();
+    await expect(page.getByTestId('env-current-value').first()).toHaveValue('live-token-123');
+    await expect(page.getByTestId('browser-secrets-notice')).toHaveCount(0);
+  });
+});
+
 test.describe('browser workspaces', () => {
   test('creates a workspace that survives a reload', async ({ page, browserName }) => {
     await gotoApp(page);

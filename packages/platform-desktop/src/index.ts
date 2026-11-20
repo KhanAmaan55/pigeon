@@ -7,6 +7,7 @@ import { DESKTOP_CAPABILITIES } from './capabilities';
 import { DesktopFileExchange } from './files';
 import { NativeTransport } from './native-transport';
 import { DesktopProjectLocator } from './project-locator';
+import { FileSecretStore } from './secrets';
 
 export { FileAppState } from './app-state';
 export { DESKTOP_CAPABILITIES } from './capabilities';
@@ -15,6 +16,7 @@ export type { Invoke, NativeTransportOptions, WireBody, WireFileRef } from './na
 export { decodeResponseFrame, encodeRequestFrame, NativeTransport } from './native-transport';
 export { fromNativePath, isWindowsPath, nativeBaseName, toNativePath } from './paths';
 export { DesktopProjectLocator } from './project-locator';
+export { FileSecretStore } from './secrets';
 export type { Listen } from './tauri-fs';
 export { encodeWriteFrame, TauriFs, toFsError } from './tauri-fs';
 
@@ -38,8 +40,8 @@ export function detectDesktopOs(): OperatingSystem {
 }
 
 /**
- * Real capabilities, transport, project folders, app state and file exchange; secrets and dialogs
- * stay memory-backed until their stories land.
+ * Real capabilities, transport, project folders, app state, secrets and file exchange; dialogs stay
+ * memory-backed until their story lands.
  */
 export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): Platform {
   const pickedFiles = new PickedFileStore();
@@ -54,6 +56,7 @@ export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): 
     projects,
     openProjectFs: async (loc) => projects.open(loc),
     appState: new FileAppState(),
+    secrets: new FileSecretStore(),
     files: new DesktopFileExchange(),
   };
 }

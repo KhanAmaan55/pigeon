@@ -7,7 +7,7 @@
  * state) → clean again after Save for Commit (PIGN-019) or Discard.
  */
 
-import type { ProjectEnvironment, ProjectReadResult } from '@pigeon/formats';
+import type { ProjectEnvironment, ProjectEnvVariable, ProjectReadResult } from '@pigeon/formats';
 import {
   createEmptyProject,
   isManagedPath,
@@ -17,6 +17,7 @@ import {
 } from '@pigeon/formats';
 import type {
   AppStateStore,
+  SecretStore,
   Platform,
   ProjectFileSystem,
   ProjectLocation,
@@ -157,6 +158,8 @@ export class ProjectSession {
     opts: {
       appState?: AppStateStore;
       localKey?: (projectId: string) => string | Promise<string>;
+      /** Where secret current values live (PIGN-025); never local state or files. */
+      secrets?: SecretStore;
     } = {},
   ): Promise<ProjectSession> {
     const read = await readProject(fs);
@@ -167,7 +170,37 @@ export class ProjectSession {
     const local = persistable ? await LocalStateStore.load(opts.appState!, localKey) : undefined;
     const session = new ProjectSession(fs.root, fs, read, local);
     session.localKey = localKey;
+    if (persistable && opts.secrets) await session.#loadSecrets(opts.secrets);
     return session;
+  }
+
+  /** Secret current values by scope (loaded at open, written through `SecretStore`). */
+  readonly #secretValues = new Map<string, Record<string, string>>();
+  #secretStore: SecretStore | undefined;
+
+  async #loadSecrets(store: SecretStore): Promise<void> {
+    this.#secretStore = store;
+    for (const [compound, value] of Object.entries(await store.getAll(this.localKey))) {
+      const at = compound.indexOf(SECRET_KEY_SEPARATOR);
+      if (at === -1) continue;
+      const scope = compound.slice(0, at);
+      this.#secretValues.set(scope, {
+        ...this.#secretValues.get(scope),
+        [compound.slice(at + 1)]: value,
+      });
+    }
+  }
+
+  /** Whether `key` in a scope (`env:<id>`, `collection:<id>`, `folder:<id>`, `globals`) is secret. */
+  isSecretVariable(scope: string, key: string): boolean {
+    return variablesOfScope(this.#working, scope).some(
+      (v) => v.key === key && v.enabled && v.type === 'secret',
+    );
+  }
+
+  /** Where secret current values are kept, for the UI's notices (`undefined` without one). */
+  get secretBackend(): SecretStore['backend'] | undefined {
+    return this.#secretStore?.backend;
   }
 
   /** Key of this project's local state (and transport pool): the id, or `<id>@<hash>`. */
@@ -204,27 +237,80 @@ export class ProjectSession {
 
   /** Current values of a scope (`env:<id>`, `collection:<id>`, `globals`): local only, never drafts. */
   currentValues(scope: string): Readonly<Record<string, string>> {
-    return this.#local?.state.currentValues?.[scope] ?? {};
+    const plain = this.#local?.state.currentValues?.[scope];
+    const secret = this.#secretValues.get(scope);
+    return secret ? { ...plain, ...secret } : (plain ?? {});
   }
 
-  /** Sets (or with `undefined` clears) a current value; written at once, never to files. */
+  /** Every scope's current values (plain and secret), for the UI. */
+  allCurrentValues(): Record<string, Record<string, string>> {
+    const all: Record<string, Record<string, string>> = { ...this.#local?.state.currentValues };
+    for (const [scope, values] of this.#secretValues) all[scope] = { ...all[scope], ...values };
+    return all;
+  }
+
+  /**
+   * Sets (or with `undefined` clears) a current value; written at once, never to files. Secret
+   * variables' values go to the `SecretStore`, never to local state (file-format.md §7).
+   */
   setCurrentValue(scope: string, key: string, value: string | undefined): void {
+    if (this.isSecretVariable(scope, key)) {
+      this.#setSecretValue(scope, key, value);
+      this.#setPlainValue(scope, key, undefined);
+    } else {
+      this.#setPlainValue(scope, key, value);
+    }
+    this.#emit();
+  }
+
+  #setPlainValue(scope: string, key: string, value: string | undefined): void {
     const all = { ...this.#local?.state.currentValues };
     const values = { ...all[scope] };
+    if (value === undefined && !(key in values)) return;
     if (value === undefined) delete values[key];
     else values[key] = value;
     if (Object.keys(values).length === 0) delete all[scope];
     else all[scope] = values;
     void this.#local?.update({ currentValues: all }, { immediate: true });
-    this.#emit();
   }
 
-  /** "Reset current values": back to the shared values. */
+  #setSecretValue(scope: string, key: string, value: string | undefined): void {
+    const values = { ...this.#secretValues.get(scope) };
+    if (value === undefined && !(key in values)) return;
+    if (value === undefined) delete values[key];
+    else values[key] = value;
+    if (Object.keys(values).length === 0) this.#secretValues.delete(scope);
+    else this.#secretValues.set(scope, values);
+    const compound = `${scope}${SECRET_KEY_SEPARATOR}${key}`;
+    if (value === undefined) void this.#secretStore?.delete(this.localKey, compound);
+    else void this.#secretStore?.set(this.localKey, compound, value);
+  }
+
+  /** "Reset current values": back to the shared values (secret ones included). */
   resetCurrentValues(scope: string): void {
     const all = { ...this.#local?.state.currentValues };
     delete all[scope];
     void this.#local?.update({ currentValues: all }, { immediate: true });
+    for (const key of Object.keys(this.#secretValues.get(scope) ?? {})) {
+      this.#setSecretValue(scope, key, undefined);
+    }
     this.#emit();
+  }
+
+  /** After a variable's type changed, its current value moves to the matching store. */
+  #migrateCurrentValues(scope: string): void {
+    for (const [key, value] of Object.entries(this.#local?.state.currentValues?.[scope] ?? {})) {
+      if (this.isSecretVariable(scope, key)) {
+        this.#setSecretValue(scope, key, value);
+        this.#setPlainValue(scope, key, undefined);
+      }
+    }
+    for (const [key, value] of Object.entries(this.#secretValues.get(scope) ?? {})) {
+      if (!this.isSecretVariable(scope, key)) {
+        this.#setPlainValue(scope, key, value);
+        this.#setSecretValue(scope, key, undefined);
+      }
+    }
   }
 
   /**
@@ -286,6 +372,8 @@ export class ProjectSession {
     const touched = touchedIds(this.#working, command);
     this.#working = applyCommand(this.#working, command);
     for (const id of touched) this.#unsaved.add(id);
+    const scope = variableScopeOf(this.#working, command);
+    if (scope) this.#migrateCurrentValues(scope);
     this.#emit();
   }
 
@@ -831,6 +919,38 @@ function restoreFromBase(working: ProjectModel, base: ProjectModel, id: string):
   return replaceItem(working, parentId, (folder) =>
     folder.kind === 'folder' ? insert(folder) : folder,
   );
+}
+
+/** Separates scope and variable key in `SecretStore` keys (`env:<id>\0token`). */
+export const SECRET_KEY_SEPARATOR = '\u0000';
+
+/** The variables of a scope key in `model`. */
+function variablesOfScope(model: ProjectModel, scope: string): readonly ProjectEnvVariable[] {
+  if (scope === 'globals') return model.globals?.values ?? [];
+  const [kind, id] = [scope.slice(0, scope.indexOf(':')), scope.slice(scope.indexOf(':') + 1)];
+  if (kind === 'env') return model.environments.find((e) => e.id === id)?.values ?? [];
+  if (kind === 'collection') return model.collections.find((c) => c.id === id)?.variables ?? [];
+  if (kind === 'folder') {
+    const folder = findItem(model, id);
+    return folder?.kind === 'folder' ? folder.variables : [];
+  }
+  return [];
+}
+
+/** The variable scope a command edits, if any. */
+function variableScopeOf(model: ProjectModel, command: EditCommand): string | undefined {
+  switch (command.type) {
+    case 'setEnvironmentValues':
+      return `env:${command.id}`;
+    case 'setGlobals':
+      return 'globals';
+    case 'setContainerVariables':
+      return model.collections.some((c) => c.id === command.id)
+        ? `collection:${command.id}`
+        : `folder:${command.id}`;
+    default:
+      return undefined;
+  }
 }
 
 /** The file of a collection, folder or request in `model`. */

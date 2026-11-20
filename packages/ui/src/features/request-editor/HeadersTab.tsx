@@ -1,7 +1,7 @@
 import type { KeyValue } from '@pigeon/core';
 import { autoHeaders } from '@pigeon/core';
 import { isForbiddenHeader } from '@pigeon/platform';
-import { TriangleAlert } from 'lucide-react';
+import { KeyRound, TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { useCapabilities } from '../../app/PlatformProvider';
@@ -17,6 +17,8 @@ export function HeadersTab() {
   const body = useScratchRequest((s) => s.request.body);
   const setHeaders = useScratchRequest((s) => s.setHeaders);
   const capabilities = useCapabilities();
+  const moveToSecret = useScratchRequest((s) => s.moveToSecret);
+  const literal = moveToSecret ? literalCredential(headers) : undefined;
   const automatic = useMemo(
     () => autoHeaders({ headers, body }, capabilities),
     [headers, body, capabilities],
@@ -46,6 +48,34 @@ export function HeadersTab() {
         keyPlaceholder="Add header"
         keyAdornment={forbiddenWarning}
       />
+      {literal && moveToSecret && (
+        <div
+          role="note"
+          data-testid="literal-secret-hint"
+          className="flex flex-wrap items-center gap-2 rounded border border-warn/40 bg-warn/10 px-2 py-1.5 text-xs text-fg"
+        >
+          <KeyRound size={14} className="shrink-0 text-warn" aria-hidden />
+          <span className="min-w-0 flex-1">
+            The {literal.header.key.trim()} value will be committed. Move it to a secret variable?
+          </span>
+          <button
+            type="button"
+            data-testid="move-to-secret"
+            onClick={() => {
+              const name = moveToSecret(literal.suggestedName, literal.secret);
+              if (!name) return;
+              setHeaders(
+                headers.map((row, index) =>
+                  index === literal.index ? { ...row, value: `${literal.prefix}{{${name}}}` } : row,
+                ),
+              );
+            }}
+            className="rounded border border-border bg-surface px-2 py-0.5 hover:bg-hover"
+          >
+            Move to secret variable
+          </button>
+        </div>
+      )}
       <section aria-label="Auto-generated headers" className="text-sm text-fg-muted">
         <h3 className="pb-1 text-xs font-semibold tracking-wide uppercase">Auto-generated</h3>
         {automatic.length > 0 && (
@@ -75,4 +105,40 @@ export function HeadersTab() {
       </section>
     </div>
   );
+}
+
+/** Headers whose value is a credential when typed literally (PIGN-025). */
+const CREDENTIAL_HEADERS = new Set([
+  'authorization',
+  'proxy-authorization',
+  'x-api-key',
+  'api-key',
+  'x-auth-token',
+]);
+const SCHEME = /^(Bearer|Basic|Token|Digest|ApiKey)\s+/i;
+
+/**
+ * The first enabled credential header with a literal value (no `{{variable}}`): what to move into a
+ * secret variable, keeping a scheme prefix like `Bearer `.
+ */
+export function literalCredential(
+  headers: readonly KeyValue[],
+):
+  | { index: number; header: KeyValue; prefix: string; secret: string; suggestedName: string }
+  | undefined {
+  for (const [index, header] of headers.entries()) {
+    if (header.disabled || !CREDENTIAL_HEADERS.has(header.key.trim().toLowerCase())) continue;
+    const value = header.value.trim();
+    if (value === '' || value.includes('{{')) continue;
+    const prefix = SCHEME.exec(value)?.[0] ?? '';
+    const secret = value.slice(prefix.length);
+    if (secret === '') continue;
+    const scheme = prefix.trim().toLowerCase();
+    const suggestedName =
+      scheme === 'bearer' || scheme === 'token'
+        ? 'token'
+        : header.key.trim().toLowerCase().replace(/-/g, '_');
+    return { index, header, prefix, secret, suggestedName };
+  }
+  return undefined;
 }

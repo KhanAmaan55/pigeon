@@ -103,6 +103,7 @@ export {
   isPigeonProject,
   PROJECT_DIRECTORIES,
   ProjectSession,
+  SECRET_KEY_SEPARATOR,
   WATCH_DEBOUNCE_MS,
 } from './workspace/project-session';
 export type { ErrorContext, RawFailure } from './execution/errors';
@@ -114,7 +115,13 @@ export {
   MIXED_CONTENT_HINT,
   toExecutionError,
 } from './execution/errors';
-export { maskHeaders, maskSecrets, SECRET_MASK } from './execution/mask';
+export {
+  hasShortSecret,
+  maskHeaders,
+  maskSecrets,
+  MIN_MASKED_LENGTH,
+  SECRET_MASK,
+} from './execution/mask';
 export type { BodyEncoding, EncodedBody } from './execution/body';
 export {
   encodeBody,

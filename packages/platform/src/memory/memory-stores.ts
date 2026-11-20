@@ -34,6 +34,10 @@ export class MemorySecretStore implements SecretStore {
   readonly backend = 'memory';
   readonly #values = new Map<string, Map<string, string>>();
 
+  async getAll(projectId: string): Promise<Record<string, string>> {
+    return Object.fromEntries(this.#values.get(projectId) ?? []);
+  }
+
   async get(projectId: string, key: string): Promise<string | undefined> {
     return this.#values.get(projectId)?.get(key);
   }

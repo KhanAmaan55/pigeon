@@ -49,6 +49,8 @@ fn main() {
             app_state::app_state_read,
             app_state::app_state_write,
             app_state::app_state_backup,
+            app_state::secrets_read,
+            app_state::secrets_write,
             smoke::smoke_report
         ])
     } else {
@@ -70,7 +72,9 @@ fn main() {
             watch::project_unwatch,
             app_state::app_state_read,
             app_state::app_state_write,
-            app_state::app_state_backup
+            app_state::app_state_backup,
+            app_state::secrets_read,
+            app_state::secrets_write
         ])
     };
 
