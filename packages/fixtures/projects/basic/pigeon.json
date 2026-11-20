@@ -1,0 +1,12 @@
+{
+  "pigeon": {
+    "formatVersion": 1
+  },
+  "id": "project-basic",
+  "name": "Basic project",
+  "collections": [
+    "users-api",
+    "billing"
+  ],
+  "x-project": true
+}

@@ -24,6 +24,16 @@ export {
 export type { Id, QueryParam, Request, RequestInit, RequestSettings, Url } from './model/request';
 export { createRequest, createUrl, RequestSchema, UrlSchema } from './model/request';
 
+export type {
+  Collection,
+  Folder,
+  Problem,
+  ProjectItem,
+  ProjectModel,
+  ProjectReadResult,
+  ProjectRequest,
+} from './model/project';
+
 export type { ParsedUrlRaw, UrlRawParts } from './model/url';
 export {
   buildRequestUrl,

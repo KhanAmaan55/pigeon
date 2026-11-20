@@ -9,3 +9,6 @@ playwright-report/
 blob-report/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
+
+# Golden files: bytes are owned by the canonical serializer
+packages/fixtures/projects/

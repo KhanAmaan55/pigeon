@@ -1,0 +1,44 @@
+{
+  "id": "get-invoices",
+  "name": "Get invoices",
+  "request": {
+    "method": "GET",
+    "header": [
+      {
+        "key": "Accept",
+        "value": "application/json"
+      },
+      {
+        "key": "X-Trace",
+        "value": "1",
+        "disabled": true
+      }
+    ],
+    "url": {
+      "raw": "https://billing.example.test/invoices?status=open&archived&page=",
+      "query": [
+        {
+          "key": "status",
+          "value": "open"
+        },
+        {
+          "key": "archived",
+          "value": null
+        },
+        {
+          "key": "page",
+          "value": ""
+        },
+        {
+          "key": "debug",
+          "value": "1",
+          "disabled": true,
+          "description": "Server-side debug flag"
+        }
+      ]
+    }
+  },
+  "_pigeon": {
+    "timeoutMs": 5000
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "get-audit",
+  "name": "Get audit log",
+  "description": "Item-level description (unknown in a request item, preserved)",
+  "request": {
+    "method": "GET",
+    "body": {
+      "mode": "urlencoded",
+      "urlencoded": [
+        {
+          "key": "verbose",
+          "value": "true"
+        },
+        {
+          "key": "since",
+          "value": "{{yesterday}}",
+          "type": "text",
+          "disabled": true
+        }
+      ]
+    },
+    "url": {
+      "raw": "{{baseUrl}}/audit"
+    }
+  }
+}

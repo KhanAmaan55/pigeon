@@ -22,40 +22,41 @@ const KINDS = {
   protocolProfileBehavior: ['followRedirects', 'maxRedirects', 'strictSSL'],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
-const PATH_KINDS: Readonly<Record<ProjectFileKind, Readonly<Record<string, keyof typeof KINDS>>>> = {
-  pigeon: {
-    '': 'pigeon',
-    comparison: 'comparison',
-    'comparison.headers': 'comparisonHeaders',
-    'comparison.body': 'comparisonBody',
-  },
-  collection: {
-    '': 'collection',
-    info: 'info',
-    auth: 'auth',
-    event: 'event',
-    'event.script': 'script',
-    variable: 'variable',
-  },
-  folder: {
-    '': 'folder',
-    auth: 'auth',
-    event: 'event',
-    'event.script': 'script',
-    variable: 'variable',
-  },
-  request: {
-    '': 'item',
-    request: 'request',
-    'request.url': 'url',
-    'request.header': 'header',
-    'request.body': 'body',
-    'request.auth': 'auth',
-    event: 'event',
-    'event.script': 'script',
-    protocolProfileBehavior: 'protocolProfileBehavior',
-  },
-};
+const PATH_KINDS: Readonly<Record<ProjectFileKind, Readonly<Record<string, keyof typeof KINDS>>>> =
+  {
+    pigeon: {
+      '': 'pigeon',
+      comparison: 'comparison',
+      'comparison.headers': 'comparisonHeaders',
+      'comparison.body': 'comparisonBody',
+    },
+    collection: {
+      '': 'collection',
+      info: 'info',
+      auth: 'auth',
+      event: 'event',
+      'event.script': 'script',
+      variable: 'variable',
+    },
+    folder: {
+      '': 'folder',
+      auth: 'auth',
+      event: 'event',
+      'event.script': 'script',
+      variable: 'variable',
+    },
+    request: {
+      '': 'item',
+      request: 'request',
+      'request.url': 'url',
+      'request.header': 'header',
+      'request.body': 'body',
+      'request.auth': 'auth',
+      event: 'event',
+      'event.script': 'script',
+      protocolProfileBehavior: 'protocolProfileBehavior',
+    },
+  };
 
 /** Key-order specifications for every JSON file PIGN-013 will write. */
 export const PROJECT_KEY_ORDERS: Readonly<Record<ProjectFileKind, KeyOrderSpec>> = {
@@ -71,6 +72,10 @@ export function createProjectKeyOrder(fileKind: ProjectFileKind): KeyOrderSpec {
   return {
     kinds: KINDS,
     kindForPath(path: KeyOrderPath): string | undefined {
+      if (path.at(-2) === 'auth') return 'header';
+      if (['header', 'query', 'variable', 'urlencoded', 'formdata'].includes(path.at(-1) ?? '')) {
+        return 'header';
+      }
       return pathKinds[path.join('.')];
     },
   };

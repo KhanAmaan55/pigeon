@@ -11,7 +11,8 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@pigeon/platform": "workspace:*"
+    "@pigeon/platform": "workspace:*",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "fast-check": "^4.10.2"

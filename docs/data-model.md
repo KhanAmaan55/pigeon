@@ -1,6 +1,6 @@
 # Pigeon — Domain / Data Model
 
-The domain model lives in `packages/core/src/model/`. It is a **normalized, Postman-semantics model**: every concept maps to a Postman v2.1 concept where one exists, but shapes are normalized (e.g. URL is always an object, headers always an array) so that the rest of the code never handles Postman's alternative encodings. Mapping to/from files is done in `packages/formats`.
+The domain model lives in `packages/core/src/model/`. It is a **normalized, Postman-semantics model**: every concept maps to a Postman v2.1 concept where one exists, but shapes are normalized (e.g. URL is always an object, headers always an array) so that the rest of the code never handles Postman's alternative encodings. Mapping to/from files is done in `packages/formats`. Project entity types (§3–4) are defined in `formats/src/project/types.ts` (formats may not depend on core) and re-exported from `core/model/project.ts`.
 
 Every Postman-derived entity has `extra: Record<string, unknown>` holding unknown keys from the source JSON, so they are written back unchanged (see [compatibility.md](compatibility.md)).
 

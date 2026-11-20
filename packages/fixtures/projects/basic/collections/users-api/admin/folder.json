@@ -1,0 +1,13 @@
+{
+  "id": "admin-folder",
+  "name": "Admin",
+  "description": "Admin actions",
+  "x-folder": "kept",
+  "_pigeon": {
+    "order": [
+      "delete-user",
+      "nested"
+    ],
+    "x-pigeon": "kept"
+  }
+}

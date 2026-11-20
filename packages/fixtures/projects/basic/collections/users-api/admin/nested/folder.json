@@ -1,0 +1,9 @@
+{
+  "id": "nested-folder",
+  "name": "Nested",
+  "_pigeon": {
+    "order": [
+      "get-audit"
+    ]
+  }
+}

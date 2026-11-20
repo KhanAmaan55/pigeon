@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { ProjectRequest, Request } from '../src/index';
 import { createRequest, RequestSchema } from '../src/index';
 
 describe('createRequest', () => {
@@ -33,5 +34,15 @@ describe('createRequest', () => {
     expect(() =>
       createRequest({ body: { mode: 'raw', raw: 'x', language: 'yaml' as never } }),
     ).toThrow();
+  });
+});
+
+describe('project model compatibility', () => {
+  it('an editor Request is a ProjectRequest without auth/events and vice versa', () => {
+    const request: Request = createRequest({ name: 'Compat' });
+    const project: ProjectRequest = { ...request, events: [] };
+    const back: Omit<ProjectRequest, 'auth' | 'events' | 'broken'> = request;
+    const editor: Request = { ...project, settings: project.settings };
+    expect(back.name).toBe(editor.name);
   });
 });
