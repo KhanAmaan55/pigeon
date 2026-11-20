@@ -8,7 +8,7 @@
  */
 
 import type { ProjectReadResult } from '@pigeon/formats';
-import { createEmptyProject, readProject } from '@pigeon/formats';
+import { createEmptyProject, isManagedPath, readProject, sha256Hex } from '@pigeon/formats';
 import type {
   AppStateStore,
   Platform,
@@ -18,6 +18,8 @@ import type {
 } from '@pigeon/platform';
 
 import type { EditCommand } from './commands';
+import type { CommitPlan, DiskState } from './commit-planner';
+import { planCommit } from './commit-planner';
 import type { Draft } from './drafts';
 import { applyDrafts, createDraft, locateEntity } from './drafts';
 import type { LocalProjectState } from './local-state';
@@ -46,6 +48,24 @@ export interface ItemLocation {
   directory: ProjectPath;
 }
 
+export interface CommitResult {
+  written: ProjectPath[];
+  deleted: ProjectPath[];
+  removedDirs: ProjectPath[];
+}
+
+/** A Save for Commit that failed part-way; drafts are intact and the base follows the disk. */
+export class CommitError extends Error {
+  override readonly name = 'CommitError';
+  constructor(
+    message: string,
+    readonly written: ProjectPath[],
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+  }
+}
+
 /** Where an entity stands (data-model.md §10); drafts carry their operation for badges. */
 export type ChangeState = 'clean' | 'unsaved' | 'created' | 'updated' | 'deleted';
 
@@ -64,6 +84,8 @@ export class ProjectSession {
   readonly #local: LocalStateStore | undefined;
   /** Set when the local state was unreadable and was backed up (key name). */
   readonly localStateBackup: string | undefined;
+  /** Hashes of files this session wrote, so the watcher (PIGN-020) can ignore its own writes. */
+  readonly #ownWrites = new Map<ProjectPath, string>();
   readonly #listeners = new Set<() => void>();
 
   private constructor(
@@ -270,6 +292,126 @@ export class ProjectSession {
     this.#working = restoreFromBase(this.#working, this.#read.model, id);
     await this.#persistDrafts();
     this.#emit();
+  }
+
+  /**
+   * Plans Save for Commit of `ids` (default: every draft) against what is on disk now
+   * (file-format.md §5.1). Unsaved edits are not included: save them first.
+   */
+  async planCommit(ids?: readonly string[]): Promise<CommitPlan> {
+    return this.#plan([...this.#drafts.values()], ids);
+  }
+
+  /**
+   * Like `planCommit`, but as if the unsaved edits of `ids` (default: all) were saved first;
+   * nothing is saved. For previews in Pending Changes.
+   */
+  async previewCommit(ids?: readonly string[]): Promise<CommitPlan> {
+    const drafts = new Map(this.#drafts);
+    for (const id of ids ?? this.unsavedIds()) {
+      if (!this.#unsaved.has(id)) continue;
+      const draft = createDraft(this.#read.model, this.#working, id, (e) => this.#baseHash(e));
+      if (draft) drafts.set(id, draft);
+      else drafts.delete(id);
+    }
+    // Unsaved parents are prerequisites too (as in `save`).
+    for (const id of ids ?? []) {
+      let parent = locateEntity(this.#working, id)?.parentId;
+      while (parent && this.#unsaved.has(parent)) {
+        const draft = createDraft(this.#read.model, this.#working, parent, (e) =>
+          this.#baseHash(e),
+        );
+        if (draft) drafts.set(parent, draft);
+        parent = locateEntity(this.#working, parent)?.parentId;
+      }
+    }
+    return this.#plan([...drafts.values()], ids);
+  }
+
+  async #plan(drafts: Draft[], ids?: readonly string[]): Promise<CommitPlan> {
+    const brokenPaths = new Set(
+      this.#read.problems.filter((p) => p.severity === 'error').map((p) => p.path),
+    );
+    return planCommit({
+      base: this.#read.model,
+      drafts,
+      ...(ids ? { selection: ids } : {}),
+      disk: await this.scanDisk(),
+      knownPaths: new Set(this.#read.files.keys()),
+      brokenPaths,
+      hash: sha256Hex,
+    });
+  }
+
+  /** Managed project files on disk (path → sha-256) and other files below `collections/` (`null`). */
+  async scanDisk(): Promise<DiskState> {
+    const disk = new Map<ProjectPath, string | null>();
+    const add = async (path: ProjectPath) =>
+      disk.set(path, isManagedPath(path) ? await sha256Hex(await this.fs.readFile(path)) : null);
+    if ((await this.fs.stat('pigeon.json'))?.kind === 'file') await add('pigeon.json');
+    if ((await this.fs.stat('collections'))?.kind === 'dir') {
+      for (const entry of await this.fs.list('collections', { recursive: true })) {
+        if (entry.kind === 'file') await add(entry.path);
+      }
+    }
+    return disk;
+  }
+
+  /**
+   * Applies a plan: writes (atomically, per file), deletes, then removes empty directories. On
+   * success the committed drafts are cleared and the base re-read. On failure nothing is lost:
+   * drafts stay, the base follows the disk, and the error lists what was written.
+   */
+  async commit(plan: CommitPlan): Promise<CommitResult> {
+    if (this.readOnly) throw new Error('This project is read-only.');
+    const written: ProjectPath[] = [];
+    try {
+      for (const write of plan.writes) {
+        await this.fs.writeFileAtomic(write.path, write.bytes);
+        this.#ownWrites.set(write.path, await sha256Hex(write.bytes));
+        written.push(write.path);
+      }
+      for (const path of plan.deletes) {
+        if (await this.fs.exists(path)) await this.fs.remove(path);
+        this.#ownWrites.delete(path);
+      }
+    } catch (error) {
+      await this.reload();
+      throw new CommitError(
+        `Save for Commit stopped after ${written.length} of ${plan.writes.length} files: ${error instanceof Error ? error.message : String(error)}`,
+        written,
+        { cause: error },
+      );
+    }
+    const removedDirs: ProjectPath[] = [];
+    for (const dir of plan.rmdirs) {
+      try {
+        await this.fs.remove(dir);
+        removedDirs.push(dir);
+      } catch {
+        // Not empty after all (a file appeared) or already gone: keep it.
+      }
+    }
+    for (const id of plan.entityIds) this.#drafts.delete(id);
+    await this.reload();
+    await this.#persistDrafts();
+    return { written, deleted: [...plan.deletes], removedDirs };
+  }
+
+  /** Save (if needed) and Save for Commit of `ids` (default: everything), in one step. */
+  async saveForCommit(
+    ids?: readonly string[],
+  ): Promise<{ plan: CommitPlan; result: CommitResult }> {
+    const unsaved = (ids ?? this.unsavedIds()).filter((id) => this.#unsaved.has(id));
+    if (unsaved.length > 0) await this.save(unsaved);
+    const plan = await this.planCommit(ids);
+    const result = await this.commit(plan);
+    return { plan, result };
+  }
+
+  /** True when `path` was last written by this session with exactly `hash`. */
+  isOwnWrite(path: ProjectPath, hash: string): boolean {
+    return this.#ownWrites.get(path) === hash;
   }
 
   /** The model with saved drafts only (no in-memory edits). */

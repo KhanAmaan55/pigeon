@@ -1,0 +1,59 @@
+import { sha256Hex } from '@pigeon/formats';
+import { describe, expect, it } from 'vitest';
+
+import type { Draft, ProjectModel } from '../src/index';
+import { applyCommand, createDraft, planCommit } from '../src/index';
+
+/** A project with `count` requests in 50 folders. */
+function bigModel(count: number): ProjectModel {
+  let model: ProjectModel = { id: 'p', name: 'Big', formatVersion: 1, collections: [], extra: {} };
+  model = applyCommand(model, { type: 'createCollection', id: 'c', name: 'Big' });
+  for (let f = 0; f < 50; f++)
+    model = applyCommand(model, {
+      type: 'createFolder',
+      id: `f${f}`,
+      parentId: 'c',
+      name: `Folder ${f}`,
+    });
+  for (let r = 0; r < count; r++) {
+    model = applyCommand(model, {
+      type: 'createRequest',
+      id: `r${r}`,
+      parentId: `f${r % 50}`,
+      name: `Request ${r}`,
+    });
+  }
+  return model;
+}
+
+describe('commit planner performance', () => {
+  it('plans a one-request commit in a 5,000-request project within budget', async () => {
+    const base = bigModel(5000);
+    const working = applyCommand(base, {
+      type: 'updateRequest',
+      id: 'r42',
+      patch: { method: 'POST' },
+    });
+    const draft = createDraft(base, working, 'r42', () => null) as Draft;
+    const disk = new Map<string, string | null>([['pigeon.json', 'x']]);
+    const knownPaths = new Set<string>(['pigeon.json']);
+
+    const started = performance.now();
+    const plan = await planCommit({
+      base,
+      drafts: [draft],
+      disk,
+      knownPaths,
+      brokenPaths: new Set(),
+      hash: sha256Hex,
+    });
+    const elapsed = performance.now() - started;
+
+    expect(plan.writes.map((w) => w.path).sort()).toEqual([
+      'collections/big/folder-42/folder.json',
+      'collections/big/folder-42/request-42.request.json',
+    ]);
+    // Budget: 100 ms (story PIGN-019); shared CI runners get headroom.
+    expect(elapsed).toBeLessThan(process.env['CI'] ? 500 : 100);
+  });
+});

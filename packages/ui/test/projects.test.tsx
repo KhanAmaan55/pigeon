@@ -774,3 +774,98 @@ async function useAppStoreFlush(platform: MemoryPlatform): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 600));
   void platform;
 }
+
+describe('Save for Commit & Pending Changes (PIGN-019)', () => {
+  async function openFixture() {
+    const { platform, fs } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    return { platform, fs, user };
+  }
+  const urlInput = () => screen.getByTestId('url-input') as HTMLInputElement;
+
+  it('lists changes, shows the file plan and diff, and writes the selected files', async () => {
+    const { fs, user } = await openFixture();
+    await user.dblClick(screen.getByText('Get invoices'));
+    await act(async () => urlInput().focus());
+    await user.keyboard('&commit=1');
+    expect(screen.getByTestId('pending-count').textContent).toBe('1');
+
+    await user.click(screen.getByTestId('activity-pending'));
+    const item = await screen.findByTestId('pending-changes-item');
+    expect(item.textContent).toContain('Get invoices');
+    const file = await screen.findByTestId('pending-file');
+    expect(file.textContent).toBe('Mcollections/billing/get-invoices.request.json');
+    await user.click(file);
+    const diff = await screen.findByTestId('diff-view');
+    expect(within(diff).getAllByText(/status=open&archived&page=/).length).toBeGreaterThan(0);
+    expect(diff.querySelectorAll('[data-kind="add"]').length).toBeGreaterThan(0);
+    expect(diff.querySelectorAll('[data-kind="remove"]').length).toBeGreaterThan(0);
+
+    await user.click(screen.getByTestId('commit-selected'));
+    await waitFor(() => expect(screen.getByTestId('toast').textContent).toContain('Wrote 1 file'));
+    expect(await fs.readText('collections/billing/get-invoices.request.json')).toContain(
+      '&commit=1',
+    );
+    expect(screen.getByTestId('pending-empty').textContent).toContain(
+      'Everything is written to files',
+    );
+    expect(screen.queryByTestId('pending-count')).toBeNull();
+  });
+
+  it('shows renames as R and lets changes be discarded', async () => {
+    const { fs, user } = await openFixture();
+    fireEvent.contextMenu(screen.getByText('Pay invoice'));
+    fireEvent.click(await screen.findByTestId('menu-rename'));
+    await act(async () => screen.getByTestId('explorer-rename-input').focus());
+    await user.keyboard('{Control>}a{/Control}Settle invoice{Enter}');
+    await user.click(screen.getByTestId('activity-pending'));
+    await waitFor(() =>
+      expect(screen.getAllByTestId('pending-file').map((f) => f.textContent)).toContain(
+        'Rcollections/billing/pay-invoice.request.json → collections/billing/settle-invoice.request.json',
+      ),
+    );
+    await user.click(screen.getByTestId('discard-selected'));
+    await screen.findByTestId('pending-empty');
+    expect(await fs.exists('collections/billing/pay-invoice.request.json')).toBe(true);
+  });
+
+  it('commits the active request with Cmd/Ctrl+Shift+S', async () => {
+    const { fs, user } = await openFixture();
+    await user.dblClick(screen.getByText('List users'));
+    await act(async () => urlInput().focus());
+    await user.keyboard('&shortcut=1');
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(() => expect(screen.getByTestId('toast').textContent).toContain('Wrote 1 file'));
+    expect(await fs.readText('collections/users-api/list-users.request.json')).toContain(
+      'shortcut=1',
+    );
+    expect(screen.queryByTestId('request-tab-unsaved')).toBeNull();
+  });
+});
+
+describe('diffLines', () => {
+  it('produces minimal unified diffs with context', async () => {
+    const { diffLines, withContext } = await import('../src/components/DiffView/diff');
+    const lines = diffLines('a\nb\nc\nd\ne\nf\ng\nh\n', 'a\nb\nc\nX\ne\nf\ng\nh\nI\n');
+    expect(lines.filter((l) => l.kind !== 'same')).toEqual([
+      { kind: 'remove', text: 'd', oldLine: 4 },
+      { kind: 'add', text: 'X', newLine: 4 },
+      { kind: 'add', text: 'I', newLine: 9 },
+    ]);
+    expect(withContext(lines, 1).map((l) => l?.text ?? '…')).toEqual([
+      '…',
+      'c',
+      'd',
+      'X',
+      'e',
+      '…',
+      'h',
+      'I',
+    ]);
+    expect(diffLines('', 'new\n')).toEqual([{ kind: 'add', text: 'new', newLine: 1 }]);
+    expect(withContext(diffLines('same\n', 'same\n'))).toEqual([]);
+  });
+});

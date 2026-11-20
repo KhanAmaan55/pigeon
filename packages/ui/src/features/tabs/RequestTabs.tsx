@@ -4,7 +4,7 @@ import { Dialog } from 'radix-ui';
 import { useEffect, useState } from 'react';
 
 import type { OpenProject } from '../../stores/app-store';
-import { useProjectState } from '../../stores/AppStoreProvider';
+import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { methodLabel } from '../explorer/tree';
 import { methodColorClass } from '../request-editor/methods';
 import { disposeTabEditor } from './editor-registry';
@@ -15,6 +15,13 @@ const NO_TABS: never[] = [];
 export function isSaveShortcut(event: KeyboardEvent): boolean {
   return (
     event.code === 'KeyS' && (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey
+  );
+}
+
+/** Cmd/Ctrl+Shift+S: Save for Commit (docs/ui-ux.md §4). */
+export function isSaveForCommitShortcut(event: KeyboardEvent): boolean {
+  return (
+    event.code === 'KeyS' && (event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey
   );
 }
 
@@ -50,6 +57,24 @@ export function RequestTabs({ project }: { project: OpenProject }) {
     }
   };
 
+  const notify = useAppStore((s) => s.notify);
+  /** Save (if needed) + Save for Commit of `ids`, then a toast with the number of files. */
+  const saveForCommit = async (ids?: string[]) => {
+    try {
+      setSaveError(null);
+      const { plan, result } = await session.saveForCommit(ids);
+      const count = result.written.length + result.deleted.length;
+      if (plan.blocked.length > 0) {
+        setSaveError(
+          `${plan.blocked.length} change(s) could not be written: the file changed on disk.`,
+        );
+      }
+      notify(count === 0 ? 'Nothing to write.' : `Wrote ${count} file${count === 1 ? '' : 's'}.`);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   const close = (id: string) => {
     if (session.isUnsaved(id)) {
       setConfirming(id);
@@ -62,7 +87,10 @@ export function RequestTabs({ project }: { project: OpenProject }) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const state = store.getState();
-      if (isSaveShortcut(event)) {
+      if (isSaveForCommitShortcut(event)) {
+        event.preventDefault();
+        if (state.activeTabId) void saveForCommit([state.activeTabId]);
+      } else if (isSaveShortcut(event)) {
         event.preventDefault();
         if (state.activeTabId && session.isUnsaved(state.activeTabId))
           void save([state.activeTabId]);

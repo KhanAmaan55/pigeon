@@ -16,12 +16,18 @@ const workspaces = {
   'packages/platform': { pigeon: [], pure: true },
   'packages/formats': { pigeon: ['platform'], pure: true },
   'packages/compare': { pigeon: [], pure: true },
-  'packages/core': { pigeon: ['platform', 'formats', 'compare'], pure: true },
+  // Core's integration tests run on real folders (NodeFs, Git) in Node.
+  'packages/core': {
+    pigeon: ['platform', 'formats', 'compare'],
+    testPigeon: ['platform-node'],
+    pure: true,
+  },
   'packages/fixtures': { pigeon: [], pure: true },
   // Node-only tooling for tests; never imported by app code.
   'packages/test-server': { pigeon: [], forbid: ['react', 'tauri'] },
   'packages/platform-web': { pigeon: ['platform'], forbid: ['react', 'tauri', 'node'] },
   'packages/platform-desktop': { pigeon: ['platform'], forbid: ['react', 'node'] },
+  'packages/platform-node': { pigeon: ['platform'], forbid: ['react', 'tauri'] },
   'packages/ui': { pigeon: ['core', 'formats', 'compare', 'platform'], forbid: ['tauri', 'node'] },
   'apps/web': { pigeon: ['ui', 'platform', 'platform-web'], forbid: ['tauri', 'node'] },
   'apps/desktop': { pigeon: ['ui', 'platform', 'platform-desktop'], forbid: ['node'] },
@@ -46,24 +52,22 @@ const forbiddenGroups = {
 
 /**
  * @param {string} dir workspace directory, e.g. `packages/core`
- * @param {{ pigeon: string[], pure?: boolean, forbid?: string[] }} rule
+ * @param {{ pigeon: string[], testPigeon?: string[], pure?: boolean, forbid?: string[] }} rule
  * @returns {import('eslint').Linter.Config[]}
  */
 function restrictedImportsFor(dir, rule) {
   const forbid = rule.pure ? ['react', 'tauri', 'node'] : (rule.forbid ?? []);
-  const allowed = rule.pigeon.map((dep) => `!@pigeon/${dep}`);
-  const pigeonGroup = {
-    group: ['@pigeon/*', ...allowed],
+  /** @param {string[]} deps */
+  const pigeonGroup = (deps) => ({
+    group: ['@pigeon/*', ...deps.map((dep) => `!@pigeon/${dep}`)],
     message: `${dir} may only import: ${
-      rule.pigeon.length
-        ? rule.pigeon.map((d) => `@pigeon/${d}`).join(', ')
-        : 'no internal packages'
+      deps.length ? deps.map((d) => `@pigeon/${d}`).join(', ') : 'no internal packages'
     } (docs/architecture.md §2).`,
-  };
+  });
   /** @param {string[]} keys */
-  const patterns = (keys) => [
+  const patterns = (keys, deps = rule.pigeon) => [
     ...keys.map((key) => forbiddenGroups[/** @type {keyof typeof forbiddenGroups} */ (key)]),
-    pigeonGroup,
+    pigeonGroup(deps),
   ];
   return [
     {
@@ -76,7 +80,12 @@ function restrictedImportsFor(dir, rule) {
       rules: {
         'no-restricted-imports': [
           'error',
-          { patterns: patterns(forbid.filter((key) => key !== 'node')) },
+          {
+            patterns: patterns(
+              forbid.filter((key) => key !== 'node'),
+              [...rule.pigeon, ...(rule.testPigeon ?? [])],
+            ),
+          },
         ],
       },
     },

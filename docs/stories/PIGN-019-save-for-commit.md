@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-019 | 2 — Projects | MVP | Todo | PIGN-018 |
+| PIGN-019 | 2 — Projects | MVP | Done | PIGN-018 |
 
 ## Goal
 Implement **Save for Commit**: materialize drafts into project files deterministically, with a Pending Changes panel that shows the file plan and diffs before writing.
@@ -27,13 +27,13 @@ As a developer, I want to choose which local changes become file changes and rev
 - Conflict resolution UI (PIGN-020), Git operations.
 
 ## Acceptance criteria
-- [ ] Editing one header on one request and committing changes exactly one file with a minimal diff (golden test).
-- [ ] Save for Commit with no drafts writes zero files.
-- [ ] Renaming a request produces a delete + write displayed as `R old → new`; examples dirs are not touched yet (added in PIGN-027).
-- [ ] Committing a request inside a new folder also writes the folder (prerequisite shown in plan).
-- [ ] Deleting a folder removes its files and the empty directory; unmanaged files inside keep the directory and are listed as a warning.
-- [ ] Interrupting a write (simulated fs error mid-plan) leaves no partial files (temp files cleaned up) and keeps drafts intact.
-- [ ] Works identically on desktop (TauriFs) and web (FsAccessFs, IdbFs).
+- [x] Editing one header on one request and committing changes exactly one file with a minimal diff (golden test).
+- [x] Save for Commit with no drafts writes zero files.
+- [x] Renaming a request produces a delete + write displayed as `R old → new`; examples dirs are not touched yet (added in PIGN-027).
+- [x] Committing a request inside a new folder also writes the folder (prerequisite shown in plan).
+- [x] Deleting a folder removes its files and the empty directory; unmanaged files inside keep the directory and are listed as a warning.
+- [x] Interrupting a write (simulated fs error mid-plan) leaves no partial files (temp files cleaned up) and keeps drafts intact.
+- [x] Works identically on desktop (TauriFs) and web (FsAccessFs, IdbFs).
 
 ## Technical notes
 - Scan only managed paths (file-format §1.1) for `diskState`.
@@ -51,3 +51,10 @@ As a developer, I want to choose which local changes become file changes and rev
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+- `core/workspace/commit-planner.ts`: pure `planCommit({ base, drafts, selection, disk, knownPaths, brokenPaths, hash })` → `{ entityIds, prerequisites, writes, deletes, rmdirs, renames, blocked, warnings, model }`. Prerequisites = drafts of parents of selected entities (old and new parent), transitively. Safety rules beyond file-format §5.1: only files of committed entities (or below a committed container, or the parent container of a committed child, whose order lists child file keys) are written, so files changed by others are never overwritten; only paths the base was read from are deleted; broken files are never written or deleted (a draft on a broken file is `blocked: broken-file`). `pigeon.json` is written only when a collection draft is committed. ~20 ms for a one-request commit in a 5,000-request project (`commit-perf.test.ts`).
+- `ProjectSession`: `scanDisk`, `planCommit(ids?)`, `previewCommit(ids?)` (as if unsaved edits were saved; for the panel), `commit(plan)` (writes → deletes → rmdir deepest first; on failure throws `CommitError`, keeps drafts and reloads the base from disk; `writeFileAtomic` never leaves temp files), `saveForCommit(ids?)` (Save first when needed), `isOwnWrite(path, hash)` for PIGN-020.
+- Pending Changes (activity bar, count badge): entities with A/M/D/● (unsaved), checkboxes (new changes start selected), file plan with A/M/D and `R old → new`, blocked entities and kept-directory warnings, per-file unified diff, Save selected / Save all for commit, Discard. The diff is a small LCS line diff (`components/DiffView`) instead of the CodeMirror merge view — exact, dependency-free and testable in jsdom; swap later if side-by-side is wanted.
+- Cmd/Ctrl+Shift+S and the Save menu ("Save for commit", "Save all for commit") commit the active request (+ prerequisites); a toast says "Wrote N files". "Reveal" on desktop is not implemented yet (needs a reveal command).
+- New package `@pigeon/platform-node` (`NodeFs`, passes `fsConformance`). Core tests may import it (`testPigeon` in eslint.config.js); the Git scenario test (`core/test/commit.test.ts`) commits into a real `git init` repository and checks `git diff --numstat`.

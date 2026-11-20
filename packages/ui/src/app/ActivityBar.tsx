@@ -2,6 +2,7 @@ import { FolderTree, GitCompareArrows, Play, Settings, Variable } from 'lucide-r
 import type { ReactNode } from 'react';
 
 import { IconButton } from '../components/IconButton';
+import { useProjectState } from '../stores/AppStoreProvider';
 import type { SidebarView } from './views';
 import { SIDEBAR_VIEW_TITLES } from './views';
 
@@ -21,18 +22,29 @@ export function ActivityBar({
   active: SidebarView;
   onSelect: (view: SidebarView) => void;
 }) {
+  const pending = useProjectState((s) => Object.keys(s.changes).length, 0);
   const button = (view: SidebarView, icon: ReactNode) => (
-    <IconButton
-      key={view}
-      label={SIDEBAR_VIEW_TITLES[view]}
-      icon={icon}
-      active={active === view}
-      indicator
-      aria-pressed={active === view}
-      tooltipSide="right"
-      data-testid={`activity-${view}`}
-      onClick={() => onSelect(view)}
-    />
+    <span key={view} className="relative">
+      <IconButton
+        label={SIDEBAR_VIEW_TITLES[view]}
+        icon={icon}
+        active={active === view}
+        indicator
+        aria-pressed={active === view}
+        tooltipSide="right"
+        data-testid={`activity-${view}`}
+        onClick={() => onSelect(view)}
+      />
+      {view === 'pending' && pending > 0 && (
+        <span
+          data-testid="pending-count"
+          aria-label={`${pending} pending changes`}
+          className="pointer-events-none absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-accent px-1 text-center text-[10px] leading-4 font-semibold text-accent-fg"
+        >
+          {pending}
+        </span>
+      )}
+    </span>
   );
 
   return (

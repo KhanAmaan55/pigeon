@@ -1,4 +1,5 @@
 import { Explorer } from '../features/explorer/Explorer';
+import { PendingChanges } from '../features/pending-changes/PendingChanges';
 import { Welcome } from '../features/projects/Welcome';
 import { Diagnostics } from '../features/settings/Diagnostics';
 import { RequestDefaults } from '../features/settings/RequestDefaults';
@@ -23,6 +24,8 @@ export function Sidebar({ view }: { view: SidebarView }) {
           <RequestDefaults />
           <Diagnostics />
         </div>
+      ) : view === 'pending' ? (
+        <PendingChanges />
       ) : view === 'collections' ? (
         hasProject ? (
           <Explorer />

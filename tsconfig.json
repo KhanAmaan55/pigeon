@@ -38,6 +38,12 @@
       "path": "packages/platform-desktop/test"
     },
     {
+      "path": "packages/platform-node"
+    },
+    {
+      "path": "packages/platform-node/test"
+    },
+    {
       "path": "packages/ui"
     },
     {

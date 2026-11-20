@@ -116,7 +116,7 @@ Allowed dependencies (enforced by ESLint `no-restricted-imports` + per-package `
 | apps/cli (later) | core, formats, compare, platform, platform-node |
 | test-server | — (Node-only test tooling; nothing in `src` may import it) |
 
-The rules live in `eslint.config.js` (the `packages` table at the top). Tests (`packages/*/test`) follow the same package rules but may import Node built-ins, because they run in Node under Vitest.
+The rules live in `eslint.config.js` (the `packages` table at the top). Tests (`packages/*/test`) follow the same package rules but may import Node built-ins, because they run in Node under Vitest. Core's tests may also import `@pigeon/platform-node` (integration tests on real folders and Git).
 
 ### 2.1 Build & type-check setup (PIGN-001)
 

@@ -230,6 +230,52 @@ test.describe('save to local state', () => {
   });
 });
 
+test.describe('save for commit', () => {
+  test('pending changes: review the plan and diff, write files, then nothing is pending', async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Commit API');
+    await page.getByTestId('create-project-submit').click();
+    const items = page.getByTestId('explorer-item');
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await items.filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    await page.getByTestId('url-input').fill('{{baseUrl}}/users');
+    await page.getByTestId('url-input').press('ControlOrMeta+s');
+    await expect(page.getByTestId('pending-count')).toHaveText('2');
+
+    await page.getByTestId('activity-pending').click();
+    await expect(page.getByTestId('pending-changes-item')).toHaveCount(2);
+    await expect(page.getByTestId('pending-file')).toHaveText([
+      'Acollections/users/collection.json',
+      'Acollections/users/new-request.request.json',
+      'Mpigeon.json',
+    ]);
+    await page.getByTestId('pending-file').filter({ hasText: 'pigeon.json' }).click();
+    await expect(page.getByTestId('diff-view').locator('[data-kind="add"]')).toContainText([
+      '"users"',
+    ]);
+    await page.getByTestId('commit-all').click();
+    await expect(page.getByTestId('toast')).toHaveText(/Wrote 3 files/);
+    await expect(page.getByTestId('pending-empty')).toBeVisible();
+    await expect(page.getByTestId('pending-count')).toHaveCount(0);
+
+    await page.reload();
+    await page.waitForFunction(() => window.__pigeonTest !== undefined);
+    await page
+      .getByTestId('recent-project')
+      .filter({ hasText: 'Commit API' })
+      .getByText('Commit API', { exact: true })
+      .click();
+    await expect(items).toHaveText(['Users', 'GETNew Request']);
+    await expect(page.getByTestId('explorer-badge')).toHaveCount(0);
+  });
+});
+
 test.describe('browser workspaces', () => {
   test('creates a workspace that survives a reload', async ({ page, browserName }) => {
     await gotoApp(page);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Group, Panel } from 'react-resizable-panels';
 
 import { ResizeHandle } from '../components/ResizeHandle';
+import { Toast } from '../components/Toast';
 import { ActivityBar } from './ActivityBar';
 import { MainArea } from './MainArea';
 import { Sidebar } from './Sidebar';
@@ -35,6 +36,7 @@ export function AppShell() {
         </Group>
       </div>
       <StatusBar />
+      <Toast />
     </div>
   );
 }

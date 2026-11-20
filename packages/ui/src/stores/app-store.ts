@@ -50,6 +50,9 @@ export interface AppState {
   project: OpenProject | null;
   busy: boolean;
   error: string | null;
+  /** A short message for the toast (background results, e.g. "Wrote 3 files"). */
+  notice: { id: number; message: string } | null;
+  notify: (message: string) => void;
   /** A picked folder without `pigeon.json`, waiting for "Initialize Pigeon project here?". */
   pendingInit: PendingInit | null;
   loadRecents: () => Promise<void>;
@@ -128,6 +131,8 @@ export function createAppStore(platform: AppPlatform) {
       project: null,
       busy: false,
       error: null,
+      notice: null,
+      notify: (message) => set({ notice: { id: (get().notice?.id ?? 0) + 1, message } }),
       pendingInit: null,
 
       loadRecents: async () => {

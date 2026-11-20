@@ -60,6 +60,15 @@ export {
   replaceItem,
   touchedIds,
 } from './workspace/commands';
+export type {
+  CommitConflict,
+  CommitPlan,
+  DiskState,
+  PlanInput,
+  PlannedRename,
+  PlannedWrite,
+} from './workspace/commit-planner';
+export { entityFilePath, planCommit } from './workspace/commit-planner';
 export type { AppliedDrafts, Draft, DraftData, DraftEntityKind } from './workspace/drafts';
 export { applyDrafts, createDraft, locateEntity } from './workspace/drafts';
 export type { LoadedLocalState, LocalProjectState, TabState } from './workspace/local-state';
@@ -76,8 +85,14 @@ export {
   importProjectZip,
   readProjectZip,
 } from './workspace/project-zip';
-export type { ChangeState, ItemLocation, Unsubscribe } from './workspace/project-session';
+export type {
+  ChangeState,
+  CommitResult,
+  ItemLocation,
+  Unsubscribe,
+} from './workspace/project-session';
 export {
+  CommitError,
   initializeProject,
   isPigeonProject,
   PROJECT_DIRECTORIES,
