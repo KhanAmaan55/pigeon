@@ -1,0 +1,67 @@
+{
+  "id": "oauth2",
+  "name": "OAuth 2.0",
+  "request": {
+    "method": "GET",
+    "url": {
+      "raw": "{{baseUrl}}/echo"
+    },
+    "auth": {
+      "type": "oauth2",
+      "oauth2": [
+        {
+          "key": "accessTokenUrl",
+          "value": "https://auth.example.test/token",
+          "type": "string"
+        },
+        {
+          "key": "addTokenTo",
+          "value": "header",
+          "type": "string"
+        },
+        {
+          "key": "client_authentication",
+          "value": "header",
+          "type": "string"
+        },
+        {
+          "key": "clientId",
+          "value": "{{clientId}}",
+          "type": "string"
+        },
+        {
+          "key": "grant_type",
+          "value": "client_credentials",
+          "type": "string"
+        },
+        {
+          "key": "scope",
+          "value": "read write",
+          "type": "string"
+        },
+        {
+          "key": "tokenName",
+          "value": "pigeon",
+          "type": "string"
+        },
+        {
+          "key": "useBrowser",
+          "value": false,
+          "type": "boolean"
+        },
+        {
+          "key": "authRequestParams",
+          "value": [
+            {
+              "enabled": true,
+              "key": "audience",
+              "send_as": "request_body",
+              "value": "api"
+            }
+          ],
+          "type": "any"
+        }
+      ]
+    }
+  }
+}

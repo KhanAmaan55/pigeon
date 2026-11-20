@@ -91,6 +91,21 @@ async function route({
     return json({ cookies: Object.fromEntries(url.searchParams) }, 200, setCookie);
   }
   if (path === '/cors/none') return json({ cors: 'none', method });
+  if (path === '/auth/basic') {
+    const user = url.searchParams.get('user') ?? 'user';
+    const pass = url.searchParams.get('pass') ?? 'pass';
+    const [scheme, encoded] = (header(headers, 'authorization') ?? '').split(' ', 2);
+    const decoded = Buffer.from(encoded ?? '', 'base64').toString('utf8');
+    return scheme?.toLowerCase() === 'basic' && decoded === `${user}:${pass}`
+      ? json({ authenticated: true, user })
+      : json({ authenticated: false }, 401);
+  }
+  if (path === '/auth/bearer') {
+    const expected = url.searchParams.get('token');
+    const [scheme, token] = (header(headers, 'authorization') ?? '').split(' ', 2);
+    const ok = scheme?.toLowerCase() === 'bearer' && !!token && (!expected || token === expected);
+    return ok ? json({ authenticated: true, token }) : json({ authenticated: false }, 401);
+  }
   if ((match = /^\/redirect\/(\d+)$/.exec(path))) {
     const n = Number(match[1]);
     const status = Number(url.searchParams.get('status') ?? 302);

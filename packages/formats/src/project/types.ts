@@ -57,8 +57,30 @@ export interface ProjectRequestSettings {
   timeoutMs?: number;
 }
 
-/** Preserved verbatim until PIGN-026 models auth. */
-export type ProjectAuth = unknown;
+/**
+ * Auth (data-model.md §4.1, PIGN-026). `undefined` on a folder or request means "inherit from
+ * parent"; on a collection, no auth. `source` is the Postman object as read: unchanged auth is
+ * written back verbatim and edits keep its other params (and their order). Types Pigeon can't send
+ * yet are `unsupported`, preserved as read.
+ */
+export type ProjectAuth =
+  | { type: 'noauth'; source?: ExtraFields }
+  | { type: 'basic'; username: string; password: string; source?: ExtraFields }
+  | { type: 'bearer'; token: string; source?: ExtraFields }
+  | {
+      type: 'apikey';
+      key: string;
+      value: string;
+      in: 'header' | 'query';
+      source?: ExtraFields;
+    }
+  | {
+      type: 'unsupported';
+      /** The Postman type: `oauth2`, `digest`, `awsv4`, … */
+      authType: string;
+      source?: unknown;
+    };
+export type AuthType = ProjectAuth['type'];
 /** Postman `event` entries, preserved verbatim (PIGN-031 edits them). */
 export type ProjectEvent = unknown;
 /** Collection / folder variables (PIGN-024): `type` is `''` when the file has none. */

@@ -1,7 +1,9 @@
 import type { ProjectSession } from '@pigeon/core';
-import { findContainer, GLOBALS_ENTITY_ID } from '@pigeon/core';
+import { findContainer, GLOBALS_ENTITY_ID, inheritedAuth } from '@pigeon/core';
 
 import { useProjectState } from '../../stores/AppStoreProvider';
+import { AuthEditor } from '../auth/AuthEditor';
+import { moveToSecret } from '../tabs/editor-registry';
 import { VariablesEditor } from './EnvironmentEditor';
 
 /** Postman collection variable types, plus "secret" for masking. */
@@ -43,6 +45,7 @@ export function ContainerSettings({
   const container = findContainer(session.getWorkingModel(), containerId);
   if (!container) return null;
   const kind = container.kind === 'collection' ? 'collection' : 'folder';
+  const readOnly = session.readOnly || container.broken === true;
   const file =
     session.itemFilePath(containerId) ??
     (kind === 'collection' ? `collections/${container.fileKey}/collection.json` : '');
@@ -55,6 +58,23 @@ export function ContainerSettings({
             : container.description.content}
         </p>
       )}
+      <section
+        aria-label={`${kind} auth`}
+        data-testid="container-auth"
+        className="shrink-0 border-b border-border"
+      >
+        <h2 className="px-3 pt-2 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+          Auth
+        </h2>
+        <AuthEditor
+          auth={container.auth}
+          onChange={(auth) => session.apply({ type: 'setContainerAuth', id: containerId, auth })}
+          level={kind}
+          inherited={inheritedAuth(session.getWorkingModel(), containerId)}
+          moveToSecret={(name, value) => moveToSecret(session, name, value)}
+          readOnly={readOnly}
+        />
+      </section>
       <div className="min-h-0 flex-1">
         <VariablesEditor
           session={session}
@@ -65,14 +85,14 @@ export function ContainerSettings({
             session.apply({ type: 'setContainerVariables', id: containerId, values })
           }
           scope={`${kind}:${containerId}`}
-          readOnly={session.readOnly || container.broken === true}
+          readOnly={readOnly}
           types={CONTAINER_TYPES}
           testId="collection-variables-editor"
         />
       </div>
       <p className="shrink-0 border-t border-border px-3 py-1.5 text-xs text-fg-muted">
-        Auth for this {kind} arrives with auth inheritance. Precedence: environment › folders ›
-        collection › globals.
+        Requests inside use this auth when set to "Inherit from parent". Variable precedence:
+        environment › folders › collection › globals.
       </p>
     </div>
   );

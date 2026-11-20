@@ -1,0 +1,30 @@
+{
+  "id": "digest",
+  "name": "Digest",
+  "request": {
+    "method": "GET",
+    "url": {
+      "raw": "{{baseUrl}}/echo"
+    },
+    "auth": {
+      "type": "digest",
+      "digest": [
+        {
+          "key": "algorithm",
+          "value": "MD5",
+          "type": "string"
+        },
+        {
+          "key": "password",
+          "value": "{{password}}",
+          "type": "string"
+        },
+        {
+          "key": "username",
+          "value": "ada",
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

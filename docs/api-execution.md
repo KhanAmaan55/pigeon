@@ -123,9 +123,12 @@ interface ExecutionError {
 ```ts
 interface AuthHandler<A extends Auth = Auth> {
   type: A['type'];
-  apply(auth: A, req: MutablePreparedRequest, ctx: ExecutionContext): Promise<void> | void;
+  /** `auth` has its variables resolved; returns what to add (prepareRequest merges it). */
+  apply(auth: A): { headers: [string, string][]; query: [string, string][]; credentials: string[]; warnings: string[] };
 }
 ```
+Implementation: `core/src/execution/auth/` (`registerAuthHandler`, `applyAuth`, `resolveAuth`, `inheritedAuth`). The effective auth is the request's own, else `ExecutionContext.inheritedAuth` (the caller resolves it with `inheritedAuth(model, requestId)`). Variables are resolved in auth fields; auth headers go after the user's headers and before the auto-generated ones; API-key query params are appended to the URL (a query param the user set with the same name wins, with a warning). `credentials` (token, password, the encoded Basic value, the API key) are added to `meta.secretValues`, so the timeline shows the generated `Authorization` masked. A later handler needing the transport (digest) will get a richer interface.
+
 MVP handlers: `noauth`, `basic` (`Authorization: Basic base64(user:pass)`, UTF-8), `bearer` (`Authorization: Bearer <token>`), `apikey` (header or query param). An explicit user header with the same name takes precedence over auth-generated headers (Postman behaviour) and a warning is added. Unsupported types: request sent without auth + warning. Later: digest (needs challenge round trip → handler gets access to `transport`), AWS SigV4 (signs final bytes), OAuth 2.0 (token acquisition flow, token cached in local state).
 
 ## 5. Body encoding

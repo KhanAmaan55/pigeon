@@ -4,7 +4,7 @@
  */
 
 import type { ProjectRequest, ProjectSession, Request, VariableScopes } from '@pigeon/core';
-import { buildScopes } from '@pigeon/core';
+import { buildScopes, inheritedAuth } from '@pigeon/core';
 import type { Platform } from '@pigeon/platform';
 
 import type { ScratchRequestEnvironment } from '../request-editor/scratch-store';
@@ -17,11 +17,11 @@ const registries = new WeakMap<ProjectSession, Map<string, TabEditorStore>>();
 /** The editor view of each project request object (so unchanged requests keep their identity). */
 const editorViews = new WeakMap<ProjectRequest, Request>();
 
-/** A project request as the editor model sees it: auth and scripts stay in the file (PIGN-026/031). */
+/** A project request as the editor model sees it: scripts stay in the file (PIGN-031). */
 export function toEditorRequest(request: ProjectRequest): Request {
   let view = editorViews.get(request);
   if (!view) {
-    const { auth: _auth, events: _events, broken: _broken, ...rest } = request;
+    const { events: _events, broken: _broken, ...rest } = request;
     view = rest;
     editorViews.set(request, view);
   }
@@ -48,7 +48,12 @@ export function getTabEditor(
       read,
       commit: (request) => {
         const { kind: _kind, id: _id, fileKey: _fileKey, ...patch } = request;
-        session.apply({ type: 'updateRequest', id: requestId, patch });
+        // `auth: undefined` (Inherit) must clear the request's auth, not leave it as it was.
+        session.apply({
+          type: 'updateRequest',
+          id: requestId,
+          patch: { ...patch, auth: request.auth },
+        });
         // Editing a preview tab keeps it (docs/ui-ux.md §3.2).
         projectStore.getState().pinTab(requestId);
       },
@@ -61,6 +66,7 @@ export function getTabEditor(
       projectFs: session.fs,
       scopes: () => projectScopes(session, requestId),
       moveToSecret: (suggestedName, value) => moveToSecret(session, suggestedName, value),
+      inheritedAuth: () => inheritedAuth(session.getWorkingModel(), requestId),
     });
     registry.set(requestId, editor);
   }

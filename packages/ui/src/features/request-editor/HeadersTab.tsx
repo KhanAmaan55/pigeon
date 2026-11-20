@@ -1,11 +1,12 @@
 import type { KeyValue } from '@pigeon/core';
 import { autoHeaders } from '@pigeon/core';
 import { isForbiddenHeader } from '@pigeon/platform';
-import { KeyRound, TriangleAlert } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { useCapabilities } from '../../app/PlatformProvider';
 import { KeyValueTable } from '../../components/KeyValueTable';
+import { LiteralSecretHint } from './LiteralSecretHint';
 import { useScratchRequest } from './ScratchRequestProvider';
 
 /**
@@ -49,32 +50,18 @@ export function HeadersTab() {
         keyAdornment={forbiddenWarning}
       />
       {literal && moveToSecret && (
-        <div
-          role="note"
-          data-testid="literal-secret-hint"
-          className="flex flex-wrap items-center gap-2 rounded border border-warn/40 bg-warn/10 px-2 py-1.5 text-xs text-fg"
-        >
-          <KeyRound size={14} className="shrink-0 text-warn" aria-hidden />
-          <span className="min-w-0 flex-1">
-            The {literal.header.key.trim()} value will be committed. Move it to a secret variable?
-          </span>
-          <button
-            type="button"
-            data-testid="move-to-secret"
-            onClick={() => {
-              const name = moveToSecret(literal.suggestedName, literal.secret);
-              if (!name) return;
-              setHeaders(
-                headers.map((row, index) =>
-                  index === literal.index ? { ...row, value: `${literal.prefix}{{${name}}}` } : row,
-                ),
-              );
-            }}
-            className="rounded border border-border bg-surface px-2 py-0.5 hover:bg-hover"
-          >
-            Move to secret variable
-          </button>
-        </div>
+        <LiteralSecretHint
+          label={literal.header.key.trim()}
+          onMove={() => {
+            const name = moveToSecret(literal.suggestedName, literal.secret);
+            if (!name) return;
+            setHeaders(
+              headers.map((row, index) =>
+                index === literal.index ? { ...row, value: `${literal.prefix}{{${name}}}` } : row,
+              ),
+            );
+          }}
+        />
       )}
       <section aria-label="Auto-generated headers" className="text-sm text-fg-muted">
         <h3 className="pb-1 text-xs font-semibold tracking-wide uppercase">Auto-generated</h3>

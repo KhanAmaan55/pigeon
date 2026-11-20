@@ -1,6 +1,8 @@
 import type {
+  Auth,
   Body,
   BodyMode,
+  EffectiveAuth,
   ExecutionPreferences,
   ExecutionResult,
   KeyValue,
@@ -42,6 +44,8 @@ export interface RequestBinding {
    * (local) current value and returns its name, or `null` when the project can't.
    */
   moveToSecret?: (suggestedName: string, value: string) => string | null;
+  /** The auth the request inherits from its folders and collection now (PIGN-026). */
+  inheritedAuth?: () => EffectiveAuth;
 }
 
 export interface ScratchRequestState {
@@ -51,6 +55,8 @@ export interface ScratchRequestState {
   projectFs: ProjectFileSystem | null;
   /** See `RequestBinding.moveToSecret`; `null` for the scratch request. */
   moveToSecret: ((suggestedName: string, value: string) => string | null) | null;
+  /** See `RequestBinding.inheritedAuth`; `null` for the scratch request (nothing to inherit). */
+  inheritedAuth: (() => EffectiveAuth) | null;
   status: 'idle' | 'sending';
   /** Latest finished execution. */
   result: ExecutionResult | null;
@@ -61,6 +67,8 @@ export interface ScratchRequestState {
   setQuery: (query: KeyValue[]) => void;
   setPathVariables: (pathVariables: KeyValue[]) => void;
   setHeaders: (headers: KeyValue[]) => void;
+  /** `undefined` = inherit from the parent (project requests) or no auth (scratch). */
+  setAuth: (auth: Auth | undefined) => void;
   /**
    * Bodies of the modes the user switched away from, so switching back restores them (Postman
    * behaviour). Editor state only: the request holds just the active mode.
@@ -108,6 +116,7 @@ export function createScratchRequestStore(
       request: binding ? binding.read() : createRequest({ name: 'Scratch request' }),
       projectFs: binding?.projectFs ?? null,
       moveToSecret: binding?.moveToSecret ?? null,
+      inheritedAuth: binding?.inheritedAuth ?? null,
       status: 'idle',
       result: null,
       setMethod: (method) => update({ method: method.toUpperCase() }),
@@ -118,6 +127,10 @@ export function createScratchRequestStore(
       },
       setPathVariables: (pathVariables) => update({ url: { ...get().request.url, pathVariables } }),
       setHeaders: (headers) => update({ headers }),
+      setAuth: (auth) => {
+        const { auth: _previous, ...rest } = get().request;
+        setRequest(auth === undefined ? rest : { ...rest, auth });
+      },
       bodyDrafts: {},
       setBody: (body) => update({ body }),
       setBodyMode: (mode) => {
@@ -143,12 +156,14 @@ export function createScratchRequestStore(
         set({ status: 'sending' });
         const pageOrigin =
           platform.capabilities.transport === 'fetch' ? env.pageOrigin?.() : undefined;
+        const inherited = get().request.auth ? undefined : binding?.inheritedAuth?.().auth;
         const ctx = createExecutionContext({
           capabilities: platform.capabilities,
           preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
           ...(pageOrigin === undefined ? {} : { pageOrigin }),
           ...(binding ? { projectFs: binding.projectFs, projectId: binding.projectId } : {}),
           ...(binding?.scopes ? { scopes: binding.scopes() } : {}),
+          ...(inherited === undefined ? {} : { inheritedAuth: inherited }),
         });
         const result = await executor.execute(get().request, ctx, { signal: controller.signal });
         if (inFlight !== controller) return; // superseded by a newer send

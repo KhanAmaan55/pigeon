@@ -1,0 +1,10 @@
+{
+  "id": "ping",
+  "name": "Ping",
+  "request": {
+    "method": "GET",
+    "url": {
+      "raw": "{{baseUrl}}/echo"
+    }
+  }
+}

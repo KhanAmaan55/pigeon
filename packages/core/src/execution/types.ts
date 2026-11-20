@@ -1,5 +1,6 @@
 /** Execution types shared by every platform (docs/api-execution.md §2). */
 
+import type { Auth } from '../model/auth';
 import type { DynamicGenerators, VariableScopes } from '../variables/index';
 import type {
   Capabilities,
@@ -41,6 +42,8 @@ export interface ExecutionContext {
   scopes?: VariableScopes;
   /** Dynamic variable generators (tests make them deterministic). */
   generators?: DynamicGenerators;
+  /** Auth from the request's ancestors, used when the request has none (PIGN-026). */
+  inheritedAuth?: Auth;
 }
 
 export function createExecutionContext(
@@ -55,6 +58,7 @@ export function createExecutionContext(
     ...(init.projectFs === undefined ? {} : { projectFs: init.projectFs }),
     ...(init.scopes === undefined ? {} : { scopes: init.scopes }),
     ...(init.generators === undefined ? {} : { generators: init.generators }),
+    ...(init.inheritedAuth === undefined ? {} : { inheritedAuth: init.inheritedAuth }),
   };
 }
 

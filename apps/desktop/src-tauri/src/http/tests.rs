@@ -198,6 +198,28 @@ async fn utf8_header_values_pass_through() {
 }
 
 #[tokio::test]
+async fn basic_and_bearer_authorization_authenticate() {
+    // base64(UTF-8 "ünï:pä ss"), as the TS basic auth handler builds it.
+    let basic = with_headers(
+        request("GET", "/auth/basic?user=%C3%BCn%C3%AF&pass=p%C3%A4%20ss"),
+        &[("Authorization", "Basic w7xuw686cMOkIHNz")],
+    );
+    let res = send(basic).await;
+    assert_eq!(res.status, 200);
+    assert_eq!(json_body(&res)["user"], "ünï");
+    let bearer = with_headers(
+        request("GET", "/auth/bearer?token=pigeon-token"),
+        &[("Authorization", "Bearer pigeon-token")],
+    );
+    assert_eq!(send(bearer).await.status, 200);
+    let wrong = with_headers(
+        request("GET", "/auth/bearer?token=pigeon-token"),
+        &[("Authorization", "Bearer other")],
+    );
+    assert_eq!(send(wrong).await.status, 401);
+}
+
+#[tokio::test]
 async fn duplicate_response_headers_are_all_visible() {
     let res = send(request("GET", "/cookies/set?a=1&b=2")).await;
     assert_eq!(

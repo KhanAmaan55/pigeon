@@ -151,12 +151,14 @@ interface RequestSettings {           // maps to protocolProfileBehavior + Pigeo
 
 ```ts
 type Auth =
-  | { type: 'noauth' }
-  | { type: 'basic'; username: string; password: string }
-  | { type: 'bearer'; token: string }
-  | { type: 'apikey'; key: string; value: string; in: 'header' | 'query' }
-  | { type: string; params: KeyValue[]; unsupported: true };   // digest, oauth2, awsv4, ... preserved verbatim
-// All variants may carry extra params preserved from Postman arrays.
+  | { type: 'noauth'; source? }
+  | { type: 'basic'; username: string; password: string; source? }
+  | { type: 'bearer'; token: string; source? }
+  | { type: 'apikey'; key: string; value: string; in: 'header' | 'query'; source? }
+  | { type: 'unsupported'; authType: string; source? };   // digest, oauth2, awsv4, ... preserved verbatim
+// `source` is the Postman auth object as read (formats/src/postman/auth.ts): unchanged auth is
+// written back verbatim; edits update the params in place, keeping unknown params, their order
+// and extra keys. Changing the type starts a fresh v2.1 object.
 ```
 Inheritance: `auth === undefined` on a folder/request means "inherit from parent"; the effective auth is the nearest defined ancestor; `noauth` stops inheritance. Collection root `undefined` = no auth.
 

@@ -64,7 +64,7 @@ export interface BuildScopesOptions {
 }
 
 /** The collection and folders (outermost first) an item lives in. */
-function ancestry(
+export function itemAncestry(
   model: ProjectModel,
   id: string,
 ): { collection: Collection; folders: Folder[] } | undefined {
@@ -98,7 +98,7 @@ export function buildScopes(model: ProjectModel, options: BuildScopesOptions): V
     const key = `env:${environment.id}`;
     layers.push(scopeLayer('environment', environment.name, key, environment.values, current(key)));
   }
-  const found = options.itemId ? ancestry(model, options.itemId) : undefined;
+  const found = options.itemId ? itemAncestry(model, options.itemId) : undefined;
   if (found) {
     for (const folder of [...found.folders].reverse()) {
       const key = `folder:${folder.id}`;

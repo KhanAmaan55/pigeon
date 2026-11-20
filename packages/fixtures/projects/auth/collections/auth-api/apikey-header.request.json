@@ -1,0 +1,25 @@
+{
+  "id": "apikey-header",
+  "name": "API key in header",
+  "request": {
+    "method": "GET",
+    "url": {
+      "raw": "{{baseUrl}}/echo"
+    },
+    "auth": {
+      "type": "apikey",
+      "apikey": [
+        {
+          "key": "key",
+          "value": "X-Api-Key",
+          "type": "string"
+        },
+        {
+          "key": "value",
+          "value": "{{apiKey}}",
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

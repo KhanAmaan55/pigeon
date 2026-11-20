@@ -1,0 +1,17 @@
+{
+  "id": "legacy-basic",
+  "name": "Legacy (v2.0) basic",
+  "request": {
+    "method": "GET",
+    "url": {
+      "raw": "{{baseUrl}}/auth/basic"
+    },
+    "auth": {
+      "type": "basic",
+      "basic": {
+        "password": "pass",
+        "username": "user"
+      }
+    }
+  }
+}

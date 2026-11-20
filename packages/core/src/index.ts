@@ -50,6 +50,16 @@ export {
 
 export * from './variables/index';
 export { RequestExecutor } from './execution/executor';
+export type { AuthHandler, AuthOrigin, AuthOutput, EffectiveAuth } from './execution/auth/index';
+export {
+  applyAuth,
+  base64Utf8,
+  inheritedAuth,
+  registerAuthHandler,
+  resolveAuth,
+} from './execution/auth/index';
+export type { Auth, AuthType } from './model/auth';
+export { AuthSchema } from './model/auth';
 export type { ResolvedFiles } from './execution/project-files';
 export { resolveProjectFiles } from './execution/project-files';
 export type { CommandContext, EditCommand, Placement, RequestPatch } from './workspace/commands';

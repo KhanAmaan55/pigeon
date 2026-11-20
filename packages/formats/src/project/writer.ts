@@ -6,6 +6,7 @@
  * in order lists so a later fix on disk slots back in.
  */
 
+import { authToPostman } from '../postman/auth';
 import type { ProjectPath } from '@pigeon/platform';
 
 import { stringifyCanonical } from '../canonical-json';
@@ -99,7 +100,7 @@ function collectionToFile(collection: Collection): JsonObject {
       ...(collection.description === undefined ? {} : { description: collection.description }),
       ...(collection.version === undefined ? {} : { version: collection.version }),
     },
-    ...(collection.auth === undefined ? {} : { auth: collection.auth }),
+    ...(collection.auth === undefined ? {} : { auth: authToPostman(collection.auth) }),
     ...(collection.events.length === 0 ? {} : { event: collection.events }),
     ...(collection.variables.length === 0
       ? {}
@@ -115,7 +116,7 @@ function folderToFile(folder: Folder): JsonObject {
     id: folder.id,
     name: folder.name,
     ...(folder.description === undefined ? {} : { description: folder.description }),
-    ...(folder.auth === undefined ? {} : { auth: folder.auth }),
+    ...(folder.auth === undefined ? {} : { auth: authToPostman(folder.auth) }),
     ...(folder.events.length === 0 ? {} : { event: folder.events }),
     ...(folder.variables.length === 0
       ? {}

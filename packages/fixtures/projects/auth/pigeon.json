@@ -1,0 +1,10 @@
+{
+  "pigeon": {
+    "formatVersion": 1
+  },
+  "id": "project-auth",
+  "name": "Auth project",
+  "collections": [
+    "auth-api"
+  ]
+}

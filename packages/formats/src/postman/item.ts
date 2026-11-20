@@ -6,6 +6,7 @@
  * unchanged (docs/compatibility.md §A.3). Defaults are omitted on write (docs/file-format.md §3).
  */
 
+import { authFromPostman, authToPostman } from './auth';
 import type {
   Description,
   ExtraFields,
@@ -83,7 +84,7 @@ export function requestFromPostmanItem(item: JsonObject, fileKey: string): Proje
     url,
     headers,
     body,
-    ...(auth === undefined ? {} : { auth }),
+    ...(auth === undefined ? {} : { auth: authFromPostman(auth) }),
     events: asArray(event),
     settings,
     extra,
@@ -204,7 +205,7 @@ export function requestToPostmanItem(request: ProjectRequest): JsonObject {
       ...(body === undefined ? {} : { body }),
       url: urlToPostman(request.url),
       ...(request.description === undefined ? {} : { description: request.description }),
-      ...(request.auth === undefined ? {} : { auth: request.auth }),
+      ...(request.auth === undefined ? {} : { auth: authToPostman(request.auth) }),
     },
     ...(request.events.length === 0 ? {} : { event: request.events }),
     ...(nonEmpty(profile) ? { protocolProfileBehavior: profile } : {}),

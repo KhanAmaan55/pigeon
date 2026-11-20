@@ -8,7 +8,7 @@
  * folders share one namespace) gets `-2`, `-3`, …
  */
 
-import type { ProjectEnvironment, ProjectEnvVariable } from '@pigeon/formats';
+import type { ProjectAuth, ProjectEnvironment, ProjectEnvVariable } from '@pigeon/formats';
 import { allocateSlug, slugify } from '@pigeon/formats';
 
 import type {
@@ -65,6 +65,8 @@ export type EditCommand =
   | { type: 'setEnvironmentValues'; id: string; values: ProjectEnvVariable[] }
   /** Collection or folder variables (PIGN-024): a change of the container's file. */
   | { type: 'setContainerVariables'; id: string; values: ProjectEnvVariable[] }
+  /** Collection or folder auth (PIGN-026); `undefined` = inherit (a collection: no auth). */
+  | { type: 'setContainerAuth'; id: string; auth: ProjectAuth | undefined }
   /** Project globals; the first edit creates them (and the globals file on commit). */
   | { type: 'setGlobals'; values: ProjectEnvVariable[] };
 
@@ -133,6 +135,7 @@ export function touchedIds(model: ProjectModel, command: EditCommand): string[] 
     case 'duplicateEnvironment':
       return [command.newId];
     case 'setContainerVariables':
+    case 'setContainerAuth':
       return [command.id];
     case 'setGlobals':
       return [GLOBALS_ENTITY_ID];
@@ -184,7 +187,7 @@ export function applyCommand(
       return replaceItem(model, command.id, (item) => {
         if (item.kind !== 'request') throw new CommandError(`"${command.id}" is not a request`);
         assertEditable(item);
-        return { ...item, ...command.patch };
+        return withoutUndefined({ ...item, ...command.patch });
       });
 
     case 'createCollection': {
@@ -413,6 +416,14 @@ export function applyCommand(
         variables: command.values,
       }));
 
+    case 'setContainerAuth':
+      if (!findContainer(model, command.id)) {
+        throw new CommandError(`No collection or folder with id "${command.id}"`);
+      }
+      return updateContainer(model, command.id, (container) =>
+        withoutUndefined({ ...container, auth: command.auth }),
+      );
+
     case 'setGlobals':
       return {
         ...model,
@@ -535,6 +546,12 @@ export function replaceItem(
 }
 
 // --- Helpers -----------------------------------------------------------------------------------------
+
+/** `entity` without keys set to `undefined` (a patch clearing an optional field, e.g. auth). */
+function withoutUndefined<T extends object>(entity: T): T {
+  if (!Object.values(entity).includes(undefined)) return entity;
+  return Object.fromEntries(Object.entries(entity).filter(([, v]) => v !== undefined)) as T;
+}
 
 function updateContainer(
   model: ProjectModel,

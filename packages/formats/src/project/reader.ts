@@ -5,6 +5,7 @@
  * placeholder entity, and never hides the rest of the project. Unmanaged files are ignored.
  */
 
+import { authFromPostman } from '../postman/auth';
 import type { ProjectFileSystem, ProjectPath } from '@pigeon/platform';
 
 import { sha256Hex } from '../hash';
@@ -197,7 +198,7 @@ async function readCollection(context: ReadContext, fileKey: string): Promise<Co
     name: asString(info['name']),
     ...(isDescription(info['description']) ? { description: info['description'] } : {}),
     ...(typeof info['version'] === 'string' ? { version: info['version'] } : {}),
-    ...(raw['auth'] === undefined ? {} : { auth: raw['auth'] }),
+    ...(raw['auth'] === undefined ? {} : { auth: authFromPostman(raw['auth']) }),
     events: asArray(raw['event']),
     variables: asArray(raw['variable']).map(collectionVariableFromPostman),
     children: applyOrder(children, stringArray(pigeon['order']), path, context.problems),
@@ -259,7 +260,7 @@ async function readFolder(
     fileKey,
     name: asString(raw['name']),
     ...(isDescription(raw['description']) ? { description: raw['description'] } : {}),
-    ...(raw['auth'] === undefined ? {} : { auth: raw['auth'] }),
+    ...(raw['auth'] === undefined ? {} : { auth: authFromPostman(raw['auth']) }),
     events: asArray(raw['event']),
     variables: asArray(raw['variable']).map(collectionVariableFromPostman),
     children: applyOrder(children, stringArray(pigeon['order']), path, context.problems),

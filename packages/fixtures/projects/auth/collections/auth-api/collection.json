@@ -1,0 +1,36 @@
+{
+  "info": {
+    "_postman_id": "auth-collection",
+    "name": "Auth API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4010",
+      "type": "string"
+    }
+  ],
+  "_pigeon": {
+    "order": [
+      "inherit",
+      "basic",
+      "apikey-header",
+      "apikey-query",
+      "oauth2",
+      "digest",
+      "legacy-basic",
+      "public"
+    ]
+  }
+}

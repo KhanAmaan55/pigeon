@@ -1,0 +1,10 @@
+{
+  "id": "inherit",
+  "name": "Inherited bearer",
+  "request": {
+    "method": "GET",
+    "url": {
+      "raw": "{{baseUrl}}/auth/bearer"
+    }
+  }
+}

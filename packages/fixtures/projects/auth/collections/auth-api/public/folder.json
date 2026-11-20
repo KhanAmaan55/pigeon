@@ -1,0 +1,12 @@
+{
+  "id": "public-folder",
+  "name": "Public",
+  "auth": {
+    "type": "noauth"
+  },
+  "_pigeon": {
+    "order": [
+      "ping"
+    ]
+  }
+}

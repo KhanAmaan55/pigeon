@@ -1004,10 +1004,12 @@ describe('multiple projects (PIGN-021)', () => {
     fireEvent.click(screen.getByTestId('add-project'));
     platform.projects.pickResult = locations[0]!;
     await user.click(await screen.findByTestId('open-folder'));
-    expect(projectTabs()).toEqual([
-      ['Basic project', 'true'],
-      ['Other API', 'false'],
-    ]);
+    await waitFor(() =>
+      expect(projectTabs()).toEqual([
+        ['Basic project', 'true'],
+        ['Other API', 'false'],
+      ]),
+    );
   });
 
   it('restores the open projects and the active one after a restart', async () => {
@@ -1291,9 +1293,10 @@ describe('variable resolution & highlighting (PIGN-023)', () => {
     expect(transport.requests[1]!.url).toBe(
       'https://staging.test/users?limit=20&x=%7B%7Bnope%7D%7D',
     );
-    expect(transport.requests[1]!.meta.unresolved).toEqual(['nope']);
+    // `token` comes from the bearer auth the request inherits from its collection (PIGN-026).
+    expect(transport.requests[1]!.meta.unresolved).toEqual(['nope', 'token']);
     expect((await screen.findByTestId('response-panel')).textContent).toContain(
-      'Unresolved variables: nope',
+      'Unresolved variables: nope, token',
     );
   });
 });
@@ -1469,5 +1472,90 @@ describe('secret variables (PIGN-025)', () => {
     expect((within(table).getAllByTestId('env-current-value')[1] as HTMLInputElement).type).toBe(
       'text',
     );
+  });
+});
+
+describe('auth with inheritance (PIGN-026)', () => {
+  async function openFixture() {
+    const transport = new MockTransport().on({ url: /./ }, { body: 'ok' });
+    const { platform, fs } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    return { platform, fs, user, transport };
+  }
+  const typeInto = async (
+    user: ReturnType<typeof userEvent.setup>,
+    element: HTMLElement,
+    text: string,
+  ) => {
+    await act(async () => element.focus());
+    await user.keyboard(text);
+  };
+  const authHeader = (transport: MockTransport, index: number) =>
+    transport.requests[index]!.headers.filter(([k]) => k === 'Authorization').map(([, v]) => v);
+
+  it('inherits the collection bearer, switches to Basic and back to Inherit', async () => {
+    const { user, transport } = await openFixture();
+    await user.dblClick(screen.getByText('List users'));
+    await act(async () => screen.getByTestId('auth-tab').focus());
+    expect((await screen.findByTestId('auth-inherited')).textContent).toBe(
+      'Inherited from collection Users API: Bearer',
+    );
+    expect((screen.getByTestId('auth-type') as HTMLSelectElement).value).toBe('inherit');
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(1));
+    expect(authHeader(transport, 0)).toEqual(['Bearer {{token}}']);
+
+    fireEvent.change(screen.getByTestId('auth-type'), { target: { value: 'basic' } });
+    await typeInto(user, screen.getByTestId('auth-username'), 'ünï');
+    await typeInto(user, screen.getByTestId('auth-password'), 'pä ss');
+    // A literal password would be committed: the hint offers a secret variable.
+    expect(screen.getByTestId('literal-secret-hint').textContent).toContain('password');
+    expect(screen.getByTestId('auth-tab-indicator')).toBeTruthy();
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(2));
+    expect(authHeader(transport, 1)).toEqual(['Basic w7xuw686cMOkIHNz']);
+    // The timeline shows the generated header masked.
+    await act(async () => screen.getByTestId('response-timeline-tab').focus());
+    const timeline = await screen.findByTestId('response-timeline');
+    expect(timeline.textContent).toContain('Basic ••••••');
+    expect(timeline.textContent).not.toContain('w7xuw686cMOkIHNz');
+
+    await act(async () => screen.getByTestId('auth-tab').focus());
+    fireEvent.change(screen.getByTestId('auth-type'), { target: { value: 'inherit' } });
+    expect((await screen.findByTestId('auth-inherited')).textContent).toContain('Bearer');
+    // Switching back to Basic restores what was typed.
+    fireEvent.change(screen.getByTestId('auth-type'), { target: { value: 'basic' } });
+    expect((screen.getByTestId('auth-username') as HTMLInputElement).value).toBe('ünï');
+  });
+
+  it('a folder set to No auth stops inheritance for its children and is committed', async () => {
+    const { fs, user, transport } = await openFixture();
+    fireEvent.contextMenu(screen.getByText('Admin'));
+    fireEvent.click(await screen.findByTestId('menu-variables'));
+    const section = await screen.findByTestId('container-auth');
+    expect(within(section).getByTestId('auth-inherited').textContent).toBe(
+      'Inherited from collection Users API: Bearer',
+    );
+    fireEvent.change(within(section).getByTestId('auth-type'), { target: { value: 'noauth' } });
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(() => expect(screen.getByTestId('toast').textContent).toContain('Wrote 1 file'));
+    expect(JSON.parse(await fs.readText('collections/users-api/admin/folder.json'))).toMatchObject({
+      auth: { type: 'noauth' },
+    });
+
+    const explorer = screen.getByTestId('explorer');
+    await user.click(within(explorer).getByText('Admin'));
+    await user.click(await within(explorer).findByText('Nested'));
+    await user.dblClick(await within(explorer).findByText('Get audit log'));
+    await act(async () => screen.getByTestId('auth-tab').focus());
+    expect((await screen.findByTestId('auth-inherited')).textContent).toBe(
+      'Inherited from folder Admin: No auth',
+    );
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(1));
+    expect(authHeader(transport, 0)).toEqual([]);
   });
 });

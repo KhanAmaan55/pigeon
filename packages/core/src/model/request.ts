@@ -1,9 +1,10 @@
 /**
- * Request model (docs/data-model.md §4): URL, headers, body (./body.ts) and settings. Auth,
- * scripts and examples arrive with their stories.
+ * Request model (docs/data-model.md §4): URL, headers, body (./body.ts), auth (./auth.ts) and
+ * settings. Scripts and examples arrive with their stories.
  */
 
 import type { Body, KeyValue } from './body';
+import { AuthSchema } from './auth';
 import { BodySchema, DescriptionSchema, KeyValueSchema } from './body';
 import { z } from './zod';
 
@@ -48,6 +49,8 @@ export const RequestSchema = z.object({
   url: UrlSchema,
   headers: z.array(KeyValueSchema),
   body: BodySchema,
+  /** `undefined` = inherit from the parent (PIGN-026). */
+  auth: AuthSchema.optional(),
   settings: RequestSettingsSchema,
   extra: extraSchema,
 });

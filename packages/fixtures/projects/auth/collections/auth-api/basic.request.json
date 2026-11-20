@@ -1,0 +1,30 @@
+{
+  "id": "basic",
+  "name": "Basic",
+  "request": {
+    "method": "GET",
+    "url": {
+      "raw": "{{baseUrl}}/auth/basic?user=ünï&pass=pä ss"
+    },
+    "auth": {
+      "type": "basic",
+      "basic": [
+        {
+          "key": "password",
+          "value": "pä ss",
+          "type": "string"
+        },
+        {
+          "key": "username",
+          "value": "ünï",
+          "type": "string"
+        },
+        {
+          "key": "showPassword",
+          "value": false,
+          "type": "boolean"
+        }
+      ]
+    }
+  }
+}

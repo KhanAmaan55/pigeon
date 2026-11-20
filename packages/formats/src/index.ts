@@ -16,6 +16,7 @@ export {
   variableToPostman,
   VOLATILE_ENVIRONMENT_KEYS,
 } from './postman/environment';
+export { authFromPostman, authToPostman, authTypeLabel } from './postman/auth';
 export {
   bodyFromPostman,
   bodyToPostman,
@@ -32,6 +33,7 @@ export { CURRENT_FORMAT_VERSION, GLOBALS_PATH, readProject } from './project/rea
 export { COLLECTION_SCHEMA } from './project/schemas';
 export { encodeFile, serializeProject } from './project/writer';
 export type {
+  AuthType,
   Collection,
   Description,
   EmptyProject,

@@ -8,6 +8,7 @@ import { hasBody } from '@pigeon/core';
 import { usePlatform } from '../../app/PlatformProvider';
 import { VariableInput } from '../../components/VariableInput';
 import { takeUrlFocus } from '../explorer/actions';
+import { AuthTab } from './AuthTab';
 import { BodyTab } from './BodyTab';
 import { HeadersTab } from './HeadersTab';
 import { methodColorClass } from './methods';
@@ -21,6 +22,7 @@ const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 export function RequestEditor() {
   const method = useScratchRequest((s) => s.request.method);
   const url = useScratchRequest((s) => s.request.url.raw);
+  const auth = useScratchRequest((s) => s.request.auth);
   const withBody = useScratchRequest((s) => hasBody(s.request.body));
   const sending = useScratchRequest((s) => s.status === 'sending');
   const setMethod = useScratchRequest((s) => s.setMethod);
@@ -140,6 +142,16 @@ export function RequestEditor() {
           <TabTrigger value="params" count={paramCount} testId="params-tab">
             Params
           </TabTrigger>
+          <TabTrigger value="auth" testId="auth-tab">
+            Auth
+            {auth && auth.type !== 'noauth' && (
+              <span
+                data-testid="auth-tab-indicator"
+                aria-label="(has auth)"
+                className="size-1.5 rounded-full bg-accent"
+              />
+            )}
+          </TabTrigger>
           <TabTrigger value="headers" count={headerCount} testId="headers-tab">
             Headers
           </TabTrigger>
@@ -159,6 +171,9 @@ export function RequestEditor() {
         </Tabs.List>
         <Tabs.Content value="params" className="min-h-0 flex-1 overflow-auto">
           <ParamsTab />
+        </Tabs.Content>
+        <Tabs.Content value="auth" className="min-h-0 flex-1 overflow-auto">
+          <AuthTab />
         </Tabs.Content>
         <Tabs.Content value="headers" className="min-h-0 flex-1 overflow-auto">
           <HeadersTab />

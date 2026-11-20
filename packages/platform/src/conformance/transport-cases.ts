@@ -161,6 +161,39 @@ export function transportConformanceCases(
       },
     },
     {
+      id: 'auth',
+      title: 'Basic (UTF-8) and Bearer Authorization headers authenticate against /auth/*',
+      async run({ transport, baseUrl }) {
+        // base64(UTF-8 "ünï:pä ss"), as the basic auth handler builds it.
+        const basic = await send(
+          transport,
+          request(
+            baseUrl,
+            'GET',
+            `/auth/basic?user=${encodeURIComponent('ünï')}&pass=${encodeURIComponent('pä ss')}`,
+            {
+              headers: [['Authorization', 'Basic w7xuw686cMOkIHNz']],
+            },
+          ),
+        );
+        checkEqual([basic.status, json(basic)['user']], [200, 'ünï'], 'basic');
+        const bearer = await send(
+          transport,
+          request(baseUrl, 'GET', '/auth/bearer?token=pigeon-token', {
+            headers: [['Authorization', 'Bearer pigeon-token']],
+          }),
+        );
+        checkEqual(bearer.status, 200, 'bearer');
+        const wrong = await send(
+          transport,
+          request(baseUrl, 'GET', '/auth/bearer?token=pigeon-token', {
+            headers: [['Authorization', 'Bearer other']],
+          }),
+        );
+        checkEqual(wrong.status, 401, 'wrong bearer');
+      },
+    },
+    {
       id: 'post-body',
       title: 'POST sends the body bytes',
       async run({ transport, baseUrl }) {

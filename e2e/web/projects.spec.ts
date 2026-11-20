@@ -7,9 +7,9 @@ import { expect, test } from '@playwright/test';
 import { TEST_SERVER_URL } from '../test-server';
 import './hooks';
 
-/** The golden fixture project as `path → text`. */
-function fixtureFiles(): Record<string, string> {
-  const root = join(import.meta.dirname, '../../packages/fixtures/projects/basic');
+/** A golden fixture project as `path → text`. */
+function fixtureFiles(name = 'basic'): Record<string, string> {
+  const root = join(import.meta.dirname, '../../packages/fixtures/projects', name);
   const files: Record<string, string> = {};
   const walk = (dir: string) => {
     for (const name of readdirSync(dir)) {
@@ -458,6 +458,82 @@ test.describe('secret variables', () => {
     await page.getByTestId('environment-item').filter({ hasText: 'Prod' }).click();
     await expect(page.getByTestId('env-current-value').first()).toHaveValue('live-token-123');
     await expect(page.getByTestId('browser-secrets-notice')).toHaveCount(0);
+  });
+});
+
+test.describe('auth', () => {
+  test('a request inherits the bearer token set on its collection', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Auth API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Secured');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    const collection = page.getByTestId('explorer-item').filter({ hasText: 'Secured' });
+    await collection.click({ button: 'right' });
+    await page.getByTestId('menu-variables').click();
+    const auth = page.getByTestId('container-auth');
+    await auth.getByTestId('auth-type').selectOption('bearer');
+    await auth.getByTestId('auth-token').fill('pigeon-token');
+    await expect(auth.getByTestId('literal-secret-hint')).toBeVisible();
+
+    await collection.click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    await page.getByTestId('url-input').fill(`${TEST_SERVER_URL}/auth/bearer?token=pigeon-token`);
+    await page.getByTestId('auth-tab').click();
+    await expect(page.getByTestId('auth-inherited')).toHaveText(
+      'Inherited from collection Secured: Bearer',
+    );
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+
+    await page.getByTestId('auth-type').selectOption('noauth');
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('401 Unauthorized');
+  });
+
+  test('requests inherit the collection bearer; Basic sends UTF-8 credentials', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'uses a folder (Chromium-only)');
+    await gotoApp(page);
+    const files = fixtureFiles('auth');
+    const collectionPath = 'collections/auth-api/collection.json';
+    const collection = JSON.parse(files[collectionPath]!) as {
+      variable: Array<{ key: string; value: string }>;
+    };
+    collection.variable = [
+      { key: 'baseUrl', value: TEST_SERVER_URL },
+      { key: 'token', value: 'pigeon-token' },
+    ];
+    files[collectionPath] = JSON.stringify(collection);
+    await page.evaluate((f) => window.__pigeonTest!.preloadProject(f), files);
+    await page.getByTestId('open-folder').click();
+    await expect(page.getByTestId('project-tab')).toContainText('Auth project');
+
+    await page.getByTestId('explorer-item').filter({ hasText: 'Inherited bearer' }).dblclick();
+    await page.getByTestId('auth-tab').click();
+    await expect(page.getByTestId('auth-inherited')).toHaveText(
+      'Inherited from collection Auth API: Bearer',
+    );
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+
+    await page
+      .getByTestId('explorer-item')
+      .filter({ hasText: /^GETBasic$/ })
+      .dblclick();
+    await page.getByTestId('auth-tab').click();
+    await expect(page.getByTestId('auth-username')).toHaveValue('ünï');
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+
+    // Inherit instead: the collection bearer doesn't satisfy /auth/basic.
+    await page.getByTestId('auth-type').selectOption('inherit');
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('401 Unauthorized');
   });
 });
 
