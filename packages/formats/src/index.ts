@@ -6,8 +6,12 @@ export { sha256Hex } from './hash';
 export { PROJECT_KEY_ORDERS, createProjectKeyOrder } from './project/key-order';
 export type { ProjectFileKind } from './project/key-order';
 export {
+  collectionVariableFromPostman,
+  collectionVariableToPostman,
   environmentFromPostman,
   environmentToPostman,
+  globalsFromPostman,
+  globalsToPostman,
   variableFromPostman,
   variableToPostman,
   VOLATILE_ENVIRONMENT_KEYS,
@@ -24,7 +28,7 @@ export {
 } from './postman/item';
 export { createEmptyProject } from './project/create';
 export { isManagedPath, isProjectFile } from './project/managed';
-export { CURRENT_FORMAT_VERSION, readProject } from './project/reader';
+export { CURRENT_FORMAT_VERSION, GLOBALS_PATH, readProject } from './project/reader';
 export { COLLECTION_SCHEMA } from './project/schemas';
 export { encodeFile, serializeProject } from './project/writer';
 export type {
@@ -39,6 +43,7 @@ export type {
   ProjectEnvironment,
   ProjectEnvVariable,
   ProjectEvent,
+  ProjectGlobals,
   ProjectFormDataParam,
   ProjectItem,
   ProjectKeyValue,

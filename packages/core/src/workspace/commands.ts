@@ -62,7 +62,14 @@ export type EditCommand =
   | { type: 'duplicateEnvironment'; id: string; newId: string }
   | { type: 'deleteEnvironment'; id: string }
   /** Replaces the variables (add, edit, remove, reorder) of an environment. */
-  | { type: 'setEnvironmentValues'; id: string; values: ProjectEnvVariable[] };
+  | { type: 'setEnvironmentValues'; id: string; values: ProjectEnvVariable[] }
+  /** Collection or folder variables (PIGN-024): a change of the container's file. */
+  | { type: 'setContainerVariables'; id: string; values: ProjectEnvVariable[] }
+  /** Project globals; the first edit creates them (and the globals file on commit). */
+  | { type: 'setGlobals'; values: ProjectEnvVariable[] };
+
+/** Pseudo entity id of the project globals in drafts and unsaved tracking. */
+export const GLOBALS_ENTITY_ID = '$globals';
 
 /** Pseudo entity id of the project itself (`pigeon.json`) in drafts and unsaved tracking. */
 export const PROJECT_ENTITY_ID = '$project';
@@ -125,6 +132,10 @@ export function touchedIds(model: ProjectModel, command: EditCommand): string[] 
       return [command.id];
     case 'duplicateEnvironment':
       return [command.newId];
+    case 'setContainerVariables':
+      return [command.id];
+    case 'setGlobals':
+      return [GLOBALS_ENTITY_ID];
   }
 }
 
@@ -392,6 +403,26 @@ export function applyCommand(
 
     case 'setEnvironmentValues':
       return updateEnvironment(model, command.id, (e) => ({ ...e, values: command.values }));
+
+    case 'setContainerVariables':
+      if (!findContainer(model, command.id)) {
+        throw new CommandError(`No collection or folder with id "${command.id}"`);
+      }
+      return updateContainer(model, command.id, (container) => ({
+        ...container,
+        variables: command.values,
+      }));
+
+    case 'setGlobals':
+      return {
+        ...model,
+        globals: {
+          id: model.globals?.id ?? crypto.randomUUID(),
+          extra: {},
+          ...model.globals,
+          values: command.values,
+        },
+      };
 
     case 'moveCollection': {
       const index = model.collections.findIndex((c) => c.id === command.id);

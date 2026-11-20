@@ -1,5 +1,5 @@
 import type { CommitPlan, ProjectSession } from '@pigeon/core';
-import { locateEntity, PROJECT_ENTITY_ID } from '@pigeon/core';
+import { GLOBALS_ENTITY_ID, locateEntity, PROJECT_ENTITY_ID } from '@pigeon/core';
 import { AlertTriangle, FileCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -23,6 +23,15 @@ function pendingEntities(
 ): PendingEntity[] {
   const entities: PendingEntity[] = [];
   for (const [id, state] of Object.entries(changes)) {
+    if (id === GLOBALS_ENTITY_ID) {
+      entities.push({
+        id,
+        name: 'Globals',
+        kind: 'environment',
+        state: state as PendingEntity['state'],
+      });
+      continue;
+    }
     if (id === PROJECT_ENTITY_ID) {
       entities.push({
         id,

@@ -8,7 +8,11 @@
 import type { ProjectFileSystem, ProjectPath } from '@pigeon/platform';
 
 import { sha256Hex } from '../hash';
-import { environmentFromPostman } from '../postman/environment';
+import {
+  collectionVariableFromPostman,
+  environmentFromPostman,
+  globalsFromPostman,
+} from '../postman/environment';
 import { requestFromPostmanItem } from '../postman/item';
 import {
   asArray,
@@ -91,10 +95,27 @@ export async function readProject(fs: ProjectFileSystem): Promise<ProjectReadRes
     context.problems,
   );
   model.environments = await readEnvironments(context);
+  const globals = await readGlobals(context);
+  if (globals) model.globals = globals;
   return result(model, model.formatVersion > CURRENT_FORMAT_VERSION);
 }
 
 const ENVIRONMENT_SUFFIX = '.postman_environment.json';
+export const GLOBALS_PATH = 'environments/globals.postman_globals.json';
+
+/** Project globals, when the file exists (a broken file reads as none and is reported). */
+async function readGlobals(context: ReadContext) {
+  if ((await context.fs.stat(GLOBALS_PATH))?.kind !== 'file') return undefined;
+  const raw = await readJson(context, GLOBALS_PATH);
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw['values'])) {
+    context.problems.push(error(GLOBALS_PATH, 'schema', 'Globals need a "values" array'));
+    return undefined;
+  }
+  const globals = globalsFromPostman(raw);
+  if (globals.id === '') globals.id = 'globals';
+  return globals;
+}
 
 /** `environments/*.postman_environment.json`, by file key (file-format.md §1, §2.5). */
 async function readEnvironments(context: ReadContext): Promise<ProjectEnvironment[]> {
@@ -178,7 +199,7 @@ async function readCollection(context: ReadContext, fileKey: string): Promise<Co
     ...(typeof info['version'] === 'string' ? { version: info['version'] } : {}),
     ...(raw['auth'] === undefined ? {} : { auth: raw['auth'] }),
     events: asArray(raw['event']),
-    variables: asArray(raw['variable']),
+    variables: asArray(raw['variable']).map(collectionVariableFromPostman),
     children: applyOrder(children, stringArray(pigeon['order']), path, context.problems),
     extra,
   };
@@ -240,7 +261,7 @@ async function readFolder(
     ...(isDescription(raw['description']) ? { description: raw['description'] } : {}),
     ...(raw['auth'] === undefined ? {} : { auth: raw['auth'] }),
     events: asArray(raw['event']),
-    variables: asArray(raw['variable']),
+    variables: asArray(raw['variable']).map(collectionVariableFromPostman),
     children: applyOrder(children, stringArray(pigeon['order']), path, context.problems),
     extra,
   };

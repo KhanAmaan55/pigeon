@@ -59,18 +59,19 @@ export function getTabEditor(
       // Separate connection pools per open project, also for copies sharing an id (PIGN-021).
       projectId: session.localKey || session.id,
       projectFs: session.fs,
-      scopes: () => projectScopes(session),
+      scopes: () => projectScopes(session, requestId),
     });
     registry.set(requestId, editor);
   }
   return editor;
 }
 
-/** The variables a request in this project resolves against right now. */
-export function projectScopes(session: ProjectSession): VariableScopes {
+/** The variables a request (or container) in this project resolves against right now. */
+export function projectScopes(session: ProjectSession, itemId?: string): VariableScopes {
   return buildScopes(session.getWorkingModel(), {
     environmentId: session.selectedEnvironmentId,
     currentValues: (key) => session.currentValues(key),
+    ...(itemId ? { itemId } : {}),
   });
 }
 

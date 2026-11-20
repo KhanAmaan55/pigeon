@@ -34,6 +34,7 @@ import {
   applyCommand,
   findItem,
   placementOf,
+  GLOBALS_ENTITY_ID,
   PROJECT_ENTITY_ID,
   replaceItem,
   touchedIds,
@@ -323,7 +324,7 @@ export class ProjectSession {
   deletedEntities(): Array<{
     id: string;
     name: string;
-    kind: Exclude<Draft['ref']['kind'], 'project' | 'environment'>;
+    kind: Exclude<Draft['ref']['kind'], 'project' | 'environment' | 'globals'>;
     parentId: string | null;
     method?: string;
   }> {
@@ -771,6 +772,10 @@ export class ProjectSession {
  */
 function restoreFromBase(working: ProjectModel, base: ProjectModel, id: string): ProjectModel {
   if (id === PROJECT_ENTITY_ID) return { ...working, id: base.id, name: base.name };
+  if (id === GLOBALS_ENTITY_ID) {
+    const { globals: _globals, ...rest } = working;
+    return base.globals ? { ...rest, globals: base.globals } : rest;
+  }
   const baseEnvironment = base.environments.find((e) => e.id === id);
   if (baseEnvironment || working.environments.some((e) => e.id === id)) {
     const others = working.environments.filter((e) => e.id !== id);
@@ -831,6 +836,8 @@ function restoreFromBase(working: ProjectModel, base: ProjectModel, id: string):
 /** The file of a collection, folder or request in `model`. */
 function filePathIn(model: ProjectModel, id: string): ProjectPath | undefined {
   if (id === PROJECT_ENTITY_ID) return 'pigeon.json';
+  if (id === GLOBALS_ENTITY_ID)
+    return model.globals ? 'environments/globals.postman_globals.json' : undefined;
   const environment = model.environments.find((e) => e.id === id);
   if (environment) return `environments/${environment.fileKey}.postman_environment.json`;
   const collection = model.collections.find((c) => c.id === id);

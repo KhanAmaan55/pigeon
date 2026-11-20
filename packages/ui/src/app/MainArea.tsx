@@ -4,6 +4,8 @@ import { Group, Panel } from 'react-resizable-panels';
 
 import { ResizeHandle } from '../components/ResizeHandle';
 import { EnvironmentEditor } from '../features/environments/EnvironmentEditor';
+import { ContainerSettings, GlobalsEditor } from '../features/environments/ScopeEditors';
+import { findContainer, GLOBALS_ENTITY_ID } from '@pigeon/core';
 import { BrokenFilePanel } from '../features/explorer/BrokenFilePanel';
 import { RequestEditor } from '../features/request-editor/RequestEditor';
 import {
@@ -88,15 +90,23 @@ function ProjectTabs({ project, split }: { project: OpenProject; split: React.Re
   const currentValues = useProjectState((s) => s.currentValues, null);
   // Highlighting follows the environment, its values and current values.
   const scopes = useMemo(
-    () => projectScopes(project.session),
+    () => projectScopes(project.session, activeTabId ?? undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [project.session, model, selectedEnvironmentId, currentValues],
+    [project.session, model, selectedEnvironmentId, currentValues, activeTabId],
   );
   const request = activeTabId ? project.session.findRequest(activeTabId) : undefined;
   const environment = activeTabId ? project.session.findEnvironment(activeTabId) : undefined;
+  const container =
+    activeTabId && model
+      ? findContainer(project.session.getWorkingModel(), activeTabId)
+      : undefined;
 
   let content: React.ReactNode;
-  if (activeTabId && environment) {
+  if (activeTabId === GLOBALS_ENTITY_ID) {
+    content = <GlobalsEditor session={project.session} />;
+  } else if (activeTabId && container) {
+    content = <ContainerSettings session={project.session} containerId={activeTabId} />;
+  } else if (activeTabId && environment) {
     content = <EnvironmentEditor session={project.session} environmentId={activeTabId} />;
   } else if (!activeTabId || !request) {
     content = (

@@ -10,9 +10,17 @@
 import type { ProjectEnvironment } from '@pigeon/formats';
 
 import type { Collection, Folder, ProjectItem, ProjectModel } from '../model/project';
-import { findContainer, findItem, placementOf, PROJECT_ENTITY_ID, replaceItem } from './commands';
+import {
+  findContainer,
+  findItem,
+  GLOBALS_ENTITY_ID,
+  placementOf,
+  PROJECT_ENTITY_ID,
+  replaceItem,
+} from './commands';
 
-export type DraftEntityKind = 'project' | 'collection' | 'folder' | 'request' | 'environment';
+export type DraftEntityKind =
+  'project' | 'globals' | 'collection' | 'folder' | 'request' | 'environment';
 
 export interface Draft {
   ref: { kind: DraftEntityKind; id: string };
@@ -80,6 +88,15 @@ export function createDraft(
     if (sameJson({ id: base.id, name: base.name }, data)) return null;
     return { ref: { kind: 'project', id }, op: 'update', data, baseHash: hashOf(id), savedAt: now };
   }
+  if (id === GLOBALS_ENTITY_ID) {
+    const ref = { kind: 'globals' as const, id };
+    if (!working.globals)
+      return base.globals ? { ref, op: 'delete', baseHash: hashOf(id), savedAt: now } : null;
+    const data = structuredClone(working.globals) as unknown as DraftData;
+    if (!base.globals) return { ref, op: 'create', data, baseHash: null, savedAt: now };
+    if (sameJson(base.globals, working.globals)) return null;
+    return { ref, op: 'update', data, baseHash: hashOf(id), savedAt: now };
+  }
   const envBefore = locateEnvironment(base, id)?.environment;
   const envAfter = locateEnvironment(working, id)?.environment;
   if (envBefore || envAfter) {
@@ -144,6 +161,15 @@ export function applyDrafts(base: ProjectModel, drafts: readonly Draft[]): Appli
       ...(typeof id === 'string' ? { id } : {}),
       ...(typeof name === 'string' ? { name } : {}),
     };
+  }
+  for (const draft of drafts) {
+    if (draft.ref.kind !== 'globals') continue;
+    if (draft.op === 'delete') {
+      const { globals: _globals, ...rest } = model;
+      model = rest;
+    } else if (draft.data) {
+      model = { ...model, globals: draft.data as unknown as NonNullable<ProjectModel['globals']> };
+    }
   }
   // Environments: no parents, so they apply directly.
   for (const draft of drafts) {

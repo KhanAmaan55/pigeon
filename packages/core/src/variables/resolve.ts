@@ -7,7 +7,7 @@
 
 import { findVariables, isDynamicName } from './parse';
 import type { VariableScopes } from './scopes';
-import { lookupVariable } from './scopes';
+import { lookupVariable, shadowedScopes } from './scopes';
 
 export const MAX_DEPTH = 10;
 
@@ -129,17 +129,18 @@ export function resolveString(
   return resolver.result(resolver.resolve(text));
 }
 
-/** What a single `{{name}}` would resolve to, for tooltips: `undefined` when it doesn't. */
-export function describeVariable(
-  name: string,
-  scopes: VariableScopes,
-): {
+/** What a single `{{name}}` would resolve to, for tooltips. */
+export interface VariableDescription {
   state: 'resolved' | 'unresolved' | 'dynamic';
   value?: string;
   secret?: boolean;
   scopeName?: string;
   scopeKey?: string;
-} {
+  /** Scopes that also define the name but lose, e.g. "collection Users API". */
+  shadowed?: string[];
+}
+
+export function describeVariable(name: string, scopes: VariableScopes): VariableDescription {
   if (isDynamicName(name)) {
     return (DYNAMIC_VARIABLES as readonly string[]).includes(name)
       ? { state: 'dynamic' }
@@ -148,13 +149,16 @@ export function describeVariable(
   const found = lookupVariable(scopes, name);
   if (!found) return { state: 'unresolved' };
   const resolved = resolveString(`{{${name}}}`, scopes);
-  if (resolved.unresolved.length > 0 || resolved.cycles.length > 0)
+  if (resolved.unresolved.length > 0 || resolved.cycles.length > 0) {
     return { state: 'unresolved', scopeName: found.scopeName };
+  }
+  const shadowed = shadowedScopes(scopes, name);
   return {
     state: 'resolved',
     value: resolved.value,
     secret: found.secret,
     scopeName: found.scopeName,
     scopeKey: found.scopeKey,
+    ...(shadowed.length > 0 ? { shadowed } : {}),
   };
 }

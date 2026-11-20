@@ -1,0 +1,81 @@
+import type { ProjectSession } from '@pigeon/core';
+import { findContainer, GLOBALS_ENTITY_ID } from '@pigeon/core';
+
+import { useProjectState } from '../../stores/AppStoreProvider';
+import { VariablesEditor } from './EnvironmentEditor';
+
+/** Postman collection variable types, plus "secret" for masking. */
+const CONTAINER_TYPES = [
+  { value: '', label: 'default' },
+  { value: 'string', label: 'string' },
+  { value: 'number', label: 'number' },
+  { value: 'boolean', label: 'boolean' },
+  { value: 'any', label: 'any' },
+  { value: 'secret', label: 'secret' },
+];
+
+/** Project globals (the lowest-precedence scope); the first variable creates the globals file. */
+export function GlobalsEditor({ session }: { session: ProjectSession }) {
+  const globals = useProjectState((s) => s.model.globals, undefined);
+  return (
+    <VariablesEditor
+      session={session}
+      title="Globals"
+      file="environments/globals.postman_globals.json"
+      values={globals?.values ?? []}
+      onChange={(values) => session.apply({ type: 'setGlobals', values })}
+      scope="globals"
+      readOnly={session.readOnly}
+      testId="globals-editor"
+    />
+  );
+}
+
+/** A collection's (or folder's) settings tab: its variables, used by everything inside it. */
+export function ContainerSettings({
+  session,
+  containerId,
+}: {
+  session: ProjectSession;
+  containerId: string;
+}) {
+  useProjectState((s) => s.model, null);
+  const container = findContainer(session.getWorkingModel(), containerId);
+  if (!container) return null;
+  const kind = container.kind === 'collection' ? 'collection' : 'folder';
+  const file =
+    session.itemFilePath(containerId) ??
+    (kind === 'collection' ? `collections/${container.fileKey}/collection.json` : '');
+  return (
+    <div data-testid="container-settings" className="flex h-full min-h-0 flex-col">
+      {container.description && (
+        <p className="shrink-0 border-b border-border px-3 py-2 text-sm text-fg-muted">
+          {typeof container.description === 'string'
+            ? container.description
+            : container.description.content}
+        </p>
+      )}
+      <div className="min-h-0 flex-1">
+        <VariablesEditor
+          session={session}
+          title={`${container.name} · ${kind} variables`}
+          file={file}
+          values={container.variables}
+          onChange={(values) =>
+            session.apply({ type: 'setContainerVariables', id: containerId, values })
+          }
+          scope={`${kind}:${containerId}`}
+          readOnly={session.readOnly || container.broken === true}
+          types={CONTAINER_TYPES}
+          testId="collection-variables-editor"
+        />
+      </div>
+      <p className="shrink-0 border-t border-border px-3 py-1.5 text-xs text-fg-muted">
+        Auth for this {kind} arrives with auth inheritance. Precedence: environment › folders ›
+        collection › globals.
+      </p>
+    </div>
+  );
+}
+
+export { GLOBALS_ENTITY_ID };

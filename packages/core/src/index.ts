@@ -58,6 +58,7 @@ export {
   CommandError,
   findContainer,
   findItem,
+  GLOBALS_ENTITY_ID,
   isSameOrDescendant,
   placementOf,
   PROJECT_ENTITY_ID,

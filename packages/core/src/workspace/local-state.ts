@@ -36,7 +36,7 @@ export interface LocalProjectState {
 
 const DraftSchema = z.object({
   ref: z.object({
-    kind: z.enum(['project', 'collection', 'folder', 'request', 'environment']),
+    kind: z.enum(['project', 'globals', 'collection', 'folder', 'request', 'environment']),
     id: z.string(),
   }),
   op: z.enum(['create', 'update', 'delete']),

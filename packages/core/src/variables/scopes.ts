@@ -6,7 +6,7 @@
 
 import type { ProjectEnvVariable } from '@pigeon/formats';
 
-import type { ProjectModel } from '../model/project';
+import type { Collection, Folder, ProjectItem, ProjectModel } from '../model/project';
 
 export type ScopeKind = 'environment' | 'collection' | 'folder' | 'globals';
 
@@ -57,27 +57,78 @@ export function scopeLayer(
 
 export interface BuildScopesOptions {
   environmentId: string | null;
-  /** Current values of a scope key (`env:<id>`, `collection:<id>`, `globals`). */
+  /** Current values of a scope key (`env:<id>`, `collection:<id>`, `folder:<id>`, `globals`). */
   currentValues?: (scopeKey: string) => Readonly<Record<string, string>>;
+  /** The request (or folder) being resolved: adds its collection and folder scopes. */
+  itemId?: string;
 }
 
-/** The scopes a request in `model` resolves against. Collection and globals join in PIGN-024. */
+/** The collection and folders (outermost first) an item lives in. */
+function ancestry(
+  model: ProjectModel,
+  id: string,
+): { collection: Collection; folders: Folder[] } | undefined {
+  const search = (items: readonly ProjectItem[], folders: Folder[]): Folder[] | undefined => {
+    for (const item of items) {
+      if (item.id === id) return folders;
+      if (item.kind === 'folder') {
+        const found = search(item.children, [...folders, item]);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+  for (const collection of model.collections) {
+    if (collection.id === id) return { collection, folders: [] };
+    const folders = search(collection.children, []);
+    if (folders) return { collection, folders };
+  }
+  return undefined;
+}
+
+/**
+ * The scopes a request resolves against (data-model.md §5): environment > folders (nearest
+ * first) > collection > globals.
+ */
 export function buildScopes(model: ProjectModel, options: BuildScopesOptions): VariableScopes {
   const layers: Array<VariableScopes['layers'][number]> = [];
+  const current = (key: string) => options.currentValues?.(key);
   const environment = model.environments.find((e) => e.id === options.environmentId && !e.broken);
   if (environment) {
     const key = `env:${environment.id}`;
+    layers.push(scopeLayer('environment', environment.name, key, environment.values, current(key)));
+  }
+  const found = options.itemId ? ancestry(model, options.itemId) : undefined;
+  if (found) {
+    for (const folder of [...found.folders].reverse()) {
+      const key = `folder:${folder.id}`;
+      layers.push(scopeLayer('folder', folder.name, key, folder.variables, current(key)));
+    }
+    const key = `collection:${found.collection.id}`;
     layers.push(
       scopeLayer(
-        'environment',
-        environment.name,
+        'collection',
+        found.collection.name,
         key,
-        environment.values,
-        options.currentValues?.(key),
+        found.collection.variables,
+        current(key),
       ),
     );
   }
+  if (model.globals) {
+    layers.push(
+      scopeLayer('globals', 'Globals', 'globals', model.globals.values, current('globals')),
+    );
+  }
   return { layers };
+}
+
+/** Scopes that also define `name` but lose to the winner, e.g. "collection Users API". */
+export function shadowedScopes(scopes: VariableScopes, name: string): string[] {
+  return scopes.layers
+    .filter((layer) => layer.values.has(name))
+    .slice(1)
+    .map((layer) => `${layer.kind} ${layer.name}`);
 }
 
 /** The value a name resolves to directly (no nesting), or `undefined`. */

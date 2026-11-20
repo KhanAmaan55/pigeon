@@ -379,6 +379,49 @@ test.describe('variables', () => {
   });
 });
 
+test.describe('collection variables', () => {
+  test('a collection variable applies until an environment overrides it', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Scopes API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    const collection = page.getByTestId('explorer-item').filter({ hasText: 'Users' });
+    await collection.click({ button: 'right' });
+    await page.getByTestId('menu-variables').click();
+    const table = page.getByTestId('env-variables');
+    await table.getByLabel('Key').last().fill('baseUrl');
+    await table.getByLabel('Shared value').first().fill(`${TEST_SERVER_URL}/json`);
+    await collection.click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    await page.getByTestId('url-input').fill('{{baseUrl}}/user');
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+
+    await page.getByTestId('activity-environments').click();
+    await page.getByTestId('new-environment').click();
+    await page.getByTestId('environment-rename-input').fill('Broken');
+    await page.getByTestId('environment-rename-input').press('Enter');
+    await page.getByTestId('env-variables').getByLabel('Key').last().fill('baseUrl');
+    await page
+      .getByTestId('env-variables')
+      .getByLabel('Shared value')
+      .first()
+      .fill('http://127.0.0.1:9');
+    await page.getByTestId('environment-selector').click();
+    await page.getByTestId('environment-option').filter({ hasText: 'Broken' }).click();
+    await page.getByTestId('request-tab').filter({ hasText: 'New Request' }).click();
+    await expect(page.getByTestId('url-input')).toHaveAttribute(
+      'title',
+      /Broken\) — also defined in collection Users/,
+    );
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-error')).toBeVisible();
+  });
+});
+
 test.describe('browser workspaces', () => {
   test('creates a workspace that survives a reload', async ({ page, browserName }) => {
     await gotoApp(page);

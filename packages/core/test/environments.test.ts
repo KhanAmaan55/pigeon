@@ -66,7 +66,7 @@ describe('environments (PIGN-022)', () => {
         color: 'red',
       }),
     );
-    await fs.writeFileAtomic('environments/globals.postman_globals.json', '{}');
+    await fs.writeFileAtomic('environments/globals.postman_globals.json', '{"id":"g","values":[]}');
     await fs.writeFileAtomic('environments/broken.postman_environment.json', '{"name": 1}');
     await session.checkForChanges();
 

@@ -18,7 +18,7 @@ import type { ProjectPath } from '@pigeon/platform';
 
 import type { ProjectItem, ProjectModel } from '../model/project';
 import type { Draft } from './drafts';
-import { PROJECT_ENTITY_ID } from './commands';
+import { GLOBALS_ENTITY_ID, PROJECT_ENTITY_ID } from './commands';
 import { applyDrafts, locateEntity } from './drafts';
 
 /** Managed files on disk now: path → sha-256, `null` for files Pigeon doesn't manage. */
@@ -234,6 +234,7 @@ export async function planCommit(input: PlanInput): Promise<CommitPlan> {
 /** `collections/<c>/…` file of a collection, folder or request in `model`. */
 export function entityFilePath(model: ProjectModel, id: string): ProjectPath | undefined {
   if (id === PROJECT_ENTITY_ID) return 'pigeon.json';
+  if (id === GLOBALS_ENTITY_ID) return 'environments/globals.postman_globals.json';
   return pathEntries(model).find(([, owner]) => owner === id)?.[0];
 }
 
@@ -247,6 +248,7 @@ function pathEntries(model: ProjectModel): Array<[ProjectPath, string]> {
     `environments/${e.fileKey}.postman_environment.json`,
     e.id,
   ]);
+  if (model.globals) entries.push(['environments/globals.postman_globals.json', GLOBALS_ENTITY_ID]);
   const visit = (items: readonly ProjectItem[], dir: string) => {
     for (const item of items) {
       if (item.kind === 'request') entries.push([`${dir}/${item.fileKey}.request.json`, item.id]);

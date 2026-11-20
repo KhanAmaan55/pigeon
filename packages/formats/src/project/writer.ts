@@ -9,7 +9,11 @@
 import type { ProjectPath } from '@pigeon/platform';
 
 import { stringifyCanonical } from '../canonical-json';
-import { environmentToPostman } from '../postman/environment';
+import {
+  collectionVariableToPostman,
+  environmentToPostman,
+  globalsToPostman,
+} from '../postman/environment';
 import { requestToPostmanItem } from '../postman/item';
 import { asObject, nonEmpty, type JsonObject } from '../postman/json';
 import { PROJECT_KEY_ORDERS, type ProjectFileKind } from './key-order';
@@ -29,6 +33,12 @@ export function serializeProject(model: ProjectModel): Map<ProjectPath, Uint8Arr
         encodeFile('collection', collectionToFile(collection)),
       );
     for (const child of collection.children) writeItem(files, directory, child);
+  }
+  if (model.globals) {
+    files.set(
+      'environments/globals.postman_globals.json',
+      encodeFile('environment', globalsToPostman(model.globals)),
+    );
   }
   for (const environment of model.environments) {
     if (!environment.broken) {
@@ -91,7 +101,9 @@ function collectionToFile(collection: Collection): JsonObject {
     },
     ...(collection.auth === undefined ? {} : { auth: collection.auth }),
     ...(collection.events.length === 0 ? {} : { event: collection.events }),
-    ...(collection.variables.length === 0 ? {} : { variable: collection.variables }),
+    ...(collection.variables.length === 0
+      ? {}
+      : { variable: collection.variables.map(collectionVariableToPostman) }),
     ...withOrder(_pigeon, collection.children),
   };
 }
@@ -105,7 +117,9 @@ function folderToFile(folder: Folder): JsonObject {
     ...(folder.description === undefined ? {} : { description: folder.description }),
     ...(folder.auth === undefined ? {} : { auth: folder.auth }),
     ...(folder.events.length === 0 ? {} : { event: folder.events }),
-    ...(folder.variables.length === 0 ? {} : { variable: folder.variables }),
+    ...(folder.variables.length === 0
+      ? {}
+      : { variable: folder.variables.map(collectionVariableToPostman) }),
     ...withOrder(_pigeon, folder.children),
   };
 }

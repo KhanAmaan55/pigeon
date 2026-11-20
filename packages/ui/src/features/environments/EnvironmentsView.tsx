@@ -1,4 +1,5 @@
-import { Plus, Variable } from 'lucide-react';
+import { GLOBALS_ENTITY_ID } from '@pigeon/core';
+import { Globe, Plus, Variable } from 'lucide-react';
 import { ContextMenu } from 'radix-ui';
 import { useState } from 'react';
 
@@ -77,6 +78,23 @@ function ProjectEnvironments({ project }: { project: OpenProject }) {
         </p>
       )}
       <ul className="min-h-0 flex-1 overflow-y-auto py-1">
+        <li
+          data-testid="globals-item"
+          onClick={() => store.getState().openTab(GLOBALS_ENTITY_ID, { pin: true })}
+          className="flex cursor-default items-center gap-2 border-b border-border px-3 py-1 hover:bg-hover"
+        >
+          <Globe size={14} className="shrink-0 text-fg-muted" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">Globals</span>
+          {changes?.[GLOBALS_ENTITY_ID] &&
+            changes[GLOBALS_ENTITY_ID] !== 'unsaved' &&
+            BADGES[changes[GLOBALS_ENTITY_ID]] && (
+              <span
+                className={`font-mono text-[10px] font-bold ${BADGES[changes[GLOBALS_ENTITY_ID]]!.className}`}
+              >
+                {BADGES[changes[GLOBALS_ENTITY_ID]]!.label}
+              </span>
+            )}
+        </li>
         {environments.map((environment) => {
           const change = changes?.[environment.id];
           return (

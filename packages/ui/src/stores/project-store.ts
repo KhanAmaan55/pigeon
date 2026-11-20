@@ -5,6 +5,7 @@
  */
 
 import type { ChangeState, Problem, ProjectModel, ProjectSession } from '@pigeon/core';
+import { findContainer, GLOBALS_ENTITY_ID } from '@pigeon/core';
 import { createStore } from 'zustand';
 
 /** An open request tab. An unpinned tab is the *preview* tab (at most one, replaced by the next preview). */
@@ -86,7 +87,13 @@ export function createProjectStore(session: ProjectSession) {
   };
   // Restore UI state from local state (PIGN-018), dropping tabs of requests that are gone.
   const saved = session.localState;
-  const tabExists = (id: string) => !!(session.findRequest(id) ?? session.findEnvironment(id));
+  const tabExists = (id: string) =>
+    id === GLOBALS_ENTITY_ID ||
+    !!(
+      session.findRequest(id) ??
+      session.findEnvironment(id) ??
+      findContainer(session.getWorkingModel(), id)
+    );
   const restoredTabs = (saved?.tabs.open ?? []).filter((tab) => tabExists(tab.id));
   const restoredActive =
     saved?.tabs.activeId && restoredTabs.some((t) => t.id === saved.tabs.activeId)

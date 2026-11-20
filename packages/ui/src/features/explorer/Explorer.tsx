@@ -371,6 +371,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
                   onRename={() => store.getState().startRename(row.id)}
                   onDuplicate={() => edit(() => duplicate(session, store, row.id))}
                   onDelete={() => askDelete(row)}
+                  onVariables={() => store.getState().openTab(row.id, { pin: true })}
                   onDiscard={() => {
                     const ids = requestIdsUnder(session, row.id);
                     void session.discard(row.id).then(() => {
@@ -427,6 +428,7 @@ function RowMenu({
   onDuplicate,
   onDelete,
   onDiscard,
+  onVariables,
 }: {
   row: TreeRow;
   readOnly: boolean;
@@ -437,6 +439,7 @@ function RowMenu({
   onDuplicate: () => void;
   onDelete: () => void;
   onDiscard: () => void;
+  onVariables: () => void;
 }) {
   const item = (label: string, onSelect: () => void, testId: string, shortcut?: string) => (
     <ContextMenu.Item
@@ -464,6 +467,7 @@ function RowMenu({
               {item('New request', onNewRequest, 'menu-new-request', 'Ctrl/⌘ N')}
               {item('New folder', onNewFolder, 'menu-new-folder')}
               <ContextMenu.Separator className="my-1 h-px bg-border" />
+              {row.kind !== 'request' && item('Variables', onVariables, 'menu-variables')}
               {item('Rename', onRename, 'menu-rename', 'F2')}
               {!row.broken && item('Duplicate', onDuplicate, 'menu-duplicate', 'Ctrl/⌘ D')}
               {item('Delete', onDelete, 'menu-delete', 'Del')}

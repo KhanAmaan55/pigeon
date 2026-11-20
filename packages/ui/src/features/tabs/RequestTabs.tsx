@@ -4,6 +4,8 @@ import { Dialog } from 'radix-ui';
 import { useEffect, useState } from 'react';
 
 import type { OpenProject } from '../../stores/app-store';
+import { findContainer, GLOBALS_ENTITY_ID } from '@pigeon/core';
+
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { methodLabel } from '../explorer/tree';
 import { methodColorClass } from '../request-editor/methods';
@@ -109,7 +111,10 @@ export function RequestTabs({ project }: { project: OpenProject }) {
   }, [store, session]);
 
   const pending = confirming
-    ? (session.findRequest(confirming) ?? session.findEnvironment(confirming))
+    ? (session.findRequest(confirming) ??
+      session.findEnvironment(confirming) ??
+      findContainer(session.getWorkingModel(), confirming) ??
+      (confirming === GLOBALS_ENTITY_ID ? { name: 'Globals' } : undefined))
     : undefined;
   return (
     <>
@@ -127,6 +132,16 @@ export function RequestTabs({ project }: { project: OpenProject }) {
             // `model` in the dependency list keeps names current after edits.
             const request = model ? session.findRequest(tab.id) : undefined;
             const environment = model && !request ? session.findEnvironment(tab.id) : undefined;
+            const container =
+              model && !request && !environment ? findContainer(model, tab.id) : undefined;
+            const label =
+              request?.name ??
+              environment?.name ??
+              (tab.id === GLOBALS_ENTITY_ID
+                ? 'Globals'
+                : container
+                  ? `${container.name} variables`
+                  : tab.id);
             const active = tab.id === activeTabId;
             const dirty = unsaved?.[tab.id] === true;
             return (
@@ -137,7 +152,7 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                 data-testid="request-tab"
                 data-pinned={tab.pinned}
                 data-unsaved={dirty || undefined}
-                title={request?.name ?? environment?.name}
+                title={label}
                 onClick={() => store.getState().activateTab(tab.id)}
                 onDoubleClick={() => store.getState().pinTab(tab.id)}
                 onAuxClick={(event) => {
@@ -147,7 +162,7 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                   active ? 'bg-bg text-fg' : 'text-fg-muted hover:bg-hover'
                 }`}
               >
-                {environment ? (
+                {environment || container || tab.id === GLOBALS_ENTITY_ID ? (
                   <Variable size={12} className="shrink-0 text-fg-muted" aria-hidden />
                 ) : request?.broken ? (
                   <AlertTriangle size={12} className="shrink-0 text-warn" aria-hidden />
@@ -162,7 +177,7 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                   data-testid="request-tab-name"
                   className={`truncate ${tab.pinned ? '' : 'italic'}`}
                 >
-                  {request?.name ?? environment?.name ?? tab.id}
+                  {label}
                 </span>
                 <span className="relative flex size-5 shrink-0 items-center justify-center">
                   {dirty && (

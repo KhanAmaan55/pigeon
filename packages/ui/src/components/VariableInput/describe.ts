@@ -15,7 +15,9 @@ export function variablesTooltip(text: string, scopes: VariableScopes): string |
         ? `${token.name}: dynamic (new value on every send)`
         : info.state === 'unresolved'
           ? `${token.name}: not defined${info.scopeName ? ` (cycle in ${info.scopeName})` : ' in the selected environment'}`
-          : `${token.name} = ${info.secret ? '••••' : info.value} (${info.scopeName})`,
+          : `${token.name} = ${info.secret ? '••••' : info.value} (${info.scopeName})${
+              info.shadowed ? ` — also defined in ${info.shadowed.join(', ')}` : ''
+            }`,
     );
   }
   return lines.size === 0 ? undefined : [...lines.values()].join('\n');

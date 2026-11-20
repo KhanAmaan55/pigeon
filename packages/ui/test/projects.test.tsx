@@ -1233,12 +1233,24 @@ describe('variable resolution & highlighting (PIGN-023)', () => {
   it('highlights variables against the selected environment and explains them on hover', async () => {
     const { user } = await openWithEnvironments();
     await user.dblClick(screen.getByText('List users'));
-    expect(states()).toEqual([['{{baseUrl}}', 'unresolved']]);
-    expect(urlInput().title).toBe('baseUrl: not defined in the selected environment');
+    // Without an environment, the Users API collection variable applies (PIGN-024).
+    expect(states()).toEqual([['{{baseUrl}}', 'resolved']]);
+    expect(urlInput().title).toBe('baseUrl = https://api.example.test (Users API)');
 
     await selectEnvironment(user, 'Local');
-    await waitFor(() => expect(states()).toEqual([['{{baseUrl}}', 'resolved']]));
-    expect(urlInput().title).toBe('baseUrl = http://local.test (Local)');
+    await waitFor(() =>
+      expect(urlInput().title).toBe(
+        'baseUrl = http://local.test (Local) — also defined in collection Users API',
+      ),
+    );
+    await act(async () => urlInput().focus());
+    await user.keyboard('{End}/{{{{nope}}');
+    expect(states()).toEqual([
+      ['{{baseUrl}}', 'resolved'],
+      ['{{nope}}', 'unresolved'],
+    ]);
+    expect(urlInput().title).toContain('nope: not defined in the selected environment');
+    await user.keyboard('{Backspace>9/}');
 
     await act(async () => urlInput().focus());
     await user.keyboard('{End}?t={{{{$guid}}&a={{{{token}}'); // `{{` types one `{`
@@ -1283,5 +1295,83 @@ describe('variable resolution & highlighting (PIGN-023)', () => {
     expect((await screen.findByTestId('response-panel')).textContent).toContain(
       'Unresolved variables: nope',
     );
+  });
+});
+
+describe('collection variables & globals (PIGN-024)', () => {
+  async function openFixture() {
+    const transport = new MockTransport().on({ url: /./ }, { body: 'ok' });
+    const { platform, fs } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    return { platform, fs, user, transport };
+  }
+  const typeInto = async (
+    user: ReturnType<typeof userEvent.setup>,
+    element: HTMLElement,
+    text: string,
+  ) => {
+    await act(async () => element.focus());
+    await user.keyboard(text);
+  };
+  const urlInput = () => screen.getByTestId('url-input') as HTMLInputElement;
+
+  it('uses collection variables, shows shadowing, and commits only collection.json', async () => {
+    const { fs, user, transport } = await openFixture();
+    await user.dblClick(screen.getByText('List users'));
+    // The fixture's Users API collection defines baseUrl.
+    await waitFor(() =>
+      expect(urlInput().title).toBe('baseUrl = https://api.example.test (Users API)'),
+    );
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() =>
+      expect(transport.requests[0]?.url).toBe('https://api.example.test/users?limit=20'),
+    );
+
+    fireEvent.contextMenu(screen.getByText('Users API'));
+    fireEvent.click(await screen.findByTestId('menu-variables'));
+    const table = await screen.findByTestId('env-variables');
+    await typeInto(user, within(table).getAllByLabelText('Key').at(-1)!, 'version');
+    await typeInto(user, within(table).getAllByLabelText('Shared value')[1]!, '2');
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(() => expect(screen.getByTestId('toast').textContent).toContain('Wrote 1 file'));
+    expect(await fs.readText('collections/users-api/collection.json')).toContain(
+      '"key": "version"',
+    );
+
+    // Globals: lowest precedence; the env-less request still uses the collection value.
+    fireEvent.click(screen.getByTestId('activity-environments'));
+    fireEvent.click(await screen.findByTestId('globals-item'));
+    const globals = await screen.findByTestId('env-variables');
+    await typeInto(user, within(globals).getAllByLabelText('Key').at(-1)!, 'baseUrl');
+    await typeInto(
+      user,
+      within(globals).getAllByLabelText('Shared value')[0]!,
+      'http://globals.test',
+    );
+    fireEvent.click(screen.getAllByTestId('request-tab')[0]!);
+    await waitFor(() =>
+      expect(urlInput().title).toBe(
+        'baseUrl = https://api.example.test (Users API) — also defined in globals Globals',
+      ),
+    );
+  });
+
+  it('creates the globals file on the first commit of a global variable', async () => {
+    const { fs, user } = await openFixture();
+    fireEvent.click(screen.getByTestId('activity-environments'));
+    fireEvent.click(await screen.findByTestId('globals-item'));
+    const table = await screen.findByTestId('env-variables');
+    await typeInto(user, within(table).getAllByLabelText('Key').at(-1)!, 'token');
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(() => expect(screen.getByTestId('toast').textContent).toContain('Wrote 1 file'));
+    expect(
+      JSON.parse(await fs.readText('environments/globals.postman_globals.json')),
+    ).toMatchObject({
+      values: [{ key: 'token', value: '', type: 'default', enabled: true }],
+      _postman_variable_scope: 'globals',
+    });
   });
 });

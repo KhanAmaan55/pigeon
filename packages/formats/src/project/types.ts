@@ -61,8 +61,8 @@ export interface ProjectRequestSettings {
 export type ProjectAuth = unknown;
 /** Postman `event` entries, preserved verbatim (PIGN-031 edits them). */
 export type ProjectEvent = unknown;
-/** Postman `variable` entries, preserved verbatim (PIGN-024 models them). */
-export type ProjectVariable = unknown;
+/** Collection / folder variables (PIGN-024): `type` is `''` when the file has none. */
+export type ProjectVariable = ProjectEnvVariable;
 
 interface BrokenFlag {
   /** The entity's file failed to parse or validate; it is read-only and never written. */
@@ -136,6 +136,13 @@ export interface ProjectEnvironment extends BrokenFlag {
   extra: ExtraFields;
 }
 
+/** Project globals (`environments/globals.postman_globals.json`), absent until first used. */
+export interface ProjectGlobals {
+  id: string;
+  values: ProjectEnvVariable[];
+  extra: ExtraFields;
+}
+
 export interface ProjectModel {
   id: string;
   name: string;
@@ -143,6 +150,8 @@ export interface ProjectModel {
   collections: Collection[];
   /** `environments/*.postman_environment.json`, ordered by file key (PIGN-022). */
   environments: ProjectEnvironment[];
+  /** `undefined` while the project has no globals file. */
+  globals?: ProjectGlobals;
   /** `pigeon.json` `comparison`, preserved until PIGN-035 models it. */
   comparison?: unknown;
   extra: ExtraFields;
