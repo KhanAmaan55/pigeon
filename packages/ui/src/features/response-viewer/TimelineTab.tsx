@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 
 import { useCapabilities } from '../../app/PlatformProvider';
 import { formatDuration, statusText } from '../../lib/format';
+import { HelpLink } from '../help/WebLimitations';
 
 /**
  * What happened on the wire (docs/ui-ux.md §3.5): the request line and headers as sent (secrets
@@ -41,7 +42,7 @@ export function TimelineTab({
         {!canControlRedirects && (
           <p className="mt-1.5 text-xs text-fg-muted">
             The browser may add or drop headers (Origin, User-Agent, cookies, …); the web app cannot
-            see what was finally sent.
+            see what was finally sent. <HelpLink section="forbidden-headers" />
           </p>
         )}
       </Section>
@@ -64,9 +65,14 @@ export function TimelineTab({
           </ol>
         ) : (
           <p data-testid="timeline-no-redirects" className="text-xs text-fg-muted">
-            {canControlRedirects
-              ? 'None.'
-              : 'Not visible: the browser follows redirects without telling the page.'}
+            {canControlRedirects ? (
+              'None.'
+            ) : (
+              <>
+                Not visible: the browser follows redirects without telling the page.{' '}
+                <HelpLink section="redirects" />
+              </>
+            )}
           </p>
         )}
       </Section>
@@ -103,7 +109,7 @@ export function TimelineTab({
         </dl>
         {!detailedTimings && (
           <p className="mt-1.5 text-xs text-fg-muted">
-            Browsers only report the total time to web pages.
+            Browsers only report the total time to web pages. <HelpLink section="timings" />
           </p>
         )}
       </Section>

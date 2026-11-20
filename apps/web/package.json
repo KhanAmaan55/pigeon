@@ -6,9 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/check-bundle.ts dist",
     "build:e2e": "vite build --mode e2e",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check-bundle": "node scripts/check-bundle.ts dist"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

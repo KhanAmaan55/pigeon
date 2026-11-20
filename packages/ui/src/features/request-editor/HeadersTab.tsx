@@ -8,6 +8,8 @@ import { useCapabilities } from '../../app/PlatformProvider';
 import { KeyValueTable } from '../../components/KeyValueTable';
 import { LiteralSecretHint } from './LiteralSecretHint';
 import { useScratchRequest } from './ScratchRequestProvider';
+import { useAppStore } from '../../stores/AppStoreProvider';
+import { HelpLink } from '../help/WebLimitations';
 
 /**
  * Request headers, the headers Pigeon adds (read-only, greyed) and, where the transport can't set
@@ -18,6 +20,7 @@ export function HeadersTab() {
   const body = useScratchRequest((s) => s.request.body);
   const setHeaders = useScratchRequest((s) => s.setHeaders);
   const capabilities = useCapabilities();
+  const openHelp = useAppStore((s) => s.openHelp);
   const moveToSecret = useScratchRequest((s) => s.moveToSecret);
   const literal = moveToSecret ? literalCredential(headers) : undefined;
   const automatic = useMemo(
@@ -27,15 +30,17 @@ export function HeadersTab() {
 
   const forbiddenWarning = (row: KeyValue) =>
     !capabilities.canSetAnyHeader && isForbiddenHeader(row.key, row.value) ? (
-      <span
-        role="img"
+      <button
+        type="button"
         data-testid="forbidden-header-warning"
-        aria-label={`Browsers don't allow setting ${row.key.trim()}; it will not be sent`}
-        title={`Browsers don't allow setting "${row.key.trim()}", so it will not be sent. The desktop app can send it.`}
-        className="shrink-0 text-warn"
+        data-section="forbidden-headers"
+        aria-label={`Browsers don't allow setting ${row.key.trim()}; it will not be sent. Learn more`}
+        title={`Browsers don't allow setting "${row.key.trim()}", so it will not be sent. The desktop app can send it. Click to learn more.`}
+        onClick={() => openHelp('forbidden-headers')}
+        className="shrink-0 cursor-pointer text-warn"
       >
         <TriangleAlert size={14} aria-hidden />
-      </span>
+      </button>
     ) : null;
 
   return (
@@ -88,6 +93,12 @@ export function HeadersTab() {
           {capabilities.canSetAnyHeader
             ? 'Host, Content-Length and Accept-Encoding are added when the request is sent. A header you add with the same name replaces an auto-generated one.'
             : 'The browser adds User-Agent, Host, Origin, Content-Length, Accept-Encoding and other headers itself. A header you add with the same name replaces an auto-generated one.'}
+          {!capabilities.canSetAnyHeader && (
+            <>
+              {' '}
+              <HelpLink section="forbidden-headers" />
+            </>
+          )}
         </p>
       </section>
     </div>

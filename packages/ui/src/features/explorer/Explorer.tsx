@@ -918,15 +918,19 @@ function WorkspaceBadge({ persisted }: { persisted: boolean | undefined }) {
       : persisted === false
         ? 'Stored in this browser; it may clear it under storage pressure. Export a zip to keep a copy.'
         : 'Stored in this browser. Export a zip to keep a copy.';
+  const openHelp = useAppStore((s) => s.openHelp);
   return (
-    <span
+    <button
+      type="button"
       data-testid="workspace-badge"
+      data-section="storage"
       data-persisted={persisted === undefined ? 'unknown' : String(persisted)}
-      title={note}
+      title={`${note} Click to learn more.`}
       aria-label={note}
-      className="inline-flex shrink-0 items-center text-fg-muted"
+      onClick={() => openHelp('storage')}
+      className="inline-flex shrink-0 cursor-pointer items-center rounded p-0.5 text-fg-muted hover:bg-hover"
     >
       <Database size={14} aria-hidden />
-    </span>
+    </button>
   );
 }

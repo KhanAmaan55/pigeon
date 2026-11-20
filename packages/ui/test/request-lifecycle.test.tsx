@@ -296,3 +296,49 @@ describe('timeline', () => {
     expect(screen.getByTestId('response-timeline').textContent).toContain('total time');
   });
 });
+
+describe('web limitations help links (PIGN-039)', () => {
+  const openSettings = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByTestId('settings-tab'));
+  };
+  const sections = (root: HTMLElement) =>
+    within(root)
+      .queryAllByTestId('help-link')
+      .map((link) => link.getAttribute('data-section'));
+
+  it('every disabled setting links to the section that explains it', async () => {
+    const user = renderApp(new MockTransport(), WEB);
+    await openSettings(user);
+    expect(sections(screen.getByTestId('request-settings'))).toEqual([
+      'redirects',
+      'redirects',
+      'tls',
+      'body-with-get',
+    ]);
+  });
+
+  it('desktop settings have no help links', async () => {
+    const user = renderApp(new MockTransport());
+    await openSettings(user);
+    expect(sections(screen.getByTestId('request-settings'))).toEqual([]);
+  });
+
+  it.each([
+    ['cors-suspected', ['cors', 'private-network']],
+    ['mixed-content', ['mixed-content']],
+    ['tls', ['tls']],
+    ['network', ['private-network']],
+    ['timeout', []],
+  ] as const)('a %s error on web links to %j', async (kind, expected) => {
+    const transport = new MockTransport().on(
+      () => true,
+      () => {
+        throw new TransportError(kind, 'Failed.');
+      },
+    );
+    const user = renderApp(transport, WEB);
+    await user.type(screen.getByTestId('url-input'), 'https://api.example.test/{enter}');
+    const card = await screen.findByTestId('response-error');
+    expect(sections(card)).toEqual(expected);
+  });
+});

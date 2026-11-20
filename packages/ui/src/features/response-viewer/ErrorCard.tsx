@@ -2,12 +2,31 @@ import type { ExecutionError } from '@pigeon/core';
 import { ERROR_TITLES } from '@pigeon/core';
 import { CircleAlert } from 'lucide-react';
 
+import { useCapabilities } from '../../app/PlatformProvider';
+import type { HelpSectionId } from '../help/WebLimitations';
+import { HelpLink } from '../help/WebLimitations';
+
+/** Web: the Web limitations sections that explain an error kind (PIGN-039). */
+const WEB_ERROR_SECTIONS: Partial<
+  Record<ExecutionError['kind'], Array<{ id: HelpSectionId; label: string }>>
+> = {
+  'cors-suspected': [
+    { id: 'cors', label: 'Learn more about CORS' },
+    { id: 'private-network', label: 'Private Network Access' },
+  ],
+  'mixed-content': [{ id: 'mixed-content', label: 'Learn more' }],
+  tls: [{ id: 'tls', label: 'Learn more' }],
+  network: [{ id: 'private-network', label: 'Private Network Access' }],
+};
+
 /**
  * Why a request failed (docs/ui-ux.md §3.5): the kind's title, the message, a hint on what to do
  * next, and the raw transport error folded away. Wording comes from core's `classifyError`, so
  * web and desktop explain failures the same way.
  */
 export function ErrorCard({ error }: { error: ExecutionError }) {
+  const { transport } = useCapabilities();
+  const sections = transport === 'fetch' ? (WEB_ERROR_SECTIONS[error.kind] ?? []) : [];
   return (
     <div className="p-3">
       <div
@@ -32,6 +51,12 @@ export function ErrorCard({ error }: { error: ExecutionError }) {
         {error.hint && (
           <p data-testid="response-error-hint" className="text-fg-muted">
             {error.hint}
+            {sections.map((section, index) => (
+              <span key={section.id}>
+                {index === 0 ? ' ' : ' · '}
+                <HelpLink section={section.id}>{section.label}</HelpLink>
+              </span>
+            ))}
           </p>
         )}
         {error.detail && (

@@ -8,6 +8,7 @@ import { usePlatform } from '../../app/PlatformProvider';
 import type { KeyValueColumn } from '../../components/KeyValueTable';
 import { KeyValueTable } from '../../components/KeyValueTable';
 import { useProjectState } from '../../stores/AppStoreProvider';
+import { HelpLink } from '../help/WebLimitations';
 
 /** A variable as a key/value row: `disabled` = !enabled; the type rides in `type`. */
 interface VariableRow {
@@ -369,7 +370,7 @@ function BrowserSecretsNotice() {
     >
       <span className="min-w-0 flex-1">
         Secrets are stored in this browser profile, unencrypted. Don't use production credentials on
-        shared machines.
+        shared machines. <HelpLink section="secrets" />
       </span>
       <button
         type="button"

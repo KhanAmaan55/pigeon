@@ -7,7 +7,6 @@
 import { isProjectFile } from '@pigeon/formats';
 import type { ProjectFileSystem, ProjectPath } from '@pigeon/platform';
 import { isProjectPath } from '@pigeon/platform';
-import { unzipSync, zipSync } from 'fflate';
 
 /** Fixed entry time, so equal projects give equal zips. */
 const ZIP_MTIME = new Date('1980-01-01T00:00:00Z');
@@ -29,6 +28,8 @@ export async function exportProjectZip(fs: ProjectFileSystem): Promise<Uint8Arra
   const entries: Record<string, [Uint8Array, { mtime: Date }]> = {};
   for (const [path, bytes] of await collectProjectFiles(fs))
     entries[path] = [bytes, { mtime: ZIP_MTIME }];
+  // Loaded on first use: the web app's initial bundle doesn't need the zip library.
+  const { zipSync } = await import('fflate');
   return zipSync(entries, { level: 6 });
 }
 
@@ -44,7 +45,8 @@ export interface ProjectZipContents {
  * Reads a project zip. A single top-level folder holding `pigeon.json` (how most tools zip a
  * folder) is unwrapped. Throws when there is no `pigeon.json`.
  */
-export function readProjectZip(bytes: Uint8Array): ProjectZipContents {
+export async function readProjectZip(bytes: Uint8Array): Promise<ProjectZipContents> {
+  const { unzipSync } = await import('fflate');
   let raw: Record<string, Uint8Array>;
   try {
     raw = unzipSync(bytes);
@@ -84,7 +86,7 @@ export async function importProjectZip(
   bytes: Uint8Array,
   fs: ProjectFileSystem,
 ): Promise<ProjectZipContents> {
-  const contents = readProjectZip(bytes);
+  const contents = await readProjectZip(bytes);
   for (const [path, data] of contents.files) await fs.writeFileAtomic(path, data);
   return contents;
 }

@@ -1,4 +1,5 @@
 import { useAppStore } from '../stores/AppStoreProvider';
+import { useAppConfig } from './AppConfig';
 import { OS_LABELS, PLATFORM_KIND_LABELS } from './platformLabels';
 import { usePlatform } from './PlatformProvider';
 
@@ -23,6 +24,8 @@ const DETECTION_LABELS = {
 export function StatusBar() {
   const platform = usePlatform();
   const detection = useAppStore((s) => s.project?.changeDetection);
+  const openHelp = useAppStore((s) => s.openHelp);
+  const { desktopAppUrl } = useAppConfig();
 
   return (
     <footer
@@ -32,6 +35,18 @@ export function StatusBar() {
       <span data-testid="status-platform">
         {PLATFORM_KIND_LABELS[platform.kind]} · {OS_LABELS[platform.os]}
       </span>
+      {platform.capabilities.transport === 'fetch' && (
+        <button
+          type="button"
+          data-testid="status-browser-mode"
+          data-section="cors"
+          title="The browser decides which requests Pigeon may send and read. Click to learn more."
+          onClick={() => openHelp('cors')}
+          className="cursor-pointer hover:text-fg"
+        >
+          Browser mode — CORS applies
+        </button>
+      )}
       {detection && (
         <span
           data-testid="status-change-detection"
@@ -40,6 +55,17 @@ export function StatusBar() {
         >
           {DETECTION_LABELS[detection].text}
         </span>
+      )}
+      {desktopAppUrl && platform.capabilities.transport === 'fetch' && (
+        <a
+          href={desktopAppUrl}
+          target="_blank"
+          rel="noreferrer"
+          data-testid="status-get-desktop"
+          className="ml-auto hover:text-fg"
+        >
+          Get the desktop app
+        </a>
       )}
     </footer>
   );

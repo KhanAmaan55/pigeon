@@ -8,9 +8,10 @@ import {
   X,
 } from 'lucide-react';
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { useCapabilities } from '../../app/PlatformProvider';
+import { useCapabilities, usePlatform } from '../../app/PlatformProvider';
+import { HelpLink } from '../help/WebLimitations';
 import type { RecentProject } from '../../stores/app-store';
 import { useAppStore } from '../../stores/AppStoreProvider';
 import { locationKey, locationLabel } from '../../stores/locations';
@@ -47,6 +48,7 @@ export function Welcome() {
       data-testid="welcome"
       className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 text-sm"
     >
+      {capabilities.transport === 'fetch' && <WebFirstRunNotice />}
       <p className="text-fg-muted">
         No project open. Open a folder with a Pigeon project, or create one.
       </p>
@@ -150,7 +152,7 @@ export function Welcome() {
           {canUseWorkspaces && !canOpenFolders && (
             <p className="text-xs text-fg-muted">
               This browser can't open folders: projects live in browser storage. Export a zip
-              regularly to keep a copy.
+              regularly to keep a copy. <HelpLink section="folders" />
             </p>
           )}
         </div>
@@ -176,6 +178,56 @@ export function Welcome() {
         </div>
       )}
       {recents.length > 0 && <RecentProjects recents={recents} />}
+    </div>
+  );
+}
+
+const FIRST_RUN_KEY = 'webFirstRunNoticeDismissed';
+
+/**
+ * Web, until dismissed (PIGN-039, docs/platform.md §6.3–6.4): where the web app keeps data, and
+ * that secrets are stored unencrypted in this browser.
+ */
+function WebFirstRunNotice() {
+  const { appState } = usePlatform();
+  const [dismissed, setDismissed] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void appState.get<boolean>('app', FIRST_RUN_KEY).then(
+      (value) => !cancelled && setDismissed(value === true),
+      () => !cancelled && setDismissed(false),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [appState]);
+  if (dismissed !== false) return null;
+  return (
+    <div
+      role="note"
+      data-testid="web-first-run-notice"
+      className="flex flex-col gap-1.5 rounded border border-warn/40 bg-warn/10 p-2 text-xs text-fg"
+    >
+      <p>
+        Pigeon web keeps your workspaces, drafts and variable values in this browser's storage. The
+        browser may clear it under storage pressure, so export projects regularly.{' '}
+        <HelpLink section="storage" />
+      </p>
+      <p>
+        Secrets are stored here unencrypted: don't use production credentials on shared machines.{' '}
+        <HelpLink section="secrets" />
+      </p>
+      <button
+        type="button"
+        data-testid="web-first-run-dismiss"
+        onClick={() => {
+          setDismissed(true);
+          void appState.set('app', FIRST_RUN_KEY, true);
+        }}
+        className="self-end rounded border border-border bg-surface px-2 py-0.5 hover:bg-hover"
+      >
+        Got it
+      </button>
     </div>
   );
 }

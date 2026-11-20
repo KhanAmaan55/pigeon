@@ -50,6 +50,27 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  web-dist:
+    # The deployable static site (apps/web/README.md); deploying it waits for D-12.
+    name: web dist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Builds and runs the bundle check (no Tauri/Node code, initial JS budget).
+      - run: pnpm --filter @pigeon/web build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pigeon-web-dist
+          path: apps/web/dist/
+          if-no-files-found: error
+          retention-days: 14
+
   desktop-build:
     name: desktop build (${{ matrix.os }})
     strategy:

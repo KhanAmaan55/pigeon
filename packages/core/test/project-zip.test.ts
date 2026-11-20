@@ -47,7 +47,7 @@ describe('project zip', () => {
     expect(await target.exists('collections/users-api/README.md')).toBe(false);
   });
 
-  it('unwraps a single top-level folder and skips unsafe or unmanaged entries', () => {
+  it('unwraps a single top-level folder and skips unsafe or unmanaged entries', async () => {
     const zip = zipSync({
       'my-api/pigeon.json': strToU8('{"name":"Wrapped"}'),
       'my-api/collections/a/collection.json': strToU8('{}'),
@@ -56,7 +56,7 @@ describe('project zip', () => {
       'other/pigeon.json': strToU8('{}'),
       'my-api/collections/a/b.request.json': strToU8('{}'),
     });
-    const contents = readProjectZip(zip);
+    const contents = await readProjectZip(zip);
     expect([...contents.files.keys()].sort()).toEqual([
       'collections/a/b.request.json',
       'collections/a/collection.json',
@@ -70,10 +70,12 @@ describe('project zip', () => {
     ]);
   });
 
-  it('rejects archives without pigeon.json and non-zip bytes', () => {
-    expect(() => readProjectZip(zipSync({ 'a.txt': strToU8('x') }))).toThrow(/no pigeon\.json/);
-    expect(() => readProjectZip(new Uint8Array([1, 2, 3]))).toThrow(/not a valid zip/);
-    const unnamed = readProjectZip(zipSync({ 'pigeon.json': strToU8('not json') }));
+  it('rejects archives without pigeon.json and non-zip bytes', async () => {
+    await expect(readProjectZip(zipSync({ 'a.txt': strToU8('x') }))).rejects.toThrow(
+      /no pigeon\.json/,
+    );
+    await expect(readProjectZip(new Uint8Array([1, 2, 3]))).rejects.toThrow(/not a valid zip/);
+    const unnamed = await readProjectZip(zipSync({ 'pigeon.json': strToU8('not json') }));
     expect(unnamed.projectName).toBeUndefined();
   });
 });

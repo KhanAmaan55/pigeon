@@ -12,6 +12,7 @@ import { useScratchRequest } from '../ScratchRequestProvider';
 import { GraphqlBody } from './GraphqlBody';
 import { FileChip, FilePicker } from './FilePicker';
 import { FormDataTable } from './FormDataTable';
+import { HelpLink } from '../../help/WebLimitations';
 
 const MODES: ReadonlyArray<{ mode: BodyMode; label: string }> = [
   { mode: 'none', label: 'none' },
@@ -190,6 +191,12 @@ function GetBodyNotice() {
       {canSendBodyWithGet
         ? `${method} requests are sent without this body unless "Send body with GET" is on in the Settings tab.`
         : `Browsers can't send a body with ${method} requests. Use another method, e.g. POST, or the desktop app.`}
+      {!canSendBodyWithGet && (
+        <>
+          {' '}
+          <HelpLink section="body-with-get" />
+        </>
+      )}
     </p>
   );
 }

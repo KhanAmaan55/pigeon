@@ -191,9 +191,13 @@ Desktop works fully offline: no sign-in, no remote config, fonts and assets bund
 ## 6. Web
 
 ### 6.1 Deployment
-- `pnpm --filter @pigeon/web build` → static files (`index.html`, hashed assets). Host on any static host. No server, no account.
-- Strict CSP: `default-src 'self'; connect-src *; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'` (`wasm-unsafe-eval` needed for QuickJS later). `connect-src *` is required because users call arbitrary APIs. The CSP `<meta>` is injected into the **built** `index.html` only (`apps/web/vite.config.ts`). The Vite dev server needs an inline React Fast Refresh script, so it runs without the CSP; the E2E suite tests the production build with it.
+- `pnpm --filter @pigeon/web build` → static files (`index.html`, hashed assets, `_headers`). Host on any static host. No server, no account. Deploy instructions: [apps/web/README.md](../apps/web/README.md).
+- Base path: relative by default (`./`), so one build works from the root and from a sub-path; `PIGEON_BASE` sets an absolute one. `PIGEON_DESKTOP_URL` (build time) shows "Get the desktop app"; source maps only with `PIGEON_SOURCEMAP=true`.
+- Strict CSP: `default-src 'self'; connect-src *; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'self'; form-action 'none'` (`wasm-unsafe-eval` needed for QuickJS later). `connect-src *` is required because users call arbitrary APIs. The CSP `<meta>` is injected into the **built** `index.html` only (`apps/web/vite.config.ts`). The Vite dev server needs an inline React Fast Refresh script, so it runs without the CSP; the E2E suite tests the production build with it (an injected inline script does not run).
+- HTTP headers for hosts (`dist/_headers`, nginx snippet in the README): the CSP plus `frame-ancestors 'none'`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cross-Origin-Opener-Policy: same-origin`, a restrictive `Permissions-Policy`. No third-party scripts or fonts.
+- Bundle budget: the first page load's JavaScript (entry + module preloads) ≤ **500 KB gzip**; CodeMirror languages, the response viewer, workers and the zip library load on demand. `apps/web/scripts/check-bundle.ts` (run by `build`) enforces the budget and fails on Tauri or Node code in the bundle.
 - Also runnable locally (`pnpm --filter @pigeon/web preview`), which avoids mixed-content issues for `http://` APIs.
+- In-app **Web limitations** help (`ui/src/features/help/WebLimitations.tsx`) mirrors §6.2–6.6; every web hint and disabled control links to its section, and the status bar shows "Browser mode — CORS applies". A first-run notice on the Welcome screen explains storage persistence and secrets.
 
 ### 6.2 Making API requests (CORS and friends)
 The web version uses `fetch()`. The browser, not Pigeon, decides what is allowed:

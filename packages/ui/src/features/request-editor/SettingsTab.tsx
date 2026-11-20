@@ -5,6 +5,8 @@ import { useId } from 'react';
 import { useCapabilities } from '../../app/PlatformProvider';
 import { formatTimeoutPreference, useExecutionDefaults } from '../../app/preferences';
 import { Tooltip } from '../../components/Tooltip';
+import type { HelpSectionId } from '../help/WebLimitations';
+import { HelpLink } from '../help/WebLimitations';
 import { useScratchRequest } from './ScratchRequestProvider';
 
 /** Why a setting is disabled on platforms that can't honour it (docs/platform.md §6.2). */
@@ -14,6 +16,29 @@ export const UNSUPPORTED_SETTING_REASONS = {
   tls: 'Browsers always verify TLS certificates, so the web app cannot turn this off. The desktop app can.',
   bodyWithGet: "Browsers can't send a body with GET or HEAD; the desktop app can.",
 } as const;
+
+/** The Web limitations section explaining each reason (PIGN-039). */
+const REASON_SECTIONS = new Map<string, HelpSectionId>([
+  [UNSUPPORTED_SETTING_REASONS.redirects, 'redirects'],
+  [UNSUPPORTED_SETTING_REASONS.tls, 'tls'],
+  [UNSUPPORTED_SETTING_REASONS.bodyWithGet, 'body-with-get'],
+]);
+
+function ReasonOrDescription({
+  unsupported,
+  description,
+}: {
+  unsupported: string | undefined;
+  description: string;
+}) {
+  if (unsupported === undefined) return <>{description}</>;
+  const section = REASON_SECTIONS.get(unsupported);
+  return (
+    <>
+      {unsupported} {section && <HelpLink section={section} />}
+    </>
+  );
+}
 
 /**
  * Per-request settings (`request.settings`, docs/api-execution.md §8). Unset values follow the
@@ -130,7 +155,9 @@ function CheckboxSetting({
         />
         <span className="flex flex-col">
           <span className="text-fg">{label}</span>
-          <span className="text-xs text-fg-muted">{unsupported ?? description}</span>
+          <span className="text-xs text-fg-muted">
+            <ReasonOrDescription unsupported={unsupported} description={description} />
+          </span>
         </span>
       </label>
     </Unsupported>
@@ -181,7 +208,9 @@ function NumberSetting({
           />
           {unit && <span className="text-xs text-fg-muted">{unit}</span>}
         </div>
-        <span className="text-xs text-fg-muted">{unsupported ?? description}</span>
+        <span className="text-xs text-fg-muted">
+          <ReasonOrDescription unsupported={unsupported} description={description} />
+        </span>
       </div>
     </Unsupported>
   );

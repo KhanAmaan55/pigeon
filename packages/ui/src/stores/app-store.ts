@@ -68,6 +68,10 @@ export interface AppState {
   /** A short message for the toast (background results, e.g. "Wrote 3 files"). */
   notice: { id: number; message: string } | null;
   notify: (message: string) => void;
+  /** The Web limitations help (PIGN-039), open at a section (`''`: the top), or `null`. */
+  help: string | null;
+  openHelp: (section?: string) => void;
+  closeHelp: () => void;
   /** A picked folder without `pigeon.json`, waiting for "Initialize Pigeon project here?". */
   pendingInit: PendingInit | null;
   loadRecents: () => Promise<void>;
@@ -272,6 +276,9 @@ export function createAppStore(platform: AppPlatform) {
       error: null,
       notice: null,
       notify: (message) => set({ notice: { id: (get().notice?.id ?? 0) + 1, message } }),
+      help: null,
+      openHelp: (section = '') => set({ help: section }),
+      closeHelp: () => set({ help: null }),
       pendingInit: null,
 
       loadRecents: async () => {
@@ -393,7 +400,7 @@ export function createAppStore(platform: AppPlatform) {
           }
           const [picked] = await platform.files.pickFiles({ accept: ['.zip', 'application/zip'] });
           if (!picked) return;
-          const contents = readProjectZip(picked.bytes);
+          const contents = await readProjectZip(picked.bytes);
           const name =
             contents.projectName || picked.name.replace(/\.zip$/i, '') || 'Imported project';
           const location = await platform.projects.createBrowserWorkspace(name);

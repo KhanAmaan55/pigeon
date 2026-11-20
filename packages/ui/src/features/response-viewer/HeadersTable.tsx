@@ -1,5 +1,6 @@
 import { Copy, Info } from 'lucide-react';
 
+import { HelpLink } from '../help/WebLimitations';
 import { CopyButton } from './CopyButton';
 
 /** Response headers in received order, duplicates kept (docs/ui-ux.md §3.5). */
@@ -20,7 +21,7 @@ export function HeadersTable({
           <Info size={12} className="mt-0.5 shrink-0 text-info" aria-hidden />
           Some headers are hidden by the browser: it only shows CORS-safelisted headers, those the
           server lists in Access-Control-Expose-Headers, and never Set-Cookie. The desktop app shows
-          all of them.
+          all of them. <HelpLink section="response-headers" />
         </p>
       )}
       {headers.length === 0 ? (

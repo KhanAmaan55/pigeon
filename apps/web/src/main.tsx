@@ -13,7 +13,14 @@ const platform = createWebPlatform();
 const start = () =>
   createRoot(root).render(
     <StrictMode>
-      <PigeonApp platform={platform} />
+      <PigeonApp
+        platform={platform}
+        config={{
+          ...(import.meta.env.PIGEON_DESKTOP_URL
+            ? { desktopAppUrl: import.meta.env.PIGEON_DESKTOP_URL }
+            : {}),
+        }}
+      />
     </StrictMode>,
   );
 
