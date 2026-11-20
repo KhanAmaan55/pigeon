@@ -26,9 +26,14 @@ export class MemoryProjectLocator implements ProjectLocator {
   }
 
   async createProject(_name: string): Promise<ProjectLocation> {
-    const id = crypto.randomUUID();
-    const fs = new MemoryFs({ id });
-    this.#projects.set(id, fs);
+    return this.add(new MemoryFs({ id: crypto.randomUUID() }));
+  }
+
+  /** Registers an existing `MemoryFs` (tests, demo projects) and returns its location. */
+  add(fs: MemoryFs): ProjectLocation {
+    if (fs.root.kind !== 'memory')
+      throw new Error('MemoryProjectLocator.add expects a memory location');
+    this.#projects.set(fs.root.id, fs);
     return fs.root;
   }
 

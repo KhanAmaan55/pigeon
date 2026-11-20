@@ -28,6 +28,7 @@
     "@pigeon/core": "workspace:*",
     "@pigeon/formats": "workspace:*",
     "@pigeon/platform": "workspace:*",
+    "@tanstack/react-virtual": "^3.14.26",
     "lucide-react": "^1.59.0",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",

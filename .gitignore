@@ -7,6 +7,8 @@ coverage/
 .env
 .env.*
 !.env.example
+# Vite mode file for E2E builds (no secrets: it only enables test hooks).
+!apps/web/.env.e2e
 .vscode/*
 !.vscode/extensions.json
 .idea/

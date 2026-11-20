@@ -47,6 +47,15 @@ export {
 } from './model/url';
 
 export { RequestExecutor } from './execution/executor';
+export type { ResolvedFiles } from './execution/project-files';
+export { resolveProjectFiles } from './execution/project-files';
+export type { ItemLocation, Unsubscribe } from './workspace/project-session';
+export {
+  initializeProject,
+  isPigeonProject,
+  PROJECT_DIRECTORIES,
+  ProjectSession,
+} from './workspace/project-session';
 export type { ErrorContext, RawFailure } from './execution/errors';
 export {
   classifyError,

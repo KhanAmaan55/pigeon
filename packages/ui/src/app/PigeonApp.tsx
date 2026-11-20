@@ -1,22 +1,28 @@
 import type { Platform } from '@pigeon/platform';
 
 import { TooltipProvider } from '../components/Tooltip';
+import { InitProjectDialog } from '../features/projects/InitProjectDialog';
+import type { AppStore } from '../stores/app-store';
+import { AppStoreProvider } from '../stores/AppStoreProvider';
 import { AppShell } from './AppShell';
 import { PlatformProvider } from './PlatformProvider';
 import { PreferencesProvider } from './preferences';
 import { ThemeProvider } from './theme';
 
 /** Root component rendered by apps/web and apps/desktop, each with its own `Platform`. */
-export function PigeonApp({ platform }: { platform: Platform }) {
+export function PigeonApp({ platform, appStore }: { platform: Platform; appStore?: AppStore }) {
   return (
     <PlatformProvider platform={platform}>
-      <PreferencesProvider>
-        <ThemeProvider>
-          <TooltipProvider delayDuration={400}>
-            <AppShell />
-          </TooltipProvider>
-        </ThemeProvider>
-      </PreferencesProvider>
+      <AppStoreProvider {...(appStore ? { store: appStore } : {})}>
+        <PreferencesProvider>
+          <ThemeProvider>
+            <TooltipProvider delayDuration={400}>
+              <AppShell />
+              <InitProjectDialog />
+            </TooltipProvider>
+          </ThemeProvider>
+        </PreferencesProvider>
+      </AppStoreProvider>
     </PlatformProvider>
   );
 }

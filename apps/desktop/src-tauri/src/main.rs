@@ -1,10 +1,12 @@
 // Prevents an extra console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod app_state;
 mod files;
 mod http;
 #[cfg(target_os = "macos")]
 mod menu;
+mod project_fs;
 mod smoke;
 #[cfg(test)]
 mod test_server;
@@ -13,9 +15,10 @@ fn main() {
     // plugin-os injects the OS name into the webview; reading it needs no IPC permission.
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
-        // Used from Rust only (`files::save_file`); the webview gets no dialog permissions.
+        // Used from Rust only (`save_file`, project pickers); the webview gets no dialog permissions.
         .plugin(tauri_plugin_dialog::init())
-        .manage(http::HttpState::default());
+        .manage(http::HttpState::default())
+        .setup(|app| project_fs::setup(app));
 
     // Windows and Linux get no native menu: shortcuts must not depend on one (docs/platform.md §5).
     #[cfg(target_os = "macos")]
@@ -29,13 +32,37 @@ fn main() {
             http::http_send,
             http::http_cancel,
             files::save_file,
+            project_fs::project_pick_folder,
+            project_fs::project_create,
+            project_fs::project_reopen,
+            project_fs::project_fs_read,
+            project_fs::project_fs_write,
+            project_fs::project_fs_stat,
+            project_fs::project_fs_list,
+            project_fs::project_fs_mkdirp,
+            project_fs::project_fs_remove,
+            project_fs::project_fs_rename,
+            app_state::app_state_read,
+            app_state::app_state_write,
             smoke::smoke_report
         ])
     } else {
         builder.invoke_handler(tauri::generate_handler![
             http::http_send,
             http::http_cancel,
-            files::save_file
+            files::save_file,
+            project_fs::project_pick_folder,
+            project_fs::project_create,
+            project_fs::project_reopen,
+            project_fs::project_fs_read,
+            project_fs::project_fs_write,
+            project_fs::project_fs_stat,
+            project_fs::project_fs_list,
+            project_fs::project_fs_mkdirp,
+            project_fs::project_fs_remove,
+            project_fs::project_fs_rename,
+            app_state::app_state_read,
+            app_state::app_state_write
         ])
     };
 

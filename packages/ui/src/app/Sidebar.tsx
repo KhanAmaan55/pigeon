@@ -1,10 +1,14 @@
+import { Explorer } from '../features/explorer/Explorer';
+import { Welcome } from '../features/projects/Welcome';
 import { Diagnostics } from '../features/settings/Diagnostics';
 import { RequestDefaults } from '../features/settings/RequestDefaults';
+import { useAppStore } from '../stores/AppStoreProvider';
 import type { SidebarView } from './views';
 import { SIDEBAR_VIEW_TITLES } from './views';
 
 /** Sidebar for the active view; most views stay placeholders until their feature story. */
 export function Sidebar({ view }: { view: SidebarView }) {
+  const hasProject = useAppStore((s) => s.project !== null);
   return (
     <aside
       aria-label={SIDEBAR_VIEW_TITLES[view]}
@@ -19,6 +23,12 @@ export function Sidebar({ view }: { view: SidebarView }) {
           <RequestDefaults />
           <Diagnostics />
         </div>
+      ) : view === 'collections' ? (
+        hasProject ? (
+          <Explorer />
+        ) : (
+          <Welcome />
+        )
       ) : (
         <div className="flex flex-1 items-center justify-center p-4 text-center text-sm text-fg-muted">
           No project open

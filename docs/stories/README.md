@@ -42,7 +42,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-011](PIGN-011-timeouts-cancel-redirects-errors.md) | Timeouts, cancel, redirects & network errors | 1 First request | MVP | 007, 010 | Done |
 | [PIGN-012](PIGN-012-canonical-serialization.md) | Canonical JSON & filename rules | 2 Projects | MVP | 001 | Done |
 | [PIGN-013](PIGN-013-project-format-core.md) | Project file format read/write (core) | 2 Projects | MVP | 004, 012 | Done |
-| [PIGN-014](PIGN-014-desktop-open-project.md) | Create/open project on desktop + explorer | 2 Projects | MVP | 007, 013 | Todo |
+| [PIGN-014](PIGN-014-desktop-open-project.md) | Create/open project on desktop + explorer | 2 Projects | MVP | 007, 013 | Done |
 | [PIGN-015](PIGN-015-web-open-project.md) | Open project on web (folder access & browser workspace) | 2 Projects | MVP | 014 | Todo |
 | [PIGN-016](PIGN-016-request-tabs.md) | Request tabs for project requests | 2 Projects | MVP | 014, 009 | Todo |
 | [PIGN-017](PIGN-017-explorer-crud.md) | Explorer CRUD, move & reorder | 2 Projects | MVP | 016 | Todo |

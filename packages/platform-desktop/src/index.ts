@@ -2,14 +2,20 @@ import type { OperatingSystem, Platform } from '@pigeon/platform';
 import { createMemoryServices, PickedFileStore } from '@pigeon/platform';
 import { platform as osPlatform } from '@tauri-apps/plugin-os';
 
+import { FileAppState } from './app-state';
 import { DESKTOP_CAPABILITIES } from './capabilities';
 import { DesktopFileExchange } from './files';
 import { NativeTransport } from './native-transport';
+import { DesktopProjectLocator } from './project-locator';
 
+export { FileAppState } from './app-state';
 export { DESKTOP_CAPABILITIES } from './capabilities';
 export { DesktopFileExchange, encodeSaveFrame } from './files';
 export type { Invoke, NativeTransportOptions, WireBody, WireFileRef } from './native-transport';
 export { decodeResponseFrame, encodeRequestFrame, NativeTransport } from './native-transport';
+export { fromNativePath, isWindowsPath, nativeBaseName, toNativePath } from './paths';
+export { DesktopProjectLocator } from './project-locator';
+export { encodeWriteFrame, TauriFs, toFsError } from './tauri-fs';
 
 /** Maps `@tauri-apps/plugin-os` platform names to Pigeon's. */
 export function toOperatingSystem(name: string): OperatingSystem {
@@ -31,11 +37,12 @@ export function detectDesktopOs(): OperatingSystem {
 }
 
 /**
- * Real capabilities, native transport and file exchange; fs, state, secrets and dialogs stay
- * memory-backed until their stories land.
+ * Real capabilities, transport, project folders, app state and file exchange; secrets and dialogs
+ * stay memory-backed until their stories land.
  */
 export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): Platform {
   const pickedFiles = new PickedFileStore();
+  const projects = new DesktopProjectLocator();
   return {
     kind: 'desktop',
     os,
@@ -43,6 +50,9 @@ export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): 
     transport: new NativeTransport({ pickedFiles }),
     pickedFiles,
     ...createMemoryServices(),
+    projects,
+    openProjectFs: async (loc) => projects.open(loc),
+    appState: new FileAppState(),
     files: new DesktopFileExchange(),
   };
 }

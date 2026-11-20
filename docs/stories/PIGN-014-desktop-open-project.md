@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-014 | 2 — Projects | MVP | Todo | PIGN-007, PIGN-013 |
+| PIGN-014 | 2 — Projects | MVP | Done | PIGN-007, PIGN-013 |
 
 ## Goal
 On desktop, create a new project folder or open an existing one, see its collections in the explorer tree, and open requests (read-only for now) — plus the Welcome screen and recent projects.
@@ -30,12 +30,12 @@ As a desktop user, I want to open my repo's `pigeon/` folder and browse its coll
 - Web (PIGN-015), tabs (PIGN-016), editing/CRUD (PIGN-017), save (PIGN-018), watch (PIGN-020), multiple projects (PIGN-021).
 
 ## Acceptance criteria
-- [ ] Create project → folder contains `pigeon.json`, `collections/`, `environments/`, `examples/`, `.gitattributes`.
-- [ ] Opening `packages/fixtures/projects/basic` shows the exact tree order defined by the files.
-- [ ] Recent projects persist across app restarts and reopen without re-picking the folder.
-- [ ] A broken request file shows ⚠ with the parse error; other items work.
-- [ ] Sending a project request (read-only) works using the desktop transport.
-- [ ] Works on macOS, Windows (paths with backslashes/spaces), Linux (verified in CI via desktop E2E or NodeFs-equivalent tests of the path conversion).
+- [x] Create project → folder contains `pigeon.json`, `collections/`, `environments/`, `examples/`, `.gitattributes`.
+- [x] Opening `packages/fixtures/projects/basic` shows the exact tree order defined by the files.
+- [x] Recent projects persist across app restarts and reopen without re-picking the folder.
+- [x] A broken request file shows ⚠ with the parse error; other items work.
+- [x] Sending a project request (read-only) works using the desktop transport.
+- [x] Works on macOS, Windows (paths with backslashes/spaces), Linux (verified in CI via desktop E2E or NodeFs-equivalent tests of the path conversion).
 
 ## Technical notes
 - Path conversion utilities in `platform-desktop/src/paths.ts` with unit tests for Windows drive letters and UNC paths.
@@ -51,3 +51,14 @@ As a desktop user, I want to open my repo's `pigeon/` folder and browse its coll
 
 ## Definition of done
 Standard DoD plus desktop build green on all OSes.
+
+## Implementation notes
+- **Desktop filesystem without plugin-fs (deviation, D-15).** Like `save_file`, project access goes through app commands in `src-tauri/src/project_fs.rs` (`project_fs_read/write/stat/list/mkdirp/remove/rename`, `project_pick_folder`, `project_create`, `project_reopen`) instead of `@tauri-apps/plugin-fs` + `tauri-plugin-persisted-scope`. Rust shows the folder dialogs, remembers granted roots in `<app-data>/project-roots.json` (so recent projects reopen without re-picking) and re-validates every project path; the webview gets no general fs or dialog permission. The `--smoke` probe checks that an ungranted folder is refused.
+- `TauriFs` passes `fsConformance` through a MemoryFs-backed fake of the IPC contract; the Rust operations have their own `cargo test` cases (errors, atomic writes, sorting, case-only renames). Locked-file retry on Windows: 3 attempts with backoff on rename.
+- App state: `FileAppState` keeps one JSON document per namespace (`app.json`, `projects/<id>/state.json`) via `app_state_read/write`.
+- Path conversion: `platform-desktop/src/paths.ts` (`toNativePath`, `fromNativePath`, `nativeBaseName`) with drive-letter, UNC and space tests; Rust joins segments with `PathBuf`.
+- `ProjectSession` (read side), `initializeProject` and `isPigeonProject` live in `core/workspace/project-session.ts`. Project file references (`FileRef { kind: 'project' }`) are read through `ExecutionContext.projectFs` and handed to the transport as temporary picked files (`resolveProjectFiles`), so native and fetch transports behave the same.
+- UI: `stores/app-store.ts` (open project, recent projects persisted under `app`/`recentProjects`, max 10), `stores/project-store.ts`, Welcome panel in the Collections sidebar, init dialog, virtualized explorer (`@tanstack/react-virtual`). Selecting a request loads a copy into the existing editor with a banner; edits are not saved (PIGN-016/018). Broken files show ⚠ and a panel with the path and parse error.
+- The in-app confirm is a Radix dialog, not `Platform.dialogs`, because webviews don't implement `window.confirm` consistently.
+- Web: until PIGN-015 the web platform keeps the memory locator. E2E builds (`pnpm --filter @pigeon/web build:e2e`, `.env.e2e`) install `window.__pigeonTest.preloadProject(files)`; production bundles don't contain it. `e2e/web/projects.spec.ts` runs on Chromium.
+- Follow-up: desktop E2E with WebdriverIO + tauri-driver on Linux/Windows CI is not set up yet; macOS is covered by build + `--smoke`.

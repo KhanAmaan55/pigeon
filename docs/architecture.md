@@ -278,5 +278,6 @@ Status: **Proposed** = recommended, confirm before the dependent story starts. *
 | D-12 | Web hosting | Target host/domain for the static site | **Open** | PIGN-039 |
 | D-13 | License | Open-source license (if any) | **Open** | before public release |
 | D-14 | Apidog / Echo API formats | Collect real export samples before implementing importers | **Open** (needs samples) | PIGN-048/049 |
+| D-15 | Desktop project filesystem | App commands (`project_fs_*`) with a Rust-side scope of user-picked roots persisted in app data, instead of plugin-fs + persisted-scope: same model as `save_file`, no general fs permission in the webview, paths validated twice. | **Accepted** (PIGN-014) | PIGN-014 |
 
 When a story deviates from a Proposed decision, the implementer updates this table (status → *Changed*, with a one-line reason) in the same change.

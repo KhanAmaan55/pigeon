@@ -1,12 +1,13 @@
 /** Runs a request end to end: prepare → `Transport.send` → normalize (docs/api-execution.md §1). */
 
-import type { FileRef, PreparedRequest, Transport } from '@pigeon/platform';
+import type { FileRef, PickedFileStore, PreparedRequest, Transport } from '@pigeon/platform';
 import { TransportError } from '@pigeon/platform';
 
 import type { Request } from '../model/request';
 import { toExecutionError } from './errors';
 import { maskHeaders, maskSecrets } from './mask';
 import { prepareRequest } from './prepare';
+import { resolveProjectFiles } from './project-files';
 import { normalizeResponse } from './response';
 import type { ExecutionContext, ExecutionResult } from './types';
 
@@ -14,9 +15,12 @@ const BODY_PREVIEW_CHARS = 10_000;
 
 export class RequestExecutor {
   readonly #transport: Transport;
+  readonly #pickedFiles: PickedFileStore | undefined;
 
-  constructor(transport: Transport) {
+  /** `pickedFiles` must be the store the transport reads; project files pass through it. */
+  constructor(transport: Transport, opts: { pickedFiles?: PickedFileStore } = {}) {
     this.#transport = transport;
+    this.#pickedFiles = opts.pickedFiles;
   }
 
   /** Never rejects: failures are returned as `result.error`. */
@@ -48,8 +52,11 @@ export class RequestExecutor {
     const signal = opts.signal ?? new AbortController().signal;
     const summary = { ...base, id: req.id, request: summarize(req) };
     const prepareWarnings = req.meta.warnings ?? [];
+    let release = (): void => undefined;
     try {
-      const raw = await this.#transport.send(req, { signal });
+      const resolved = await resolveProjectFiles(req, ctx.projectFs, this.#pickedFiles);
+      release = resolved.release;
+      const raw = await this.#transport.send(resolved.request, { signal });
       return {
         ...summary,
         response: normalizeResponse(raw),
@@ -65,6 +72,8 @@ export class RequestExecutor {
         }),
         warnings: [...prepareWarnings, ...(error instanceof TransportError ? error.warnings : [])],
       };
+    } finally {
+      release();
     }
   }
 }

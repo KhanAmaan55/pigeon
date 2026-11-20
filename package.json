@@ -14,7 +14,7 @@
     "build": "pnpm -r --if-present --filter=!@pigeon/desktop run build",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "clean": "tsc -b --clean",
-    "test:e2e": "pnpm --filter @pigeon/web build && playwright test"
+    "test:e2e": "pnpm --filter @pigeon/web build:e2e && playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

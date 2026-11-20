@@ -2,7 +2,8 @@
 // own scripts, on every load). Reports to the `smoke_report` command once the shell has
 // rendered, the bundled monospace font has loaded, a request built in the editor (path variable,
 // duplicate, disabled and browser-forbidden headers) has gone through the native transport
-// (http_send) intact, the desktop platform is wired in and no errors were logged.
+// (http_send) intact, the desktop platform is wired in, project folders stay closed until
+// picked and no errors were logged.
 (() => {
   if (window.top !== window) return;
 
@@ -100,6 +101,19 @@
     if (text('capability-bypassesCors') !== 'true') throw new Error('desktop capabilities missing');
     const os = text('diagnostics-os');
     if (!['macOS', 'Windows', 'Linux'].includes(os)) throw new Error(`OS not detected: ${os}`);
+
+    // Project folders (PIGN-014): the welcome panel rendered after reading recent projects from
+    // app state (an IPC failure would be logged), and folders the user never picked stay closed.
+    document.querySelector('[data-testid="activity-collections"]').click();
+    await waitFor('welcome panel', () => find('welcome'));
+    const invoke = window.__TAURI_INTERNALS__.invoke;
+    const denied = await invoke('project_fs_stat', { root: '/', path: 'etc' }).then(
+      () => null,
+      (error) => error,
+    );
+    if (!denied || !String(denied.message).includes('no access')) {
+      throw new Error(`ungranted folder was readable: ${JSON.stringify(denied)}`);
+    }
     if (errors.length > 0) throw new Error(errors.join('\n'));
   }
 

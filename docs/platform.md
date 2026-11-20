@@ -156,9 +156,9 @@ interface Capabilities {
 ### 5.1 Shared desktop implementation
 All three OSes use the same `platform-desktop` package and the same Rust code:
 - **Transport**: Rust `http_send` command (reqwest + rustls; native-tls optional later). Returns status, raw header list, body bytes, timings, redirect chain, HTTP version. `http_cancel(requestId)` aborts.
-- **FileSystem**: `@tauri-apps/plugin-fs` (read/write/rename/remove/readDir/stat/watch). Atomic write = write `.<name>.pigeon-tmp` in same directory, then `rename`.
-- **Dialogs**: `@tauri-apps/plugin-dialog` (folder picker, open/save file).
-- **Scope**: user-selected folders are added to the fs scope by the dialog plugin; `tauri-plugin-persisted-scope` restores access for recent projects.
+- **FileSystem**: `TauriFs` over app commands `project_fs_*` (`src-tauri/src/project_fs.rs`; read/write/stat/list/mkdirp/remove/rename). Atomic write = write `.<name>.pigeon-<pid>-<n>.tmp` in the same directory, then `rename` (retried on Windows locks). Watching arrives with PIGN-020.
+- **Dialogs**: folder pickers run in Rust (`project_pick_folder`, `project_create`; tauri-plugin-dialog used from Rust only). The webview has no fs or dialog permission.
+- **Scope**: a folder becomes reachable only after the user picked or created it; Rust stores these roots in `<app-data>/project-roots.json`, so recent projects reopen without re-picking (`project_reopen`), and checks the root and path of every call (D-15).
 - **AppState**: JSON files under `appDataDir()` (see [file-format.md §6](file-format.md#6-local-app-state)).
 - **Watch**: plugin-fs `watch` (debounced, recursive) → `FsChangeEvent[]`.
 

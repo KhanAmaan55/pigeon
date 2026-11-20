@@ -3,6 +3,7 @@
 import type {
   Capabilities,
   Id,
+  ProjectFileSystem,
   RawResponse,
   RequestSettings,
   TransportErrorKind,
@@ -33,6 +34,8 @@ export interface ExecutionContext {
    * call http APIs). Used to classify errors only.
    */
   pageOrigin?: string;
+  /** The open project's files, for project-relative file references in bodies. */
+  projectFs?: ProjectFileSystem;
 }
 
 export function createExecutionContext(
@@ -44,6 +47,7 @@ export function createExecutionContext(
     preferences: init.preferences ?? { ...DEFAULT_PREFERENCES },
     capabilities: init.capabilities,
     ...(init.pageOrigin === undefined ? {} : { pageOrigin: init.pageOrigin }),
+    ...(init.projectFs === undefined ? {} : { projectFs: init.projectFs }),
   };
 }
 

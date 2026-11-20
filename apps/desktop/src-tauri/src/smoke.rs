@@ -29,19 +29,17 @@ pub fn requested(args: impl IntoIterator<Item = String>) -> bool {
 pub fn install(builder: Builder<Wry>) -> Builder<Wry> {
     let url = serve_probe_target()
         .unwrap_or_else(|error| finish(Err(format!("probe target server: {error}"))));
-    builder
-        .plugin(
-            plugin::Builder::<Wry>::new("smoke")
-                .js_init_script(PROBE.replace(URL_PLACEHOLDER, &url))
-                .build(),
-        )
-        .setup(|_| {
-            thread::spawn(|| {
-                thread::sleep(TIMEOUT);
-                finish(Err(format!("timed out after {}s", TIMEOUT.as_secs())));
-            });
-            Ok(())
-        })
+    // A plain thread, not `Builder::setup`: Tauri keeps only the last setup hook, and main's
+    // registers app state.
+    thread::spawn(|| {
+        thread::sleep(TIMEOUT);
+        finish(Err(format!("timed out after {}s", TIMEOUT.as_secs())));
+    });
+    builder.plugin(
+        plugin::Builder::<Wry>::new("smoke")
+            .js_init_script(PROBE.replace(URL_PLACEHOLDER, &url))
+            .build(),
+    )
 }
 
 /// A tiny HTTP server for the probe's request. It answers `native-ok` followed by the request

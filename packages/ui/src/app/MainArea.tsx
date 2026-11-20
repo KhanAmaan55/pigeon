@@ -3,9 +3,13 @@ import { Group, Panel } from 'react-resizable-panels';
 
 import { ResizeHandle } from '../components/ResizeHandle';
 import { RequestEditor } from '../features/request-editor/RequestEditor';
-import { ScratchRequestProvider } from '../features/request-editor/ScratchRequestProvider';
+import {
+  ScratchRequestProvider,
+  useScratchRequest,
+} from '../features/request-editor/ScratchRequestProvider';
 import type { ResponseDock } from '../features/response-viewer/ResponseViewer';
 import { ResponseViewer } from '../features/response-viewer/ResponseViewer';
+import { ProjectRequestView } from './ProjectRequestView';
 
 /** Cmd/Ctrl+Alt+L (docs/ui-ux.md §4). `code`, since Alt changes `key` on macOS (`¬`). */
 export function isToggleDockShortcut(event: KeyboardEvent): boolean {
@@ -42,7 +46,7 @@ export function MainArea() {
           data-testid="request-tabs"
           className="flex h-tabbar shrink-0 items-center border-b border-border bg-surface px-3 text-sm text-fg-muted"
         >
-          Scratch request
+          <RequestTabLabel />
         </div>
         <Group
           orientation={right ? 'horizontal' : 'vertical'}
@@ -52,7 +56,9 @@ export function MainArea() {
         >
           {/* Not remounted on a dock change, so the response keeps its tab and view. */}
           <Panel id="request-pane" defaultSize="45" minSize="15">
-            <RequestEditor />
+            <ProjectRequestView>
+              <RequestEditor />
+            </ProjectRequestView>
           </Panel>
           <ResizeHandle
             direction={right ? 'horizontal' : 'vertical'}
@@ -65,4 +71,10 @@ export function MainArea() {
       </section>
     </ScratchRequestProvider>
   );
+}
+
+/** The single request "tab" until real tabs land (PIGN-016). */
+function RequestTabLabel() {
+  const name = useScratchRequest((s) => (s.source ? s.request.name : 'Scratch request'));
+  return <span data-testid="request-tab-label">{name}</span>;
 }

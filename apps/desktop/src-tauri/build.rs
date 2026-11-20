@@ -7,6 +7,18 @@ fn main() {
             "http_cancel",
             "save_file",
             "smoke_report",
+            "project_pick_folder",
+            "project_create",
+            "project_reopen",
+            "project_fs_read",
+            "project_fs_write",
+            "project_fs_stat",
+            "project_fs_list",
+            "project_fs_mkdirp",
+            "project_fs_remove",
+            "project_fs_rename",
+            "app_state_read",
+            "app_state_write",
         ]),
     ))
     .expect("failed to run tauri-build");

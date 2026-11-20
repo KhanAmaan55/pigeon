@@ -8,6 +8,18 @@
     "allow-http-send",
     "allow-http-cancel",
     "allow-save-file",
-    "allow-smoke-report"
+    "allow-smoke-report",
+    "allow-project-pick-folder",
+    "allow-project-create",
+    "allow-project-reopen",
+    "allow-project-fs-read",
+    "allow-project-fs-write",
+    "allow-project-fs-stat",
+    "allow-project-fs-list",
+    "allow-project-fs-mkdirp",
+    "allow-project-fs-remove",
+    "allow-project-fs-rename",
+    "allow-app-state-read",
+    "allow-app-state-write"
   ]
 }

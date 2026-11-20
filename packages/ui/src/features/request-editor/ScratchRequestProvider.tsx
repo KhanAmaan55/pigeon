@@ -28,3 +28,11 @@ export function useScratchRequest<T>(selector: (state: ScratchRequestState) => T
   if (!store) throw new Error('useScratchRequest() must be used inside <ScratchRequestProvider>');
   return useStore(store, selector);
 }
+
+/** The store itself, for code that drives it (e.g. opening a project request). */
+export function useScratchRequestStore(): ScratchRequestStore {
+  const store = useContext(ScratchRequestContext);
+  if (!store)
+    throw new Error('useScratchRequestStore() must be used inside <ScratchRequestProvider>');
+  return store;
+}
