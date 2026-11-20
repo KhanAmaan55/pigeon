@@ -5,15 +5,18 @@
  */
 
 import type {
+  FsChangeEvent,
   FsEntry,
   FsErrorCode,
   FsStat,
   ProjectFileSystem,
   ProjectLocation,
   ProjectPath,
+  Unsubscribe,
 } from '@pigeon/platform';
 import { assertProjectPath, FsError } from '@pigeon/platform';
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { listen as tauriListen } from '@tauri-apps/api/event';
 
 import type { Invoke } from './native-transport';
 
@@ -35,13 +38,49 @@ interface WireFsError {
   message: string;
 }
 
+/** `@tauri-apps/api/event` `listen`, injectable for tests. */
+export type Listen = <T>(
+  event: string,
+  handler: (event: { payload: T }) => void,
+) => Promise<() => void>;
+
+/** What `src-tauri/src/watch.rs` emits as `project-fs-change`. */
+interface ChangeBatch {
+  root: string;
+  events: FsChangeEvent[];
+}
+
 export class TauriFs implements ProjectFileSystem {
   readonly root: Extract<ProjectLocation, { kind: 'native' }>;
   readonly #invoke: Invoke;
+  readonly #listen: Listen;
 
-  constructor(absolutePath: string, opts: { invoke?: Invoke } = {}) {
+  constructor(absolutePath: string, opts: { invoke?: Invoke; listen?: Listen } = {}) {
     this.root = { kind: 'native', absolutePath };
     this.#invoke = opts.invoke ?? tauriInvoke;
+    this.#listen = opts.listen ?? (tauriListen as Listen);
+  }
+
+  /** Recursive native watcher (`project_watch`), debounced in Rust (PIGN-020). */
+  watch(
+    onEvent: (events: FsChangeEvent[]) => void,
+    onError?: (error: unknown) => void,
+  ): Unsubscribe {
+    const root = this.root.absolutePath;
+    let stopped = false;
+    let unlisten: (() => void) | undefined;
+    void this.#listen<ChangeBatch>('project-fs-change', ({ payload }) => {
+      if (!stopped && payload.root === root && payload.events.length > 0) onEvent(payload.events);
+    }).then(
+      (fn) => (stopped ? fn() : (unlisten = fn)),
+      (error: unknown) => onError?.(error),
+    );
+    void this.#invoke('project_watch', { root }).catch((error: unknown) => onError?.(error));
+    return () => {
+      stopped = true;
+      unlisten?.();
+      void this.#invoke('project_unwatch', { root }).catch(() => undefined);
+    };
   }
 
   async readFile(path: ProjectPath): Promise<Uint8Array> {

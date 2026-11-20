@@ -88,6 +88,7 @@ export {
 export type {
   ChangeState,
   CommitResult,
+  Conflict,
   ItemLocation,
   Unsubscribe,
 } from './workspace/project-session';
@@ -97,6 +98,7 @@ export {
   isPigeonProject,
   PROJECT_DIRECTORIES,
   ProjectSession,
+  WATCH_DEBOUNCE_MS,
 } from './workspace/project-session';
 export type { ErrorContext, RawFailure } from './execution/errors';
 export {

@@ -48,8 +48,15 @@ export interface ProjectFileSystem {
   remove(path: ProjectPath, opts?: { recursive?: boolean }): Promise<void>;
   /** Replaces an existing file at `to`; creates missing parents of `to`. */
   rename(from: ProjectPath, to: ProjectPath): Promise<void>;
-  /** Present only when `capabilities.fileWatch`. Events arrive in batches, asynchronously. */
-  watch?(onEvent: (events: FsChangeEvent[]) => void): Unsubscribe;
+  /**
+   * Present only when `capabilities.fileWatch`. Events arrive in batches, asynchronously; they
+   * are hints (consumers verify by content). `onError` reports a watcher that couldn't start
+   * (e.g. Linux inotify limits); callers then fall back to refreshing on focus.
+   */
+  watch?(
+    onEvent: (events: FsChangeEvent[]) => void,
+    onError?: (error: unknown) => void,
+  ): Unsubscribe;
 }
 
 export type FsErrorCode =

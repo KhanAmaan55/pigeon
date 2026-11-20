@@ -160,7 +160,7 @@ All three OSes use the same `platform-desktop` package and the same Rust code:
 - **Dialogs**: folder pickers run in Rust (`project_pick_folder`, `project_create`; tauri-plugin-dialog used from Rust only). The webview has no fs or dialog permission.
 - **Scope**: a folder becomes reachable only after the user picked or created it; Rust stores these roots in `<app-data>/project-roots.json`, so recent projects reopen without re-picking (`project_reopen`), and checks the root and path of every call (D-15).
 - **AppState**: JSON files under `appDataDir()` (see [file-format.md §6](file-format.md#6-local-app-state)).
-- **Watch**: plugin-fs `watch` (debounced, recursive) → `FsChangeEvent[]`.
+- **Watch**: Rust `notify` watcher (`project_watch`, `src-tauri/src/watch.rs`; recursive, debounced 250 ms) → `project-fs-change` events → `FsChangeEvent[]`; the session verifies by hash.
 
 ### 5.2 macOS
 - WebView: WKWebView (WebKit). UI must be tested in WebKit (Playwright WebKit covers most rendering issues).

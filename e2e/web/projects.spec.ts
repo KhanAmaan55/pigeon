@@ -101,6 +101,41 @@ test.describe('project folders (File System Access)', () => {
     await expect(page.getByTestId('explorer-project-name')).toHaveText('Repo API');
   });
 
+  test('picks up changes made outside the app on focus and Refresh', async ({ page }) => {
+    await gotoApp(page);
+    await openFixtureFolder(page);
+    await expect(page.getByTestId('status-change-detection')).toHaveText('Refresh on focus');
+    const items = page.getByTestId('explorer-item');
+    await items.filter({ hasText: 'Pay invoice' }).dblclick();
+
+    // Another program edits the file (here: the page writing to the same OPFS folder).
+    const editOutside = (from: string, to: string) =>
+      page.evaluate(
+        async ([a, b]) => {
+          const root = await navigator.storage.getDirectory();
+          const dir = await (
+            await (
+              await root.getDirectoryHandle('fixture-project')
+            ).getDirectoryHandle('collections')
+          ).getDirectoryHandle('billing');
+          const handle = await dir.getFileHandle('pay-invoice.request.json');
+          const text = (await (await handle.getFile()).text()).replace(a!, b!);
+          const writable = await handle.createWritable();
+          await writable.write(text);
+          await writable.close();
+        },
+        [from, to],
+      );
+    await editOutside('"Pay invoice"', '"Settle invoice"');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(items.filter({ hasText: 'Settle invoice' })).toHaveCount(1);
+    await expect(page.getByTestId('request-tab-name')).toHaveText(['Settle invoice']);
+
+    await editOutside('"Settle invoice"', '"Close invoice"');
+    await page.getByTestId('explorer-refresh').click();
+    await expect(items.filter({ hasText: 'Close invoice' })).toHaveCount(1);
+  });
+
   test('FsAccessFs passes the filesystem conformance cases on OPFS', async ({ page }) => {
     await gotoApp(page);
     expect(await page.evaluate(() => window.__pigeonTest!.runFsConformance())).toEqual([]);

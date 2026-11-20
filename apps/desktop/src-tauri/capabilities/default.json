@@ -19,6 +19,8 @@
     "allow-project-fs-mkdirp",
     "allow-project-fs-remove",
     "allow-project-fs-rename",
+    "allow-project-watch",
+    "allow-project-unwatch",
     "allow-app-state-read",
     "allow-app-state-write",
     "allow-app-state-backup"

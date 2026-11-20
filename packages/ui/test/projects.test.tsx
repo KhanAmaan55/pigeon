@@ -869,3 +869,78 @@ describe('diffLines', () => {
     expect(withContext(diffLines('same\n', 'same\n'))).toEqual([]);
   });
 });
+
+describe('external changes & conflicts (PIGN-020)', () => {
+  async function openFixture() {
+    const { platform, fs } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    return { platform, fs, user };
+  }
+  const PAY = 'collections/billing/pay-invoice.request.json';
+  const urlInput = () => screen.getByTestId('url-input') as HTMLInputElement;
+  const editFile = async (fs: MemoryFs, from: string, to: string) =>
+    fs.writeFileAtomic(PAY, (await fs.readText(PAY)).replace(from, to));
+
+  it('picks up external edits through the watcher and refreshes the open tab', async () => {
+    const { fs, user } = await openFixture();
+    expect(screen.getByTestId('status-change-detection').textContent).toBe('Watching files');
+    await user.dblClick(screen.getByText('Pay invoice'));
+    await editFile(fs, '/pay', '/settle');
+    await waitFor(
+      () => expect(urlInput().value).toBe('https://billing.example.test/invoices/:id/settle'),
+      { timeout: 2000 },
+    );
+  });
+
+  it('shows a conflict for a draft whose file changed; Compare, then Keep mine', async () => {
+    const { fs, user } = await openFixture();
+    await user.dblClick(screen.getByText('Pay invoice'));
+    await act(async () => urlInput().focus());
+    await user.keyboard('?mine=1');
+    await user.keyboard('{Meta>}s{/Meta}');
+    await editFile(fs, '"Pay invoice"', '"Pay theirs"');
+
+    await screen.findByTestId('conflict-banner', {}, { timeout: 2000 });
+    // The explorer shows mine (the draft) with a conflict mark.
+    const row = screen
+      .getAllByTestId('explorer-item')
+      .find((r) => r.textContent?.includes('Pay invoice'))!;
+    expect(within(row).getByTestId('explorer-conflict')).toBeTruthy();
+
+    await user.click(screen.getByTestId('conflict-compare'));
+    const diff = await screen.findByTestId('conflict-diff');
+    expect(diff.querySelector('[data-kind="remove"]')?.textContent).toContain('Pay theirs');
+    expect(diff.querySelector('[data-kind="add"]')?.textContent).toContain('Pay invoice');
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByTestId('conflict-keep-mine'));
+    await waitFor(() => expect(screen.queryByTestId('conflict-banner')).toBeNull());
+    expect(urlInput().value).toContain('?mine=1');
+  });
+
+  it('Take theirs drops the draft', async () => {
+    const { fs, user } = await openFixture();
+    await user.dblClick(screen.getByText('Pay invoice'));
+    await act(async () => urlInput().focus());
+    await user.keyboard('?mine=1');
+    await user.keyboard('{Meta>}s{/Meta}');
+    await editFile(fs, '"Pay invoice"', '"Pay theirs"');
+    await user.click(await screen.findByTestId('conflict-take-theirs', {}, { timeout: 2000 }));
+    await waitFor(() => expect(urlInput().value).not.toContain('mine=1'));
+    expect(screen.getByTestId('request-tab-name').textContent).toBe('Pay theirs');
+  });
+
+  it('asks to reload unsaved edits whose file changed', async () => {
+    const { fs, user } = await openFixture();
+    await user.dblClick(screen.getByText('Pay invoice'));
+    await act(async () => urlInput().focus());
+    await user.keyboard('?draft');
+    await editFile(fs, '/pay', '/settle');
+    await user.click(await screen.findByTestId('external-reload', {}, { timeout: 2000 }));
+    expect(urlInput().value).toBe('https://billing.example.test/invoices/:id/settle');
+    expect(screen.queryByTestId('request-tab-unsaved')).toBeNull();
+  });
+});

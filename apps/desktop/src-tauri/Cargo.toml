@@ -28,6 +28,8 @@ tokio = { version = "1", features = ["rt", "time"] }
 url = "2"
 zstd = "0.14"
 tauri-plugin-dialog = "2"
+# File watching for open projects (PIGN-020); events are hints, the webview verifies by hash.
+notify = { version = "8", default-features = false, features = ["macos_fsevent"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

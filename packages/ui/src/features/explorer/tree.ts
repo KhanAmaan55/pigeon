@@ -25,6 +25,8 @@ export interface TreeRow {
   change?: 'created' | 'updated' | 'deleted';
   /** Deleted by a saved draft; shown struck through until committed. */
   deleted?: boolean;
+  /** The saved draft conflicts with the file on disk. */
+  conflict?: boolean;
 }
 
 /** A deleted entity as `ProjectSession.deletedEntities()` lists it. */
@@ -44,8 +46,12 @@ export interface FlattenOptions {
   deleted?: readonly DeletedEntity[];
 }
 
-function changeOf(changes: Readonly<Record<string, string>>, id: string): Pick<TreeRow, 'change'> {
+function changeOf(
+  changes: Readonly<Record<string, string>>,
+  id: string,
+): Pick<TreeRow, 'change' | 'conflict'> {
   const change = changes[id];
+  if (change === 'conflict') return { conflict: true };
   return change === 'created' || change === 'updated' ? { change } : {};
 }
 

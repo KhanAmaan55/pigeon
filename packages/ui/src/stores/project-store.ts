@@ -21,6 +21,8 @@ export interface ProjectState {
   unsaved: Readonly<Record<string, true>>;
   /** Non-clean entities: unsaved edits or saved drafts (data-model.md §10). */
   changes: Readonly<Record<string, Exclude<ChangeState, 'clean'>>>;
+  /** Unsaved entities whose file changed on disk ("Reload or keep editing?"). */
+  external: Readonly<Record<string, true>>;
   /** Entities deleted by a saved draft (still in the files), for the explorer. */
   deleted: ReturnType<ProjectSession['deletedEntities']>;
   /** Response panel position, remembered per project. */
@@ -63,12 +65,14 @@ export function createProjectStore(session: ProjectSession) {
       if (state !== 'clean') changes[draft.ref.id] = state;
     }
     for (const id of session.unsavedIds()) changes[id] = 'unsaved';
+    for (const conflict of session.conflicts) changes[conflict.entityId] = 'conflict';
     return {
       model: session.getWorkingModel(),
       problems: session.problems,
       readOnly: session.readOnly,
       unsaved: Object.fromEntries(session.unsavedIds().map((id) => [id, true as const])),
       changes,
+      external: Object.fromEntries(session.externallyChanged().map((id) => [id, true as const])),
       deleted: session.deletedEntities(),
     };
   };

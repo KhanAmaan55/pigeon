@@ -35,6 +35,9 @@ export type RecentStatus = 'ok' | 'missing' | 'needs-permission';
 export interface OpenProject {
   session: ProjectSession;
   store: ProjectStore;
+  /** `watching`: native watcher; `focus`: re-check on window focus (web, or a watcher failed). */
+  changeDetection: 'watching' | 'focus' | 'watch-failed';
+  stopWatching: () => void;
 }
 
 export interface PendingInit {
@@ -76,7 +79,7 @@ export interface AppState {
 export type AppStore = ReturnType<typeof createAppStore>;
 
 type AppPlatform = Pick<Platform, 'projects' | 'openProjectFs' | 'appState'> &
-  Partial<Pick<Platform, 'files'>>;
+  Partial<Pick<Platform, 'files' | 'capabilities'>>;
 
 export function createAppStore(platform: AppPlatform) {
   return createStore<AppState>()((set, get) => {
@@ -98,10 +101,34 @@ export function createAppStore(platform: AppPlatform) {
       await saveRecents([entry, ...rest].slice(0, MAX_RECENT_PROJECTS));
     };
 
+    const close = () => {
+      const project = get().project;
+      project?.store.dispose();
+      project?.stopWatching();
+      void project?.session.flushLocalState();
+    };
+
     const show = async (session: ProjectSession) => {
-      get().project?.store.dispose();
-      void get().project?.session.flushLocalState();
-      set({ project: { session, store: createProjectStore(session) }, pendingInit: null });
+      close();
+      // External changes (file-format.md §8): a native watcher where available, else (and if it
+      // fails) a re-check whenever the window gets focus.
+      const watching = platform.capabilities?.fileWatch === true;
+      const stop = watching
+        ? session.watch(() => {
+            const project = get().project;
+            if (project?.session === session)
+              set({ project: { ...project, changeDetection: 'watch-failed' } });
+          })
+        : null;
+      set({
+        project: {
+          session,
+          store: createProjectStore(session),
+          changeDetection: stop ? 'watching' : 'focus',
+          stopWatching: stop ?? (() => undefined),
+        },
+        pendingInit: null,
+      });
       await remember(session);
     };
 
@@ -244,9 +271,7 @@ export function createAppStore(platform: AppPlatform) {
       cancelInit: () => set({ pendingInit: null }),
 
       closeProject: () => {
-        const project = get().project;
-        project?.store.dispose();
-        void project?.session.flushLocalState();
+        close();
         set({ project: null });
       },
 

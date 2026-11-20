@@ -8,7 +8,13 @@
  */
 
 import type { ProjectReadResult } from '@pigeon/formats';
-import { createEmptyProject, isManagedPath, readProject, sha256Hex } from '@pigeon/formats';
+import {
+  createEmptyProject,
+  isManagedPath,
+  readProject,
+  serializeProject,
+  sha256Hex,
+} from '@pigeon/formats';
 import type {
   AppStateStore,
   Platform,
@@ -67,7 +73,23 @@ export class CommitError extends Error {
 }
 
 /** Where an entity stands (data-model.md §10); drafts carry their operation for badges. */
-export type ChangeState = 'clean' | 'unsaved' | 'created' | 'updated' | 'deleted';
+export type ChangeState = 'clean' | 'unsaved' | 'created' | 'updated' | 'deleted' | 'conflict';
+
+/**
+ * A draft that no longer fits the files (file-format.md §8): the entity's file changed on disk
+ * since the draft was saved, or it was deleted on disk while a draft edits it.
+ */
+export interface Conflict {
+  entityId: string;
+  kind: Draft['ref']['kind'];
+  name: string;
+  reason: 'changed-on-disk' | 'deleted-on-disk';
+  /** The entity's file (in the new files, or where it was). */
+  path: ProjectPath | undefined;
+}
+
+/** How often the watcher looks at changed files at most (file-format.md §8). */
+export const WATCH_DEBOUNCE_MS = 250;
 
 export class ProjectSession {
   readonly location: ProjectLocation;
@@ -84,6 +106,10 @@ export class ProjectSession {
   readonly #local: LocalStateStore | undefined;
   /** Set when the local state was unreadable and was backed up (key name). */
   readonly localStateBackup: string | undefined;
+  /** Drafts in conflict with the files, by entity id. */
+  readonly #conflicts = new Map<string, Conflict>();
+  /** Entities with unsaved edits whose file changed on disk ("Reload or keep editing?"). */
+  readonly #externallyChanged = new Set<string>();
   /** Hashes of files this session wrote, so the watcher (PIGN-020) can ignore its own writes. */
   readonly #ownWrites = new Map<ProjectPath, string>();
   readonly #listeners = new Set<() => void>();
@@ -101,6 +127,7 @@ export class ProjectSession {
     this.#local = local?.store;
     this.localStateBackup = local?.backedUpAs;
     if (this.#local) this.#loadDrafts(this.#local.state.drafts);
+    this.#detectConflicts();
   }
 
   /** Opens and reads a project. Rejects only when the folder can't be opened at all. */
@@ -213,6 +240,7 @@ export class ProjectSession {
   }
 
   changeState(id: string): ChangeState {
+    if (this.#conflicts.has(id)) return 'conflict';
     if (this.#unsaved.has(id)) return 'unsaved';
     const draft = this.#drafts.get(id);
     if (!draft) return 'clean';
@@ -287,6 +315,8 @@ export class ProjectSession {
     for (const each of ids) {
       this.#drafts.delete(each);
       this.#unsaved.delete(each);
+      this.#conflicts.delete(each);
+      this.#externallyChanged.delete(each);
     }
     this.#staleDrafts = this.#staleDrafts.filter((draft) => !ids.includes(draft.ref.id));
     this.#working = restoreFromBase(this.#working, this.#read.model, id);
@@ -455,10 +485,14 @@ export class ProjectSession {
     return filePathIn(this.getWorkingModel(), id);
   }
 
-  /** Re-reads every file (manual refresh; the watcher arrives in PIGN-020). */
+  /**
+   * Re-reads the files (file-format.md §8): drafts and unsaved edits stay on top of the new
+   * base; drafts whose file changed become conflicts; unsaved entities whose file changed are
+   * flagged for "Reload or keep editing?".
+   */
   async reload(): Promise<void> {
+    const previousBase = this.#read.model;
     this.#read = await readProject(this.fs);
-    // Drafts and unsaved edits stay on top of the new files (conflicts arrive with PIGN-020).
     const before = this.#working;
     this.#loadDrafts([...this.#drafts.values(), ...this.#staleDrafts]);
     let working = this.#working;
@@ -466,12 +500,171 @@ export class ProjectSession {
       const edited = findItem(before, id);
       if (!edited || !findItem(working, id)) {
         this.#unsaved.delete(id);
+        this.#externallyChanged.delete(id);
         continue;
       }
       working = replaceItem(working, id, (item) => keepChildren(edited, item));
+      const oldFile = locateEntity(previousBase, id)?.entity;
+      const newFile = locateEntity(this.#read.model, id)?.entity;
+      if (JSON.stringify(withoutChildren(oldFile)) !== JSON.stringify(withoutChildren(newFile))) {
+        this.#externallyChanged.add(id);
+      }
     }
     this.#working = working;
+    this.#detectConflicts();
     this.#emit();
+  }
+
+  get conflicts(): readonly Conflict[] {
+    return [...this.#conflicts.values()];
+  }
+
+  conflictOf(id: string): Conflict | undefined {
+    return this.#conflicts.get(id);
+  }
+
+  /**
+   * Resolves a conflict: `mine` keeps the draft and rebases it on the new file (a draft on a
+   * file deleted on disk becomes a create), `theirs` drops the draft (the file wins).
+   */
+  async resolveConflict(id: string, choice: 'mine' | 'theirs'): Promise<void> {
+    const conflict = this.#conflicts.get(id);
+    if (!conflict) return;
+    if (choice === 'theirs') {
+      this.#conflicts.delete(id);
+      await this.discard(id);
+      return;
+    }
+    const draft = this.#drafts.get(id) ?? this.#staleDrafts.find((d) => d.ref.id === id);
+    if (!draft) return;
+    const rebased: Draft =
+      conflict.reason === 'deleted-on-disk'
+        ? { ...draft, op: draft.op === 'delete' ? 'delete' : 'create', baseHash: null }
+        : { ...draft, baseHash: this.#baseHash(id) };
+    this.#staleDrafts = this.#staleDrafts.filter((d) => d.ref.id !== id);
+    this.#drafts.set(id, rebased);
+    const before = this.#working;
+    this.#loadDrafts([...this.#drafts.values(), ...this.#staleDrafts]);
+    this.#working = reapplyUnsaved(this.#working, before, this.#unsaved);
+    this.#detectConflicts();
+    await this.#persistDrafts();
+    this.#emit();
+  }
+
+  /** File text on disk vs what the draft would write, for "Compare" (empty when missing). */
+  async conflictTexts(
+    id: string,
+  ): Promise<{ theirs: string; mine: string; path: ProjectPath | undefined }> {
+    const conflict = this.#conflicts.get(id);
+    const draft = this.#drafts.get(id) ?? this.#staleDrafts.find((d) => d.ref.id === id);
+    const mineModel = draft
+      ? applyDrafts(this.#read.model, [
+          conflict?.reason === 'deleted-on-disk' ? { ...draft, op: 'create' } : draft,
+        ]).model
+      : this.#read.model;
+    const minePath = filePathIn(mineModel, id);
+    const bytes = minePath ? serializeProject(mineModel).get(minePath) : undefined;
+    const path = conflict?.path ?? minePath;
+    const theirs = path && (await this.fs.exists(path)) ? await this.fs.readText(path) : '';
+    return { theirs, mine: bytes ? new TextDecoder().decode(bytes) : '', path };
+  }
+
+  /** Unsaved entities whose file changed on disk since they were edited. */
+  externallyChanged(): string[] {
+    return [...this.#externallyChanged];
+  }
+
+  /** "Keep editing": the unsaved edits stay; the notice goes away. */
+  keepEditing(id: string): void {
+    if (this.#externallyChanged.delete(id)) this.#emit();
+  }
+
+  /** "Reload": drops the unsaved edits of `id` in favour of the new file (or its draft). */
+  reloadEntity(id: string): void {
+    this.#externallyChanged.delete(id);
+    this.discardUnsaved(id);
+    this.#emit();
+  }
+
+  /**
+   * Compares managed files on disk with what was read (hashes; watcher events are only hints)
+   * and reloads when they differ. Returns whether anything changed.
+   */
+  async checkForChanges(): Promise<boolean> {
+    const disk = await this.scanDisk();
+    const known = this.#read.files;
+    let changed = false;
+    for (const [path, hash] of disk) {
+      if (hash !== null && known.get(path)?.hash !== hash) changed = true;
+    }
+    for (const path of known.keys()) if (!disk.has(path) && isManagedPath(path)) changed = true;
+    if (changed) await this.reload();
+    return changed;
+  }
+
+  /**
+   * Watches the project folder when the filesystem can (`capabilities.fileWatch`): events are
+   * coalesced for `WATCH_DEBOUNCE_MS` (a branch switch produces hundreds), then verified by
+   * hash. Returns `null` when watching isn't available.
+   */
+  watch(onError?: (error: unknown) => void): Unsubscribe | null {
+    if (!this.fs.watch) return null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let running: Promise<unknown> = Promise.resolve();
+    const unsubscribe = this.fs.watch((events) => {
+      if (
+        !events.some(
+          (event) => event.path === 'pigeon.json' || event.path.startsWith('collections'),
+        )
+      )
+        return;
+      if (timer !== undefined) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = undefined;
+        running = running
+          .then(() => this.checkForChanges())
+          .catch((error: unknown) => onError?.(error));
+      }, WATCH_DEBOUNCE_MS);
+    });
+    return () => {
+      if (timer !== undefined) clearTimeout(timer);
+      unsubscribe();
+    };
+  }
+
+  #detectConflicts(): void {
+    this.#conflicts.clear();
+    const base = this.#read.model;
+    for (const draft of [...this.#drafts.values(), ...this.#staleDrafts]) {
+      if (draft.op === 'create' || !draft.baseHash) continue;
+      const found = locateEntity(base, draft.ref.id);
+      const name =
+        found?.entity.name ??
+        (typeof draft.data?.['name'] === 'string' ? draft.data['name'] : draft.ref.id);
+      if (!found) {
+        if (draft.op === 'update') {
+          this.#conflicts.set(draft.ref.id, {
+            entityId: draft.ref.id,
+            kind: draft.ref.kind,
+            name,
+            reason: 'deleted-on-disk',
+            path: undefined,
+          });
+        }
+        continue;
+      }
+      const path = filePathIn(base, draft.ref.id);
+      const hash = path ? this.#read.files.get(path)?.hash : undefined;
+      if (hash !== draft.baseHash) {
+        this.#conflicts.set(draft.ref.id, {
+          entityId: draft.ref.id,
+          kind: draft.ref.kind,
+          name,
+          reason: 'changed-on-disk',
+          path,
+        });
+      }
+    }
   }
 
   onChange(listener: () => void): Unsubscribe {
@@ -563,6 +756,27 @@ function descendantIds(model: ProjectModel, id: string): string[] {
   };
   walk(entity.children);
   return ids;
+}
+
+function withoutChildren(entity: Collection | ProjectItem | undefined): unknown {
+  if (!entity || entity.kind === 'request') return entity;
+  const { children: _children, ...rest } = entity;
+  return rest;
+}
+
+/** `model` with the unsaved edits of `ids` (taken from `edited`) re-applied. */
+function reapplyUnsaved(
+  model: ProjectModel,
+  edited: ProjectModel,
+  ids: ReadonlySet<string>,
+): ProjectModel {
+  let working = model;
+  for (const id of ids) {
+    const item = findItem(edited, id);
+    if (item && findItem(working, id))
+      working = replaceItem(working, id, (current) => keepChildren(item, current));
+  }
+  return working;
 }
 
 /** `entity` with the children of `current` (folder edits never carry their children). */

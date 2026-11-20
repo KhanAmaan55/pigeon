@@ -30,8 +30,17 @@ export function AppStoreProvider({
     void store.getState().loadRecents();
     // Write debounced UI state (tabs, layout) before the page or window goes away.
     const flush = () => void store.getState().project?.session.flushLocalState();
+    // Without a working watcher, external changes are picked up when the window gets focus.
+    const onFocus = () => {
+      const project = store.getState().project;
+      if (project && project.changeDetection !== 'watching') void project.session.checkForChanges();
+    };
     window.addEventListener('pagehide', flush);
-    return () => window.removeEventListener('pagehide', flush);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [store]);
   return <AppStoreContext.Provider value={store}>{children}</AppStoreContext.Provider>;
 }

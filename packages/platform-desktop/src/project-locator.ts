@@ -8,13 +8,16 @@ import type { ProjectFileSystem, ProjectLocation, ProjectLocator } from '@pigeon
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 
 import type { Invoke } from './native-transport';
+import type { Listen } from './tauri-fs';
 import { TauriFs } from './tauri-fs';
 
 export class DesktopProjectLocator implements ProjectLocator {
   readonly #invoke: Invoke;
+  readonly #listen: Listen | undefined;
 
-  constructor(opts: { invoke?: Invoke } = {}) {
+  constructor(opts: { invoke?: Invoke; listen?: Listen } = {}) {
     this.#invoke = opts.invoke ?? tauriInvoke;
+    this.#listen = opts.listen;
   }
 
   async pickProjectFolder(): Promise<ProjectLocation | null> {
@@ -36,6 +39,9 @@ export class DesktopProjectLocator implements ProjectLocator {
 
   open(loc: ProjectLocation): ProjectFileSystem {
     if (loc.kind !== 'native') throw new Error(`Desktop cannot open a ${loc.kind} project.`);
-    return new TauriFs(loc.absolutePath, { invoke: this.#invoke });
+    return new TauriFs(loc.absolutePath, {
+      invoke: this.#invoke,
+      ...(this.#listen ? { listen: this.#listen } : {}),
+    });
   }
 }

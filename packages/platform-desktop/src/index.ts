@@ -15,6 +15,7 @@ export type { Invoke, NativeTransportOptions, WireBody, WireFileRef } from './na
 export { decodeResponseFrame, encodeRequestFrame, NativeTransport } from './native-transport';
 export { fromNativePath, isWindowsPath, nativeBaseName, toNativePath } from './paths';
 export { DesktopProjectLocator } from './project-locator';
+export type { Listen } from './tauri-fs';
 export { encodeWriteFrame, TauriFs, toFsError } from './tauri-fs';
 
 /** Maps `@tauri-apps/plugin-os` platform names to Pigeon's. */

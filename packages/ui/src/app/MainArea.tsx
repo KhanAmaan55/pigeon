@@ -11,6 +11,7 @@ import {
 } from '../features/request-editor/ScratchRequestProvider';
 import type { ResponseDock } from '../features/response-viewer/ResponseViewer';
 import { ResponseViewer } from '../features/response-viewer/ResponseViewer';
+import { ChangeBanners } from '../features/tabs/ChangeBanners';
 import { getTabEditor } from '../features/tabs/editor-registry';
 import { RequestTabs } from '../features/tabs/RequestTabs';
 import type { OpenProject } from '../stores/app-store';
@@ -107,6 +108,7 @@ function ProjectTabs({ project, split }: { project: OpenProject; split: React.Re
     const editor = getTabEditor(project.session, project.store, activeTabId, platform, env);
     content = (
       <ScratchRequestProvider key={activeTabId} store={editor}>
+        <ChangeBanners session={project.session} requestId={activeTabId} />
         {split}
       </ScratchRequestProvider>
     );

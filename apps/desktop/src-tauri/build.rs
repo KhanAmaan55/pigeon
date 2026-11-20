@@ -17,6 +17,8 @@ fn main() {
             "project_fs_mkdirp",
             "project_fs_remove",
             "project_fs_rename",
+            "project_watch",
+            "project_unwatch",
             "app_state_read",
             "app_state_write",
             "app_state_backup",

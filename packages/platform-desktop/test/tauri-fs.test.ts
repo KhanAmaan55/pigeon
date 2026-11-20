@@ -89,3 +89,51 @@ describe('TauriFs', () => {
     expect(toFsError({ code: 'not-found', path: 'a', message: 'gone' })).toBeInstanceOf(FsError);
   });
 });
+
+describe('TauriFs.watch', () => {
+  it('starts the Rust watcher and forwards batches for its own root only', async () => {
+    const handlers: Array<(event: { payload: unknown }) => void> = [];
+    const calls: Array<[string, unknown]> = [];
+    const unlistened: string[] = [];
+    const fs = new TauriFs('/repo/api', {
+      invoke: (async (cmd: string, args?: unknown) => {
+        calls.push([cmd, args]);
+      }) as Invoke,
+      listen: (async (_event: string, handler: (event: { payload: unknown }) => void) => {
+        handlers.push(handler);
+        return () => unlistened.push('x');
+      }) as never,
+    });
+    const batches: unknown[] = [];
+    const stop = fs.watch((events) => batches.push(events));
+    await Promise.resolve();
+    await Promise.resolve();
+    handlers[0]!({ payload: { root: '/other', events: [{ kind: 'modified', path: 'a' }] } });
+    handlers[0]!({
+      payload: { root: '/repo/api', events: [{ kind: 'modified', path: 'pigeon.json' }] },
+    });
+    expect(batches).toEqual([[{ kind: 'modified', path: 'pigeon.json' }]]);
+    stop();
+    expect(unlistened).toEqual(['x']);
+    expect(calls).toEqual([
+      ['project_watch', { root: '/repo/api' }],
+      ['project_unwatch', { root: '/repo/api' }],
+    ]);
+  });
+
+  it('reports a watcher that cannot start', async () => {
+    const fs = new TauriFs('/repo', {
+      invoke: (async () => {
+        throw 'inotify limit reached';
+      }) as Invoke,
+      listen: (async () => () => undefined) as never,
+    });
+    const errors: unknown[] = [];
+    fs.watch(
+      () => undefined,
+      (error) => errors.push(error),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(errors).toEqual(['inotify limit reached']);
+  });
+});

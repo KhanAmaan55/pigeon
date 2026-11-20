@@ -619,7 +619,7 @@ function ExplorerRow({
           {row.name}
         </span>
       )}
-      {row.change && !row.unsaved && !renaming && (
+      {row.change && !row.unsaved && !row.conflict && !renaming && (
         <span
           data-testid="explorer-badge"
           title={
@@ -638,6 +638,16 @@ function ExplorerRow({
           }`}
         >
           {row.change === 'created' ? 'A' : row.change === 'deleted' ? 'D' : 'M'}
+        </span>
+      )}
+      {row.conflict && (
+        <span
+          data-testid="explorer-conflict"
+          title="Conflict: the file changed on disk since you saved your changes"
+          aria-label="(conflict)"
+          className="shrink-0 font-mono text-[10px] font-bold text-fail"
+        >
+          !
         </span>
       )}
       {row.unsaved && !renaming && (

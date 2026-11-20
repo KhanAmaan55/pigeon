@@ -10,6 +10,7 @@ mod project_fs;
 mod smoke;
 #[cfg(test)]
 mod test_server;
+mod watch;
 
 fn main() {
     // plugin-os injects the OS name into the webview; reading it needs no IPC permission.
@@ -18,6 +19,7 @@ fn main() {
         // Used from Rust only (`save_file`, project pickers); the webview gets no dialog permissions.
         .plugin(tauri_plugin_dialog::init())
         .manage(http::HttpState::default())
+        .manage(watch::Watchers::default())
         .setup(|app| project_fs::setup(app));
 
     // Windows and Linux get no native menu: shortcuts must not depend on one (docs/platform.md §5).
@@ -42,6 +44,8 @@ fn main() {
             project_fs::project_fs_mkdirp,
             project_fs::project_fs_remove,
             project_fs::project_fs_rename,
+            watch::project_watch,
+            watch::project_unwatch,
             app_state::app_state_read,
             app_state::app_state_write,
             app_state::app_state_backup,
@@ -62,6 +66,8 @@ fn main() {
             project_fs::project_fs_mkdirp,
             project_fs::project_fs_remove,
             project_fs::project_fs_rename,
+            watch::project_watch,
+            watch::project_unwatch,
             app_state::app_state_read,
             app_state::app_state_write,
             app_state::app_state_backup
