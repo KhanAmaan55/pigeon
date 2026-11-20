@@ -26,8 +26,14 @@ export { createRequest, createUrl, RequestSchema, UrlSchema } from './model/requ
 
 export type {
   Collection,
+  ExampleBody,
+  ExampleBodyFormat,
   Folder,
+  OrphanExample,
   Problem,
+  ProjectExample,
+  RequestExample,
+  ResponseExample,
   ProjectEnvironment,
   ProjectEnvVariable,
   ProjectItem,
@@ -50,6 +56,15 @@ export {
 
 export * from './variables/index';
 export { RequestExecutor } from './execution/executor';
+export { statusText } from './execution/status';
+export type { ExampleFromResponseOptions } from './examples/save';
+export {
+  DEFAULT_VOLATILE_HEADERS,
+  defaultExampleName,
+  exampleBody,
+  exampleFormat,
+  exampleFromResponse,
+} from './examples/save';
 export type { AuthHandler, AuthOrigin, AuthOutput, EffectiveAuth } from './execution/auth/index';
 export {
   applyAuth,
@@ -62,11 +77,19 @@ export type { Auth, AuthType } from './model/auth';
 export { AuthSchema } from './model/auth';
 export type { ResolvedFiles } from './execution/project-files';
 export { resolveProjectFiles } from './execution/project-files';
-export type { CommandContext, EditCommand, Placement, RequestPatch } from './workspace/commands';
+export type {
+  CommandContext,
+  EditCommand,
+  ExamplePatch,
+  NewExample,
+  Placement,
+  RequestPatch,
+} from './workspace/commands';
 export {
   applyCommand,
   CommandError,
   findContainer,
+  findExample,
   findItem,
   GLOBALS_ENTITY_ID,
   isSameOrDescendant,

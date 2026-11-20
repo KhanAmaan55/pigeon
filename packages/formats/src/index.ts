@@ -3,6 +3,16 @@ export const PACKAGE_NAME = '@pigeon/formats';
 export { stringifyCanonical } from './canonical-json';
 export type { CanonicalJsonOptions, KeyOrderPath, KeyOrderSpec } from './canonical-json';
 export { sha256Hex } from './hash';
+export { beautifyJson } from './json-format';
+export { decodeBase64, encodeBase64 } from './base64';
+export {
+  EXAMPLE_SUFFIX,
+  exampleBodyBytes,
+  exampleBodyFileName,
+  exampleBodyFromFile,
+  exampleFromPostman,
+  exampleToPostman,
+} from './postman/example';
 export { PROJECT_KEY_ORDERS, createProjectKeyOrder } from './project/key-order';
 export type { ProjectFileKind } from './project/key-order';
 export {
@@ -31,10 +41,16 @@ export { createEmptyProject } from './project/create';
 export { isManagedPath, isProjectFile } from './project/managed';
 export { CURRENT_FORMAT_VERSION, GLOBALS_PATH, readProject } from './project/reader';
 export { COLLECTION_SCHEMA } from './project/schemas';
-export { encodeFile, serializeProject } from './project/writer';
+export { encodeFile, exampleDirectory, serializeProject } from './project/writer';
 export type {
   AuthType,
   Collection,
+  ExampleBody,
+  ExampleBodyFormat,
+  OrphanExample,
+  ProjectExample,
+  RequestExample,
+  ResponseExample,
   Description,
   EmptyProject,
   ExtraFields,

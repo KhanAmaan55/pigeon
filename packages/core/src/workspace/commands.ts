@@ -8,7 +8,12 @@
  * folders share one namespace) gets `-2`, `-3`, …
  */
 
-import type { ProjectAuth, ProjectEnvironment, ProjectEnvVariable } from '@pigeon/formats';
+import type {
+  ProjectAuth,
+  ProjectEnvironment,
+  ProjectEnvVariable,
+  ProjectExample,
+} from '@pigeon/formats';
 import { allocateSlug, slugify } from '@pigeon/formats';
 
 import type {
@@ -68,7 +73,17 @@ export type EditCommand =
   /** Collection or folder auth (PIGN-026); `undefined` = inherit (a collection: no auth). */
   | { type: 'setContainerAuth'; id: string; auth: ProjectAuth | undefined }
   /** Project globals; the first edit creates them (and the globals file on commit). */
-  | { type: 'setGlobals'; values: ProjectEnvVariable[] };
+  | { type: 'setGlobals'; values: ProjectEnvVariable[] }
+  // Examples (PIGN-027): part of their request; files under examples/…/<request>/.
+  | { type: 'createExample'; requestId: string; example: NewExample; index?: number }
+  | { type: 'updateExample'; id: string; patch: ExamplePatch }
+  | { type: 'renameExample'; id: string; name: string }
+  | { type: 'duplicateExample'; id: string; newId: string }
+  | { type: 'deleteExample'; id: string };
+
+/** An example to create: the command allocates its file key and links it to the request. */
+export type NewExample = Omit<ProjectExample, 'fileKey' | 'requestId'>;
+export type ExamplePatch = Partial<Pick<ProjectExample, 'request' | 'response' | 'extra'>>;
 
 /** Pseudo entity id of the project globals in drafts and unsaved tracking. */
 export const GLOBALS_ENTITY_ID = '$globals';
@@ -139,6 +154,15 @@ export function touchedIds(model: ProjectModel, command: EditCommand): string[] 
       return [command.id];
     case 'setGlobals':
       return [GLOBALS_ENTITY_ID];
+    case 'createExample':
+      return [command.requestId];
+    case 'updateExample':
+    case 'renameExample':
+    case 'duplicateExample':
+    case 'deleteExample': {
+      const found = findExample(model, command.id);
+      return found ? [found.request.id] : [];
+    }
   }
 }
 
@@ -239,6 +263,7 @@ export function applyCommand(
                 settings: {},
                 extra: {},
                 ...command.request,
+                examples: command.request?.examples ?? [],
                 id: command.id,
                 fileKey,
                 name: command.name,
@@ -291,7 +316,9 @@ export function applyCommand(
           ...structuredClone(collection),
           id: command.newId,
           name: `${collection.name} copy`,
-          children: collection.children.map((child) => cloneWithNewIds(child, context)),
+          children: collection.children.map((child) =>
+            relinkExamples(cloneWithNewIds(child, context)),
+          ),
         };
         copy.fileKey = allocateSlug(
           slugify(copy.name, { kind: 'collection', id: copy.id }),
@@ -304,11 +331,11 @@ export function applyCommand(
       return updateContainer(model, placement.parentId!, (container) => {
         const original = container.children[placement.index]!;
         assertEditable(original);
-        const copy = {
+        const copy = relinkExamples({
           ...cloneWithNewIds(original, context),
           id: command.newId,
           name: `${original.name} copy`,
-        };
+        });
         copy.fileKey = allocateSlug(
           slugify(copy.name, { kind: copy.kind, id: copy.id }),
           siblingKeys(container.children),
@@ -435,6 +462,76 @@ export function applyCommand(
         },
       };
 
+    case 'createExample': {
+      if (findExample(model, command.example.id) || entityExists(model, command.example.id)) {
+        throw new CommandError(`An entity with id "${command.example.id}" already exists`);
+      }
+      return updateRequestExamples(model, command.requestId, (examples) => {
+        const example: ProjectExample = {
+          ...command.example,
+          requestId: command.requestId,
+          fileKey: exampleFileKey(examples, command.example.name, command.example.id),
+        };
+        return insertAt(examples, example, command.index ?? examples.length);
+      });
+    }
+
+    case 'updateExample': {
+      const { request } = requireExample(model, command.id);
+      return updateRequestExamples(model, request.id, (examples) =>
+        examples.map((e) =>
+          e.id === command.id ? withoutUndefined({ ...e, ...command.patch }) : e,
+        ),
+      );
+    }
+
+    case 'renameExample': {
+      const { request, example } = requireExample(model, command.id);
+      if (example.name === command.name) return model;
+      return updateRequestExamples(model, request.id, (examples) =>
+        examples.map((e) =>
+          e.id === command.id
+            ? {
+                ...e,
+                name: command.name,
+                fileKey: exampleFileKey(
+                  examples.filter((other) => other.id !== e.id),
+                  command.name,
+                  e.id,
+                ),
+              }
+            : e,
+        ),
+      );
+    }
+
+    case 'duplicateExample': {
+      const { request, example } = requireExample(model, command.id);
+      if (findExample(model, command.newId)) {
+        throw new CommandError(`An entity with id "${command.newId}" already exists`);
+      }
+      const name = `${example.name} copy`;
+      return updateRequestExamples(model, request.id, (examples) =>
+        insertAt(
+          examples,
+          {
+            ...structuredClone(example),
+            id: command.newId,
+            name,
+            fileKey: exampleFileKey(examples, name, command.newId),
+          },
+          examples.indexOf(example) + 1,
+        ),
+      );
+    }
+
+    case 'deleteExample': {
+      const { request } = requireExample(model, command.id);
+      return updateRequestExamples(model, request.id, (examples) =>
+        examples.filter((e) => e.id !== command.id),
+      );
+    }
+
     case 'moveCollection': {
       const index = model.collections.findIndex((c) => c.id === command.id);
       if (index === -1) throw new CommandError(`No collection with id "${command.id}"`);
@@ -465,6 +562,58 @@ export function findItem(model: ProjectModel, id: string): ProjectItem | undefin
     if (found) return found;
   }
   return undefined;
+}
+
+/** An example anywhere in the model, with its request. */
+export function findExample(
+  model: ProjectModel,
+  id: string,
+): { request: ProjectRequest; example: ProjectExample } | undefined {
+  type Found = { request: ProjectRequest; example: ProjectExample };
+  const search = (items: readonly ProjectItem[]): Found | undefined => {
+    for (const item of items) {
+      if (item.kind === 'request') {
+        const example = item.examples.find((e) => e.id === id);
+        if (example) return { request: item, example };
+      } else {
+        const found = search(item.children);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+  for (const collection of model.collections) {
+    const found = search(collection.children);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+function requireExample(model: ProjectModel, id: string) {
+  const found = findExample(model, id);
+  if (!found) throw new CommandError(`No example with id "${id}"`);
+  assertEditable(found.request);
+  return found;
+}
+
+function updateRequestExamples(
+  model: ProjectModel,
+  requestId: string,
+  update: (examples: ProjectExample[]) => ProjectExample[],
+): ProjectModel {
+  return replaceItem(model, requestId, (item) => {
+    if (item.kind !== 'request') throw new CommandError(`"${requestId}" is not a request`);
+    assertEditable(item);
+    return { ...item, examples: update(item.examples) };
+  });
+}
+
+/** A file key for an example named `name`, unique among `siblings`. */
+function exampleFileKey(siblings: readonly ProjectExample[], name: string, id: string): string {
+  return allocateSlug(
+    slugify(name, { kind: 'example', id }),
+    new Set(siblings.map((e) => e.fileKey)),
+  );
 }
 
 /** A collection or folder by id. */
@@ -589,8 +738,20 @@ function cloneWithNewIds(item: ProjectItem, context: CommandContext): ProjectIte
   const renew = (entity: ProjectItem): ProjectItem =>
     entity.kind === 'folder'
       ? { ...entity, id: context.newId(), children: entity.children.map(renew) }
-      : { ...entity, id: context.newId() };
+      : {
+          ...entity,
+          id: context.newId(),
+          examples: entity.examples.map((e) => ({ ...e, id: context.newId() })),
+        };
   return renew(copy);
+}
+
+/** Points every example in `item` at the request that holds it (after ids changed). */
+function relinkExamples<T extends ProjectItem>(item: T): T {
+  if (item.kind === 'request') {
+    return { ...item, examples: item.examples.map((e) => ({ ...e, requestId: item.id })) };
+  }
+  return { ...item, children: item.children.map(relinkExamples) };
 }
 
 function assertEditable(entity: { broken?: true; name: string }): void {

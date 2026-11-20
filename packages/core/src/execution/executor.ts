@@ -27,7 +27,14 @@ export class RequestExecutor {
   async execute(
     request: Request,
     ctx: ExecutionContext,
-    opts: { signal?: AbortSignal } = {},
+    opts: {
+      signal?: AbortSignal;
+      /**
+       * Called with the prepared request before it is sent. In-memory consumers (e.g. "Save as
+       * example") take the secret values to mask from it; results never carry them.
+       */
+      onPrepared?: (request: PreparedRequest) => void;
+    } = {},
   ): Promise<ExecutionResult> {
     const startedAt = new Date().toISOString();
     const base = {
@@ -49,6 +56,7 @@ export class RequestExecutor {
     }
 
     const req = prepared.value;
+    opts.onPrepared?.(req);
     const signal = opts.signal ?? new AbortController().signal;
     const summary = {
       ...base,

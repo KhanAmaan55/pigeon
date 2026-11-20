@@ -244,8 +244,10 @@ interface ResponseExample {
 type ExampleBody =
   | { kind: 'none' }
   | { kind: 'text'; text: string; format: 'json' | 'xml' | 'html' | 'text' | 'javascript' }
-  | { kind: 'binary'; bytes: Uint8Array };
+  | { kind: 'binary'; base64: string };   // base64 so drafts in local state stay plain JSON
 ```
+
+Examples live on their request (`ProjectRequest.examples`, file-key order): an example edit is an edit of the request (unsaved / drafted / committed with it), and the request's files include its example files. Examples whose `_pigeon.requestId` matches no request are `ProjectModel.orphanExamples` (kept where they are, reported as `orphan` problems, never deleted automatically).
 
 When saving a live response as an example, `RequestExample` is built from the **request definition** (unresolved `{{vars}}`), not the resolved prepared request, so secrets never leak into files.
 

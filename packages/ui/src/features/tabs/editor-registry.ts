@@ -21,7 +21,8 @@ const editorViews = new WeakMap<ProjectRequest, Request>();
 export function toEditorRequest(request: ProjectRequest): Request {
   let view = editorViews.get(request);
   if (!view) {
-    const { events: _events, broken: _broken, ...rest } = request;
+    // Examples are edited through their own commands, never through the request editor.
+    const { events: _events, broken: _broken, examples: _examples, ...rest } = request;
     view = rest;
     editorViews.set(request, view);
   }
@@ -67,6 +68,10 @@ export function getTabEditor(
       scopes: () => projectScopes(session, requestId),
       moveToSecret: (suggestedName, value) => moveToSecret(session, suggestedName, value),
       inheritedAuth: () => inheritedAuth(session.getWorkingModel(), requestId),
+      createExample: (example) => {
+        session.apply({ type: 'createExample', requestId, example });
+        projectStore.getState().pinTab(requestId);
+      },
     });
     registry.set(requestId, editor);
   }

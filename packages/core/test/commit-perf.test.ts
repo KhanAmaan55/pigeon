@@ -11,6 +11,7 @@ function bigModel(count: number): ProjectModel {
     name: 'Big',
     formatVersion: 1,
     collections: [],
+    orphanExamples: [],
     environments: [],
     extra: {},
   };

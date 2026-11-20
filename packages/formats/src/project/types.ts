@@ -104,8 +104,66 @@ export interface ProjectRequest extends BrokenFlag {
   auth?: ProjectAuth;
   events: ProjectEvent[];
   settings: ProjectRequestSettings;
+  /** Saved responses (`examples/…/<request fileKey>/`, PIGN-027), in file-key order. */
+  examples: ProjectExample[];
   /** Unknown item keys; unknown `request` / `protocolProfileBehavior` / `_pigeon` keys nested under those names. */
   extra: ExtraFields;
+}
+
+/** Sidecar formats of a text example body (`.body.json`, `.body.xml`, …). */
+export type ExampleBodyFormat = 'json' | 'xml' | 'html' | 'text' | 'javascript';
+
+/**
+ * An example's response body, kept in a sidecar file (data-model.md §6). Binary bodies are held
+ * as base64 so drafts in local state stay plain JSON.
+ */
+export type ExampleBody =
+  | { kind: 'none' }
+  | { kind: 'text'; text: string; format: ExampleBodyFormat }
+  | { kind: 'binary'; base64: string };
+
+/** Postman `originalRequest`: the request *definition* (variables unresolved). */
+export interface RequestExample {
+  method: string;
+  url: ProjectUrl;
+  headers: ProjectKeyValue[];
+  body: ProjectBody;
+  auth?: ProjectAuth;
+  description?: Description;
+  extra: ExtraFields;
+}
+
+export interface ResponseExample {
+  code: number;
+  /** Status text, e.g. `OK`. */
+  status: string;
+  headers: ProjectKeyValue[];
+  /** Postman `cookie` array, preserved. */
+  cookies: unknown[];
+  body: ExampleBody;
+  /** `_postman_previewlanguage`. */
+  previewLanguage?: string;
+  /** Not written for saved responses (volatile); kept when a file has it. */
+  responseTimeMs?: number | null;
+}
+
+export interface ProjectExample extends BrokenFlag {
+  id: string;
+  /** File name stem: `<fileKey>.example.json` + `<fileKey>.body.<ext>`. */
+  fileKey: string;
+  requestId: string;
+  name: string;
+  /** `undefined` when the file has no `originalRequest`. */
+  request?: RequestExample;
+  response: ResponseExample;
+  /** Unknown keys; unknown `_pigeon` keys nested under `_pigeon`. */
+  extra: ExtraFields;
+}
+
+/** An example whose request is not in the project: kept where it is, never deleted. */
+export interface OrphanExample extends ProjectExample {
+  /** Its directory, e.g. `examples/users-api/old-request`. */
+  directory: string;
 }
 
 export interface Folder extends BrokenFlag {
@@ -174,6 +232,8 @@ export interface ProjectModel {
   environments: ProjectEnvironment[];
   /** `undefined` while the project has no globals file. */
   globals?: ProjectGlobals;
+  /** Examples whose `requestId` matches no request (reported as problems). */
+  orphanExamples: OrphanExample[];
   /** `pigeon.json` `comparison`, preserved until PIGN-035 models it. */
   comparison?: unknown;
   extra: ExtraFields;
@@ -181,8 +241,11 @@ export interface ProjectModel {
 
 export interface Problem {
   path: ProjectPath;
-  /** missing: required file absent; parse: invalid JSON; schema: wrong shape; order: stale order entry. */
-  kind: 'missing' | 'parse' | 'schema' | 'order';
+  /**
+   * missing: required file absent; parse: invalid JSON; schema: wrong shape; order: stale order
+   * entry; orphan: an example whose request is not in the project.
+   */
+  kind: 'missing' | 'parse' | 'schema' | 'order' | 'orphan';
   severity: 'error' | 'warning';
   message: string;
 }

@@ -1,0 +1,10 @@
+{
+  "id": "delete-user",
+  "name": "Delete user",
+  "request": {
+    "method": "DELETE",
+    "url": {
+      "raw": "{{baseUrl}}/users/42"
+    }
+  }
+}

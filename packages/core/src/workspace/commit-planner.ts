@@ -13,7 +13,12 @@
  *   prerequisites (new parent folders, parents whose child order changes).
  */
 
-import { serializeProject } from '@pigeon/formats';
+import {
+  EXAMPLE_SUFFIX,
+  exampleBodyFileName,
+  exampleDirectory,
+  serializeProject,
+} from '@pigeon/formats';
 import type { ProjectPath } from '@pigeon/platform';
 
 import type { ProjectItem, ProjectModel } from '../model/project';
@@ -210,12 +215,22 @@ export async function planCommit(input: PlanInput): Promise<CommitPlan> {
 
   // Renames: a deleted and a written path of the same entity.
   const renames: PlannedRename[] = [];
+  const paired = new Set<string>();
   for (const from of deletes) {
     const entityId = baseOwners.get(from);
-    const to = entityId
-      ? writes.find((write) => write.entityId === entityId && write.kind === 'add')?.path
-      : undefined;
-    if (entityId && to) renames.push({ from, to, entityId });
+    if (!entityId) continue;
+    // An entity may own several files (a request and its examples): pair by file name first.
+    const candidates = writes.filter(
+      (write) => write.entityId === entityId && write.kind === 'add' && !paired.has(write.path),
+    );
+    const to = (
+      candidates.find((write) => baseName(write.path) === baseName(from)) ??
+      candidates.find((write) => fileRole(write.path) === fileRole(from))
+    )?.path;
+    if (to) {
+      paired.add(to);
+      renames.push({ from, to, entityId });
+    }
   }
 
   return {
@@ -251,8 +266,16 @@ function pathEntries(model: ProjectModel): Array<[ProjectPath, string]> {
   if (model.globals) entries.push(['environments/globals.postman_globals.json', GLOBALS_ENTITY_ID]);
   const visit = (items: readonly ProjectItem[], dir: string) => {
     for (const item of items) {
-      if (item.kind === 'request') entries.push([`${dir}/${item.fileKey}.request.json`, item.id]);
-      else {
+      if (item.kind === 'request') {
+        entries.push([`${dir}/${item.fileKey}.request.json`, item.id]);
+        // Example files belong to their request (PIGN-027).
+        const examples = exampleDirectory(dir, item.fileKey);
+        for (const example of item.examples) {
+          entries.push([`${examples}/${example.fileKey}${EXAMPLE_SUFFIX}`, item.id]);
+          const body = exampleBodyFileName(example);
+          if (body) entries.push([`${examples}/${body}`, item.id]);
+        }
+      } else {
         entries.push([`${dir}/${item.fileKey}/folder.json`, item.id]);
         visit(item.children, `${dir}/${item.fileKey}`);
       }
@@ -273,7 +296,14 @@ function ownedPaths(model: ProjectModel, id: string): string[] {
   const path = entityFilePath(model, id);
   if (!path) return [];
   const entity = locateEntity(model, id)?.entity;
-  if (entity && entity.kind !== 'request') return [path, `${parentOf(path)}/`];
+  // The matching directory under examples/ (a request's examples, a container's subtree).
+  const examplesOf = (directory: string) => `examples/${directory.slice('collections/'.length)}/`;
+  if (entity && entity.kind !== 'request') {
+    return [path, `${parentOf(path)}/`, examplesOf(parentOf(path))];
+  }
+  if (entity?.kind === 'request') {
+    return [path, examplesOf(`${parentOf(path)}/${entity.fileKey}`)];
+  }
   return [path];
 }
 
@@ -291,6 +321,17 @@ function parentMap(model: ProjectModel): Map<string, string | null> {
     visit(collection.children, collection.id);
   }
   return parents;
+}
+
+/** What a file is to its entity: its own file, an example, or an example body. */
+function fileRole(path: string): string {
+  if (path.endsWith(EXAMPLE_SUFFIX)) return 'example';
+  if (path.startsWith('examples/')) return 'example-body';
+  return 'entity';
+}
+
+function baseName(path: string): string {
+  return path.slice(path.lastIndexOf('/') + 1);
 }
 
 function parentOf(path: string): string {

@@ -4,6 +4,7 @@ import type {
   BodyMode,
   EffectiveAuth,
   ExecutionPreferences,
+  NewExample,
   ExecutionResult,
   KeyValue,
   Request,
@@ -15,6 +16,7 @@ import {
   createRequest,
   DEFAULT_PREFERENCES,
   emptyBody,
+  exampleFromResponse,
   RequestExecutor,
   syncQueryIntoRaw,
   syncUrlFromRaw,
@@ -46,6 +48,8 @@ export interface RequestBinding {
   moveToSecret?: (suggestedName: string, value: string) => string | null;
   /** The auth the request inherits from its folders and collection now (PIGN-026). */
   inheritedAuth?: () => EffectiveAuth;
+  /** Adds an example to the request (PIGN-027). */
+  createExample?: (example: NewExample) => void;
 }
 
 export interface ScratchRequestState {
@@ -79,6 +83,12 @@ export interface ScratchRequestState {
   setBodyMode: (mode: BodyMode) => void;
   /** `undefined` resets a setting to the preference default. */
   setSettings: (patch: Partial<RequestSettings>) => void;
+  /**
+   * Saves the latest response as an example of the request (project requests only): the
+   * request definition, the response without `volatileHeaders`, with the secrets the send
+   * resolved masked. Returns the new example's id, or `null` when there is nothing to save.
+   */
+  saveAsExample: ((options: { volatileHeaders: readonly string[] }) => string | null) | null;
   /** Sends the request; a send while one is in flight cancels and supersedes it. */
   send: () => Promise<void>;
   /** Cancels the in-flight request; its result becomes a quiet "Cancelled". */
@@ -104,6 +114,8 @@ export function createScratchRequestStore(
     platform.pickedFiles ? { pickedFiles: platform.pickedFiles } : {},
   );
   let inFlight: AbortController | null = null;
+  /** Secret values the latest send resolved: in memory only, for masking saved examples. */
+  let lastSecrets: readonly string[] = [];
 
   const store = createStore<ScratchRequestState>()((set, get) => {
     const setRequest = (request: Request, extra: Partial<ScratchRequestState> = {}) => {
@@ -117,6 +129,18 @@ export function createScratchRequestStore(
       projectFs: binding?.projectFs ?? null,
       moveToSecret: binding?.moveToSecret ?? null,
       inheritedAuth: binding?.inheritedAuth ?? null,
+      saveAsExample: binding?.createExample
+        ? ({ volatileHeaders }) => {
+            const response = get().result?.response;
+            if (!response || !binding.createExample) return null;
+            const example = exampleFromResponse(get().request, response, {
+              volatileHeaders,
+              secretValues: lastSecrets,
+            });
+            binding.createExample(example);
+            return example.id;
+          }
+        : null,
       status: 'idle',
       result: null,
       setMethod: (method) => update({ method: method.toUpperCase() }),
@@ -165,9 +189,14 @@ export function createScratchRequestStore(
           ...(binding?.scopes ? { scopes: binding.scopes() } : {}),
           ...(inherited === undefined ? {} : { inheritedAuth: inherited }),
         });
-        const result = await executor.execute(get().request, ctx, { signal: controller.signal });
+        let secrets: readonly string[] = [];
+        const result = await executor.execute(get().request, ctx, {
+          signal: controller.signal,
+          onPrepared: (prepared) => (secrets = prepared.meta.secretValues),
+        });
         if (inFlight !== controller) return; // superseded by a newer send
         inFlight = null;
+        lastSecrets = secrets;
         set({ status: 'idle', result });
       },
       cancel: () => {

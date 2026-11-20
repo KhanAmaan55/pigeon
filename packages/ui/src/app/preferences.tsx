@@ -1,5 +1,5 @@
 import type { ExecutionPreferences } from '@pigeon/core';
-import { DEFAULT_PREFERENCES } from '@pigeon/core';
+import { DEFAULT_PREFERENCES, DEFAULT_VOLATILE_HEADERS } from '@pigeon/core';
 import type { ReactNode } from 'react';
 import { createContext, useContext, useState } from 'react';
 import { createStore, useStore } from 'zustand';
@@ -11,6 +11,9 @@ import { createStore, useStore } from 'zustand';
 export interface PreferencesState {
   execution: ExecutionPreferences;
   setExecution: (patch: Partial<ExecutionPreferences>) => void;
+  /** Response headers "Save as example" leaves out (PIGN-027). */
+  volatileHeaders: readonly string[];
+  setVolatileHeaders: (headers: readonly string[]) => void;
 }
 
 export type PreferencesStore = ReturnType<typeof createPreferencesStore>;
@@ -19,6 +22,8 @@ export function createPreferencesStore(initial: Partial<ExecutionPreferences> = 
   return createStore<PreferencesState>()((set, get) => ({
     execution: { ...DEFAULT_PREFERENCES, ...initial },
     setExecution: (patch) => set({ execution: { ...get().execution, ...patch } }),
+    volatileHeaders: DEFAULT_VOLATILE_HEADERS,
+    setVolatileHeaders: (volatileHeaders) => set({ volatileHeaders }),
   }));
 }
 
@@ -46,6 +51,11 @@ const defaultStore = createPreferencesStore();
 /** Current request defaults; `DEFAULT_PREFERENCES` outside a provider. */
 export function useExecutionDefaults(): ExecutionPreferences {
   return useStore(usePreferencesStore() ?? defaultStore, (state) => state.execution);
+}
+
+/** Headers "Save as example" drops; the defaults outside a provider. */
+export function useVolatileHeaders(): readonly string[] {
+  return useStore(usePreferencesStore() ?? defaultStore, (state) => state.volatileHeaders);
 }
 
 /** `30 s`, `1500 ms`, or `no timeout` for `0`. */

@@ -1,0 +1,10 @@
+{
+  "pigeon": {
+    "formatVersion": 1
+  },
+  "id": "project-examples",
+  "name": "Examples project",
+  "collections": [
+    "users-api"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "example-204",
+  "name": "204 No Content",
+  "originalRequest": {
+    "method": "DELETE",
+    "url": {
+      "raw": "{{baseUrl}}/users/42"
+    }
+  },
+  "status": "No Content",
+  "code": 204,
+  "header": [],
+  "cookie": [],
+  "_pigeon": {
+    "requestId": "delete-user"
+  }
+}

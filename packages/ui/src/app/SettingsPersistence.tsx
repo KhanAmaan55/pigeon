@@ -1,4 +1,5 @@
 import type { ExecutionPreferences } from '@pigeon/core';
+import { DEFAULT_VOLATILE_HEADERS } from '@pigeon/core';
 import { useEffect, useRef } from 'react';
 
 import { usePlatform } from './PlatformProvider';
@@ -12,6 +13,8 @@ export const PREFERENCES_KEY = 'preferences';
 export interface StoredPreferences {
   theme?: ThemePreference;
   execution?: Partial<ExecutionPreferences>;
+  /** Only stored once changed from the defaults (so new defaults reach everyone else). */
+  volatileHeaders?: string[];
 }
 
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
@@ -35,6 +38,11 @@ export function SettingsPersistence() {
         if (cancelled) return;
         if (stored?.theme && THEMES.includes(stored.theme)) setPreference(stored.theme);
         if (stored?.execution && preferences) preferences.getState().setExecution(stored.execution);
+        if (Array.isArray(stored?.volatileHeaders) && preferences) {
+          preferences
+            .getState()
+            .setVolatileHeaders(stored.volatileHeaders.filter((h) => typeof h === 'string'));
+        }
         loaded.current = true;
       });
     return () => {
@@ -49,10 +57,14 @@ export function SettingsPersistence() {
     const write = () => {
       if (!loaded.current) return;
       const execution = preferences?.getState().execution;
+      const volatileHeaders = preferences?.getState().volatileHeaders;
       void appState
         .set<StoredPreferences>('app', PREFERENCES_KEY, {
           theme: preference,
           ...(execution ? { execution } : {}),
+          ...(volatileHeaders && volatileHeaders !== DEFAULT_VOLATILE_HEADERS
+            ? { volatileHeaders: [...volatileHeaders] }
+            : {}),
         })
         .catch(() => undefined);
     };

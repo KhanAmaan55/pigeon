@@ -55,7 +55,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-024](PIGN-024-collection-vars-globals.md) | Collection variables & project globals | 3 Variables | MVP | 023 | Done |
 | [PIGN-025](PIGN-025-secret-variables.md) | Secret variables | 3 Variables | MVP | 024 | Done |
 | [PIGN-026](PIGN-026-auth-inheritance.md) | Auth (basic, bearer, API key) with inheritance | 4 Auth | MVP | 025 | Done |
-| [PIGN-027](PIGN-027-response-examples.md) | Save & manage response examples | 5 Examples & Postman | MVP | 019, 010 | Todo |
+| [PIGN-027](PIGN-027-response-examples.md) | Save & manage response examples | 5 Examples & Postman | MVP | 019, 010 | Done |
 | [PIGN-028](PIGN-028-import-postman-collection.md) | Import Postman collection (v2.1/v2.0) | 5 Examples & Postman | MVP | 027, 026 | Todo |
 | [PIGN-029](PIGN-029-export-postman-collection.md) | Export Postman collection v2.1 | 5 Examples & Postman | MVP | 028 | Todo |
 | [PIGN-030](PIGN-030-postman-environments-io.md) | Import/export Postman environments & globals | 5 Examples & Postman | MVP | 028, 025 | Todo |

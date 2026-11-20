@@ -1559,3 +1559,108 @@ describe('auth with inheritance (PIGN-026)', () => {
     expect(authHeader(transport, 0)).toEqual([]);
   });
 });
+
+describe('response examples (PIGN-027)', () => {
+  async function openFixture() {
+    const transport = new MockTransport().on(
+      { url: /./ },
+      {
+        headers: [
+          ['Content-Type', 'application/json'],
+          ['Date', 'Fri, 20 Nov 2026 10:00:00 GMT'],
+          ['ETag', '"v1"'],
+        ],
+        body: '{"users":[{"id":1}]}',
+      },
+    );
+    const { platform, fs } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    return { platform, fs, user, transport };
+  }
+
+  it('saves a response as an example, lists it, edits it and commits the files', async () => {
+    const { fs, user } = await openFixture();
+    await user.dblClick(screen.getByText('List users'));
+    await user.click(screen.getByTestId('send-button'));
+    await user.click(await screen.findByTestId('save-as-example'));
+    expect(screen.getByTestId('example-saved').textContent).toContain('200 OK');
+
+    // Response panel → Examples lists it; the explorer shows a count on the request.
+    await act(async () => screen.getByTestId('response-examples-tab').focus());
+    expect(screen.getByTestId('response-examples-count').textContent).toBe('1');
+    expect(screen.getAllByTestId('examples-list-item').map((li) => li.textContent)).toEqual([
+      '200200 OK',
+    ]);
+    const toggle = screen.getByTestId('explorer-examples-toggle');
+    expect(toggle.textContent).toBe('1');
+    fireEvent.click(toggle);
+    const row = screen
+      .getAllByTestId('explorer-item')
+      .find((item) => item.getAttribute('data-kind') === 'example')!;
+    expect(row.textContent).toContain('200 OK');
+
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(() => expect(screen.getByTestId('toast').textContent).toContain('Wrote'));
+    const metadata = JSON.parse(
+      await fs.readText('examples/users-api/list-users/200-ok.example.json'),
+    ) as { header: Array<{ key: string }>; originalRequest: { url: { raw: string } } };
+    expect(metadata.header.map((h) => h.key)).toEqual(['Content-Type']);
+    expect(metadata.originalRequest.url.raw).toBe('{{baseUrl}}/users?limit=20');
+    expect(await fs.readText('examples/users-api/list-users/200-ok.body.json')).toBe(
+      '{\n  "users": [\n    {\n      "id": 1\n    }\n  ]\n}\n',
+    );
+
+    // Open it: read-only until Edit.
+    fireEvent.click(row);
+    const view = await screen.findByTestId('example-view');
+    expect(within(view).getByTestId('example-status-line').textContent).toBe('200 OK');
+    expect(within(view).getByTestId('example-file').textContent).toContain(
+      'examples/users-api/list-users/200-ok.example.json',
+    );
+    expect(within(view).queryByTestId('example-status')).toBeNull();
+    fireEvent.click(within(view).getByTestId('example-edit-toggle'));
+    const status = within(view).getByTestId('example-status');
+    await act(async () => status.focus());
+    await user.keyboard('{Backspace}{Backspace}Fine');
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(async () =>
+      expect(
+        JSON.parse(await fs.readText('examples/users-api/list-users/200-ok.example.json')),
+      ).toMatchObject({ status: 'Fine' }),
+    );
+
+    // Delete from the view: the tab closes, the commit removes both files.
+    fireEvent.click(within(screen.getByTestId('example-view')).getByTestId('example-delete'));
+    expect(screen.queryByTestId('example-view')).toBeNull();
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(async () =>
+      expect(await fs.exists('examples/users-api/list-users/200-ok.example.json')).toBe(false),
+    );
+    expect(await fs.exists('examples/users-api/list-users/200-ok.body.json')).toBe(false);
+  });
+
+  it('keeps the volatile header list editable in Settings', async () => {
+    const { user } = await openFixture();
+    fireEvent.click(screen.getByTestId('activity-settings'));
+    const list = (await screen.findByTestId('preference-volatile-headers')) as HTMLTextAreaElement;
+    expect(list.value.split('\n')).toContain('ETag');
+    await act(async () => list.focus());
+    await user.clear(list);
+    await user.keyboard('Date');
+    fireEvent.click(screen.getByTestId('activity-collections'));
+    await user.dblClick(await screen.findByText('List users'));
+    await user.click(screen.getByTestId('send-button'));
+    await user.click(await screen.findByTestId('save-as-example'));
+    const project = screen.getByTestId('explorer');
+    expect(project).toBeTruthy();
+    // ETag is kept now that it is no longer listed.
+    await act(async () => screen.getByTestId('response-examples-tab').focus());
+    fireEvent.click(screen.getByTestId('examples-open'));
+    const view = await screen.findByTestId('example-view');
+    expect(within(view).getByTestId('example-headers').textContent).toContain('ETag');
+    expect(within(view).getByTestId('example-headers').textContent).not.toContain('Date');
+  });
+});

@@ -17,6 +17,7 @@ import { ResponseViewer } from '../features/response-viewer/ResponseViewer';
 import { ChangeBanners } from '../features/tabs/ChangeBanners';
 import { getTabEditor, projectScopes } from '../features/tabs/editor-registry';
 import { VariablesProvider } from '../components/VariableInput';
+import { ExampleView } from '../features/examples/ExampleView';
 import { RequestTabs } from '../features/tabs/RequestTabs';
 import type { OpenProject } from '../stores/app-store';
 import { useAppStore, useProjectState } from '../stores/AppStoreProvider';
@@ -101,8 +102,14 @@ function ProjectTabs({ project, split }: { project: OpenProject; split: React.Re
       ? findContainer(project.session.getWorkingModel(), activeTabId)
       : undefined;
 
+  const example = activeTabId && !request ? project.session.findExample(activeTabId) : undefined;
+
   let content: React.ReactNode;
-  if (activeTabId === GLOBALS_ENTITY_ID) {
+  if (activeTabId && example) {
+    content = (
+      <ExampleView session={project.session} store={project.store} exampleId={activeTabId} />
+    );
+  } else if (activeTabId === GLOBALS_ENTITY_ID) {
     content = <GlobalsEditor session={project.session} />;
   } else if (activeTabId && container) {
     content = <ContainerSettings session={project.session} containerId={activeTabId} />;

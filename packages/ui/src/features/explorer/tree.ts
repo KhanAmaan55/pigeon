@@ -6,11 +6,15 @@ import { fuzzyMatch } from './actions';
 
 export interface TreeRow {
   id: string;
-  kind: 'collection' | 'folder' | 'request';
+  kind: 'collection' | 'folder' | 'request' | 'example';
   name: string;
   depth: number;
   /** Requests only. */
   method?: string;
+  /** Requests: how many examples they have (PIGN-027). */
+  exampleCount?: number;
+  /** Examples only: the status code. */
+  code?: number;
   hasChildren: boolean;
   expanded: boolean;
   broken: boolean;
@@ -131,6 +135,7 @@ export function flattenTree(
       if (!shown(item.id)) continue;
       if (item.kind === 'request') {
         const path = `${directory}/${item.fileKey}.request.json`;
+        const examplesShown = expanded[item.id] === true && item.examples.length > 0;
         rows.push({
           id: item.id,
           kind: 'request',
@@ -138,8 +143,9 @@ export function flattenTree(
           depth,
           // A broken file has no meaningful method.
           ...(item.broken ? {} : { method: item.method }),
-          hasChildren: false,
-          expanded: false,
+          ...(item.examples.length > 0 ? { exampleCount: item.examples.length } : {}),
+          hasChildren: item.examples.length > 0,
+          expanded: examplesShown,
           broken: item.broken === true,
           path,
           ...problemOf(messages, path),
@@ -147,6 +153,23 @@ export function flattenTree(
           ...(unsaved[item.id] ? { unsaved: true } : {}),
           ...changeOf(changes, item.id),
         });
+        if (examplesShown) {
+          const exampleDirectory = `examples/${directory.slice('collections/'.length)}/${item.fileKey}`;
+          for (const example of item.examples) {
+            rows.push({
+              id: example.id,
+              kind: 'example',
+              name: example.name,
+              depth: depth + 1,
+              code: example.response.code,
+              hasChildren: false,
+              expanded: false,
+              broken: false,
+              path: `${exampleDirectory}/${example.fileKey}.example.json`,
+              parentId: item.id,
+            });
+          }
+        }
         continue;
       }
       const folderDirectory = `${directory}/${item.fileKey}`;

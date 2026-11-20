@@ -212,7 +212,7 @@ describe('readProject tolerance', () => {
     expect(result.model.collections.map((c) => c.fileKey)).toEqual(['api', 'aa', 'zz']);
   });
 
-  it('reads environments and ignores examples and unmanaged files', async () => {
+  it('reads environments and examples and ignores unmanaged files', async () => {
     const fs = await minimalProject();
     await fs.writeFileAtomic(
       'environments/local.postman_environment.json',
@@ -224,11 +224,15 @@ describe('readProject tolerance', () => {
     await fs.writeFileAtomic('collections/api/plain-dir/readme.md', '#');
 
     const result = await readProject(fs);
-    expect(result.problems).toEqual([]);
+    // An example naming no request is kept as an orphan (PIGN-027).
+    expect(result.problems).toEqual([
+      expect.objectContaining({ path: 'examples/api/one/200-ok.example.json', kind: 'orphan' }),
+    ]);
     expect(result.model.collections[0]!.children).toEqual([]);
     expect([...result.files.keys()]).toEqual([
       'pigeon.json',
       'collections/api/collection.json',
+      'examples/api/one/200-ok.example.json',
       'environments/local.postman_environment.json',
     ]);
     expect(result.model.environments.map((e) => e.name)).toEqual(['Local']);

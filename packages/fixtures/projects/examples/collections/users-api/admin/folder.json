@@ -1,0 +1,9 @@
+{
+  "id": "admin-folder",
+  "name": "Admin",
+  "_pigeon": {
+    "order": [
+      "delete-user"
+    ]
+  }
+}

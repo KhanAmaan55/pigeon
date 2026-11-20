@@ -1,0 +1,36 @@
+{
+  "id": "example-200",
+  "name": "200 OK",
+  "originalRequest": {
+    "method": "GET",
+    "header": [
+      {
+        "key": "Accept",
+        "value": "application/json"
+      }
+    ],
+    "url": {
+      "raw": "{{baseUrl}}/users?limit=20",
+      "query": [
+        {
+          "key": "limit",
+          "value": "20"
+        }
+      ]
+    }
+  },
+  "status": "OK",
+  "code": 200,
+  "_postman_previewlanguage": "json",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json; charset=utf-8"
+    }
+  ],
+  "cookie": [],
+  "_pigeon": {
+    "requestId": "list-users",
+    "bodyFile": "200-ok.body.json"
+  }
+}

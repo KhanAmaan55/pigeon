@@ -1,6 +1,7 @@
 import type { KeyOrderPath, KeyOrderSpec } from '../canonical-json';
 
-export type ProjectFileKind = 'pigeon' | 'collection' | 'folder' | 'request' | 'environment';
+export type ProjectFileKind =
+  'pigeon' | 'collection' | 'folder' | 'request' | 'environment' | 'example';
 
 const KINDS = {
   pigeon: ['pigeon', 'id', 'name', 'collections', 'comparison'],
@@ -22,6 +23,19 @@ const KINDS = {
   protocolProfileBehavior: ['followRedirects', 'maxRedirects', 'strictSSL'],
   environment: ['id', 'name', 'values', '_postman_variable_scope'],
   envVariable: ['key', 'value', 'type', 'enabled', 'description'],
+  example: [
+    'id',
+    'name',
+    'originalRequest',
+    'status',
+    'code',
+    '_postman_previewlanguage',
+    'header',
+    'cookie',
+    'responseTime',
+    'body',
+  ],
+  examplePigeon: ['requestId', 'bodyFile'],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 const PATH_KINDS: Readonly<Record<ProjectFileKind, Readonly<Record<string, keyof typeof KINDS>>>> =
@@ -51,6 +65,14 @@ const PATH_KINDS: Readonly<Record<ProjectFileKind, Readonly<Record<string, keyof
       '': 'environment',
       values: 'envVariable',
     },
+    example: {
+      '': 'example',
+      originalRequest: 'request',
+      'originalRequest.url': 'url',
+      'originalRequest.body': 'body',
+      'originalRequest.auth': 'auth',
+      _pigeon: 'examplePigeon',
+    },
     request: {
       '': 'item',
       request: 'request',
@@ -71,6 +93,7 @@ export const PROJECT_KEY_ORDERS: Readonly<Record<ProjectFileKind, KeyOrderSpec>>
   folder: createProjectKeyOrder('folder'),
   request: createProjectKeyOrder('request'),
   environment: createProjectKeyOrder('environment'),
+  example: createProjectKeyOrder('example'),
 };
 
 /** Returns the canonical ordering specification for a particular project file. */

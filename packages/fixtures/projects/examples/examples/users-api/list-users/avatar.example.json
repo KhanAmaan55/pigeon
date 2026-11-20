@@ -1,0 +1,20 @@
+{
+  "id": "example-avatar",
+  "name": "Avatar",
+  "status": "OK",
+  "code": 200,
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "image/png"
+    }
+  ],
+  "cookie": [],
+  "responseTime": 12,
+  "x-example": "kept",
+  "_pigeon": {
+    "requestId": "list-users",
+    "bodyFile": "avatar.body.bin",
+    "x-pigeon": "kept"
+  }
+}

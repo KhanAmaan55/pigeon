@@ -7,7 +7,12 @@
  * state) → clean again after Save for Commit (PIGN-019) or Discard.
  */
 
-import type { ProjectEnvironment, ProjectEnvVariable, ProjectReadResult } from '@pigeon/formats';
+import type {
+  ProjectEnvironment,
+  ProjectEnvVariable,
+  ProjectExample,
+  ProjectReadResult,
+} from '@pigeon/formats';
 import {
   createEmptyProject,
   isManagedPath,
@@ -33,6 +38,7 @@ import type { LocalProjectState } from './local-state';
 import { LocalStateStore } from './local-state';
 import {
   applyCommand,
+  findExample,
   findItem,
   placementOf,
   GLOBALS_ENTITY_ID,
@@ -636,6 +642,11 @@ export class ProjectSession {
 
   findEnvironment(id: string): ProjectEnvironment | undefined {
     return this.getWorkingModel().environments.find((e) => e.id === id);
+  }
+
+  /** An example and its request in the working model (PIGN-027). */
+  findExample(id: string): { request: ProjectRequest; example: ProjectExample } | undefined {
+    return findExample(this.getWorkingModel(), id);
   }
 
   findRequest(id: string): ProjectRequest | undefined {

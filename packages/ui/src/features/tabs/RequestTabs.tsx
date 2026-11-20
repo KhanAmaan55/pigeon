@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronDown, Save, Variable, X } from 'lucide-react';
+import { Bookmark, AlertTriangle, ChevronDown, Save, Variable, X } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { Dialog } from 'radix-ui';
 import { useEffect, useState } from 'react';
@@ -87,15 +87,17 @@ export function RequestTabs({ project }: { project: OpenProject }) {
   };
 
   useEffect(() => {
+    // An example tab saves its request, which holds the example (PIGN-027).
+    const entityOf = (id: string) => session.findExample(id)?.request.id ?? id;
     const onKeyDown = (event: KeyboardEvent) => {
       const state = store.getState();
+      const active = state.activeTabId ? entityOf(state.activeTabId) : null;
       if (isSaveForCommitShortcut(event)) {
         event.preventDefault();
-        if (state.activeTabId) void saveForCommit([state.activeTabId]);
+        if (active) void saveForCommit([active]);
       } else if (isSaveShortcut(event)) {
         event.preventDefault();
-        if (state.activeTabId && session.isUnsaved(state.activeTabId))
-          void save([state.activeTabId]);
+        if (active && session.isUnsaved(active)) void save([active]);
       } else if (isCloseTabShortcut(event) && state.activeTabId) {
         event.preventDefault();
         close(state.activeTabId);
@@ -134,9 +136,14 @@ export function RequestTabs({ project }: { project: OpenProject }) {
             const environment = model && !request ? session.findEnvironment(tab.id) : undefined;
             const container =
               model && !request && !environment ? findContainer(model, tab.id) : undefined;
+            const example =
+              model && !request && !environment && !container
+                ? session.findExample(tab.id)?.example
+                : undefined;
             const label =
               request?.name ??
               environment?.name ??
+              example?.name ??
               (tab.id === GLOBALS_ENTITY_ID
                 ? 'Globals'
                 : container
@@ -164,6 +171,8 @@ export function RequestTabs({ project }: { project: OpenProject }) {
               >
                 {environment || container || tab.id === GLOBALS_ENTITY_ID ? (
                   <Variable size={12} className="shrink-0 text-fg-muted" aria-hidden />
+                ) : example ? (
+                  <Bookmark size={12} className="shrink-0 text-fg-muted" aria-hidden />
                 ) : request?.broken ? (
                   <AlertTriangle size={12} className="shrink-0 text-warn" aria-hidden />
                 ) : (

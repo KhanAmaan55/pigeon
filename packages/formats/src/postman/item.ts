@@ -87,6 +87,7 @@ export function requestFromPostmanItem(item: JsonObject, fileKey: string): Proje
     ...(auth === undefined ? {} : { auth: authFromPostman(auth) }),
     events: asArray(event),
     settings,
+    examples: [],
     extra,
   };
 }

@@ -1,0 +1,22 @@
+{
+  "id": "list-users",
+  "name": "List users",
+  "request": {
+    "method": "GET",
+    "header": [
+      {
+        "key": "Accept",
+        "value": "application/json"
+      }
+    ],
+    "url": {
+      "raw": "{{baseUrl}}/users?limit=20",
+      "query": [
+        {
+          "key": "limit",
+          "value": "20"
+        }
+      ]
+    }
+  }
+}

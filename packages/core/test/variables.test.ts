@@ -33,6 +33,7 @@ function model(values: ProjectEnvVariable[], id = 'local'): ProjectModel {
     name: 'P',
     formatVersion: 1,
     collections: [],
+    orphanExamples: [],
     environments: [
       { id, fileKey: id, name: 'Local', values, extra: {} },
       {

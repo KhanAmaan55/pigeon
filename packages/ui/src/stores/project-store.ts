@@ -90,6 +90,7 @@ export function createProjectStore(session: ProjectSession) {
     !!(
       session.findRequest(id) ??
       session.findEnvironment(id) ??
+      session.findExample(id) ??
       findContainer(session.getWorkingModel(), id)
     );
   const restoredTabs = (saved?.tabs.open ?? []).filter((tab) => tabExists(tab.id));

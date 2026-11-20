@@ -326,6 +326,7 @@ test.describe('environments', () => {
     await page.keyboard.press('ControlOrMeta+e');
     await page.getByTestId('environment-option').filter({ hasText: 'Local' }).click();
     await expect(page.getByTestId('environment-selector')).toHaveText('Local');
+    await page.waitForTimeout(700); // the selection is written after a short debounce
 
     await page.reload();
     await expect(page.getByTestId('environment-selector')).toHaveText('Local');
@@ -534,6 +535,40 @@ test.describe('auth', () => {
     await page.getByTestId('auth-type').selectOption('inherit');
     await page.getByTestId('send-button').click();
     await expect(page.getByTestId('response-status')).toHaveText('401 Unauthorized');
+  });
+});
+
+test.describe('examples', () => {
+  test('saves a response as an example, views, edits and commits it', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Examples API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    const collection = page.getByTestId('explorer-item').filter({ hasText: 'Users' });
+    await collection.click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    await page.getByTestId('url-input').fill(`${TEST_SERVER_URL}/json/user`);
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+    await page.getByTestId('save-as-example').click();
+    await expect(page.getByTestId('example-saved')).toContainText('200 OK');
+    await page.keyboard.press('ControlOrMeta+Shift+s');
+    await expect(page.getByTestId('toast')).toContainText('Wrote');
+
+    await page.getByTestId('explorer-examples-toggle').click();
+    await page.getByTestId('explorer-item').filter({ hasText: '200 OK' }).click();
+    const view = page.getByTestId('example-view');
+    await expect(view.getByTestId('example-status-line')).toHaveText('200 OK');
+    await expect(view.getByTestId('example-body-editor')).toContainText('Ada Lovelace');
+    await view.getByTestId('example-edit-toggle').click();
+    await view.getByTestId('example-status').fill('All good');
+    await page.keyboard.press('ControlOrMeta+Shift+s');
+    await expect(page.getByTestId('toast')).toContainText('Wrote 1 file');
+    await view.getByTestId('example-edit-toggle').click();
+    await expect(view.getByTestId('example-status-line')).toHaveText('200 All good');
   });
 });
 

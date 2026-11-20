@@ -15,11 +15,17 @@ import {
   environmentToPostman,
   globalsToPostman,
 } from '../postman/environment';
+import {
+  EXAMPLE_SUFFIX,
+  exampleBodyBytes,
+  exampleBodyFileName,
+  exampleToPostman,
+} from '../postman/example';
 import { requestToPostmanItem } from '../postman/item';
 import { asObject, nonEmpty, type JsonObject } from '../postman/json';
 import { PROJECT_KEY_ORDERS, type ProjectFileKind } from './key-order';
 import { COLLECTION_SCHEMA } from './schemas';
-import type { Collection, Folder, ProjectItem, ProjectModel } from './types';
+import type { Collection, Folder, ProjectExample, ProjectItem, ProjectModel } from './types';
 
 const encoder = new TextEncoder();
 
@@ -34,6 +40,9 @@ export function serializeProject(model: ProjectModel): Map<ProjectPath, Uint8Arr
         encodeFile('collection', collectionToFile(collection)),
       );
     for (const child of collection.children) writeItem(files, directory, child);
+  }
+  for (const orphan of model.orphanExamples) {
+    if (!orphan.broken) writeExample(files, orphan.directory, orphan);
   }
   if (model.globals) {
     files.set(
@@ -63,17 +72,42 @@ function writeItem(
   item: ProjectItem,
 ): void {
   if (item.kind === 'request') {
-    if (!item.broken)
+    if (!item.broken) {
       files.set(
         `${directory}/${item.fileKey}.request.json`,
         encodeFile('request', requestToPostmanItem(item)),
       );
+      const examples = exampleDirectory(directory, item.fileKey);
+      for (const example of item.examples) writeExample(files, examples, example);
+    }
     return;
   }
   const childDirectory = `${directory}/${item.fileKey}`;
   if (!item.broken)
     files.set(`${childDirectory}/folder.json`, encodeFile('folder', folderToFile(item)));
   for (const child of item.children) writeItem(files, childDirectory, child);
+}
+
+/**
+ * `examples/<collection>/<folders…>/<request>`: the request's directory under `examples/`, so
+ * examples follow their request on rename and move (file-format.md §1).
+ */
+export function exampleDirectory(requestDirectory: string, requestFileKey: string): string {
+  return `examples/${requestDirectory.slice('collections/'.length)}/${requestFileKey}`;
+}
+
+function writeExample(
+  files: Map<ProjectPath, Uint8Array>,
+  directory: string,
+  example: ProjectExample,
+): void {
+  if (example.broken) return;
+  files.set(
+    `${directory}/${example.fileKey}${EXAMPLE_SUFFIX}`,
+    encodeFile('example', exampleToPostman(example)),
+  );
+  const bodyFile = exampleBodyFileName(example);
+  if (bodyFile) files.set(`${directory}/${bodyFile}`, exampleBodyBytes(example.response.body));
 }
 
 function projectToFile(model: ProjectModel): JsonObject {

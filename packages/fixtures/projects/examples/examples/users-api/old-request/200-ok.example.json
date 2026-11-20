@@ -1,0 +1,13 @@
+{
+  "id": "example-orphan",
+  "name": "200 OK",
+  "status": "OK",
+  "code": 200,
+  "_postman_previewlanguage": "text",
+  "header": [],
+  "cookie": [],
+  "_pigeon": {
+    "requestId": "gone",
+    "bodyFile": "200-ok.body.txt"
+  }
+}

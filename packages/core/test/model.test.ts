@@ -38,10 +38,10 @@ describe('createRequest', () => {
 });
 
 describe('project model compatibility', () => {
-  it('an editor Request is a ProjectRequest without auth/events and vice versa', () => {
+  it('an editor Request is a ProjectRequest without events/examples and vice versa', () => {
     const request: Request = createRequest({ name: 'Compat' });
-    const project: ProjectRequest = { ...request, events: [] };
-    const back: Omit<ProjectRequest, 'auth' | 'events' | 'broken'> = request;
+    const project: ProjectRequest = { ...request, events: [], examples: [] };
+    const back: Omit<ProjectRequest, 'events' | 'examples' | 'broken'> = request;
     const editor: Request = { ...project, settings: project.settings };
     expect(back.name).toBe(editor.name);
   });

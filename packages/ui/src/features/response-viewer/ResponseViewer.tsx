@@ -1,5 +1,6 @@
 import type { ExecutionResult, NormalizedResponse } from '@pigeon/core';
 import {
+  BookmarkPlus,
   CircleSlash,
   Copy,
   FileDown,
@@ -13,6 +14,9 @@ import type { ReactNode } from 'react';
 import { lazy, Suspense, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import { useVolatileHeaders } from '../../app/preferences';
+import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
+import { ExamplesTab, useRequestExamples } from '../examples/ExamplesTab';
 import { useScratchRequest } from '../request-editor/ScratchRequestProvider';
 import { suggestFileName } from './body-view';
 import { CopyButton } from './CopyButton';
@@ -156,6 +160,13 @@ function ResponseTabs({
 }) {
   const { files } = usePlatform();
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
+  const saveAsExample = useScratchRequest((s) => s.saveAsExample);
+  const requestId = useScratchRequest((s) => s.request.id);
+  const volatileHeaders = useVolatileHeaders();
+  const project = useAppStore((s) => s.project);
+  const readOnly = useProjectState((s) => s.readOnly, false);
+  const examples = useRequestExamples(requestId);
+  const [savedExample, setSavedExample] = useState<string | null>(null);
 
   const save = () => {
     setSaveState({ kind: 'idle' });
@@ -198,8 +209,26 @@ function ResponseTabs({
           <ResponseTab value="timeline" testId="response-timeline-tab">
             Timeline
           </ResponseTab>
+          {saveAsExample && (
+            <ResponseTab value="examples" testId="response-examples-tab">
+              Examples
+              {examples.length > 0 && (
+                <span
+                  data-testid="response-examples-count"
+                  className="rounded-full bg-hover px-1.5 text-xs leading-4 text-fg"
+                >
+                  {examples.length}
+                </span>
+              )}
+            </ResponseTab>
+          )}
         </Tabs.List>
         <div className="ml-auto flex items-center gap-1">
+          {savedExample !== null && saveState.kind === 'idle' && (
+            <span role="status" data-testid="example-saved" className="text-xs text-fg-muted">
+              Saved example “{savedExample}”
+            </span>
+          )}
           {saveState.kind !== 'idle' && (
             <span
               role="status"
@@ -219,6 +248,26 @@ function ResponseTabs({
           >
             Copy
           </CopyButton>
+          {saveAsExample && (
+            <button
+              type="button"
+              data-testid="save-as-example"
+              title="Save this response as an example of the request (written on Save for Commit)"
+              disabled={readOnly}
+              onClick={() => {
+                const id = saveAsExample({ volatileHeaders });
+                const example = id ? project?.session.findExample(id)?.example : undefined;
+                if (example) {
+                  setSaveState({ kind: 'idle' });
+                  setSavedExample(example.name);
+                }
+              }}
+              className={actionButton}
+            >
+              <BookmarkPlus size={12} aria-hidden />
+              Save as example
+            </button>
+          )}
           <button
             type="button"
             data-testid="response-save"
@@ -254,6 +303,14 @@ function ResponseTabs({
       >
         <TimelineTab result={result} response={response} />
       </Tabs.Content>
+      {saveAsExample && (
+        <Tabs.Content
+          value="examples"
+          className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+        >
+          <ExamplesTab requestId={requestId} />
+        </Tabs.Content>
+      )}
     </Tabs.Root>
   );
 }

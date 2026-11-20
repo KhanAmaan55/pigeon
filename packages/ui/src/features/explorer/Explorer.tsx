@@ -1,6 +1,7 @@
 import { observeElementRect, useVirtualizer } from '@tanstack/react-virtual';
 import {
   AlertTriangle,
+  Bookmark,
   ChevronDown,
   ChevronRight,
   Database,
@@ -23,6 +24,7 @@ import type { OpenProject } from '../../stores/app-store';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { locationLabel } from '../../stores/locations';
 import { methodColorClass } from '../request-editor/methods';
+import { statusClass } from '../examples/ExamplesTab';
 import { disposeTabEditor } from '../tabs/editor-registry';
 import type { DropPosition } from './actions';
 import {
@@ -127,13 +129,20 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
       return;
     }
     state.select(row.id);
-    if (row.kind === 'request') state.openTab(row.id, { pin });
+    if (row.kind === 'request' || row.kind === 'example') state.openTab(row.id, { pin });
     else state.toggle(row.id);
   };
 
   const askDelete = (row: TreeRow) => setDeleting(row);
   const confirmDelete = () => {
     if (!deleting) return;
+    if (deleting.kind === 'example') {
+      const id = deleting.id;
+      edit(() => session.apply({ type: 'deleteExample', id }));
+      store.getState().closeTab(id);
+      setDeleting(null);
+      return;
+    }
     const closing = requestIdsUnder(session, deleting.id);
     edit(() => session.apply({ type: 'deleteItem', id: deleting.id }));
     // Their edits go with them: the delete itself is the change to save.
@@ -160,7 +169,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
     if (mod && event.key.toLowerCase() === 'f') {
       filterRef.current?.focus();
     } else if (mod && event.key.toLowerCase() === 'd') {
-      if (row) edit(() => duplicate(session, store, row.id));
+      if (row) edit(() => duplicateRow(row));
     } else if (event.key === 'F2') {
       if (row) state.startRename(row.id);
     } else if (event.key === 'Delete' || (mod && event.key === 'Backspace')) {
@@ -183,6 +192,16 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
     event.preventDefault();
   };
 
+  const duplicateRow = (row: TreeRow) => {
+    if (row.kind !== 'example') {
+      duplicate(session, store, row.id);
+      return;
+    }
+    const newId = crypto.randomUUID();
+    session.apply({ type: 'duplicateExample', id: row.id, newId });
+    store.getState().select(newId);
+  };
+
   const positionFor = (event: DragEvent, row: TreeRow): DropPosition => {
     const box = event.currentTarget.getBoundingClientRect();
     const offset = box.height > 0 ? (event.clientY - box.top) / box.height : 0.5;
@@ -198,7 +217,8 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
   };
 
   const dragHandlers = (row: TreeRow) => ({
-    draggable: !readOnly && !row.deleted && renamingId !== row.id,
+    // Examples belong to their request: they are not dragged and take no drops.
+    draggable: !readOnly && !row.deleted && renamingId !== row.id && row.kind !== 'example',
     onDragStart: (event: DragEvent) => {
       dragged.current = row.id;
       event.dataTransfer.setData(DRAG_TYPE, row.id);
@@ -206,7 +226,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
     },
     onDragOver: (event: DragEvent) => {
       const draggedId = dragged.current;
-      if (!draggedId) return;
+      if (!draggedId || row.kind === 'example') return;
       const position = positionFor(event, row);
       if (!resolveDrop(session, draggedId, { kind: row.kind, id: row.id, position })) {
         setDrop(null);
@@ -220,13 +240,14 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
     onDrop: (event: DragEvent) => {
       event.preventDefault();
       const draggedId = dragged.current ?? event.dataTransfer.getData(DRAG_TYPE);
-      const command = draggedId
-        ? resolveDrop(session, draggedId, {
-            kind: row.kind,
-            id: row.id,
-            position: positionFor(event, row),
-          })
-        : null;
+      const command =
+        draggedId && row.kind !== 'example'
+          ? resolveDrop(session, draggedId, {
+              kind: row.kind,
+              id: row.id,
+              position: positionFor(event, row),
+            })
+          : null;
       if (command) {
         edit(() => session.apply(command));
         if (command.type === 'moveItem') store.getState().setExpanded(command.parentId, true);
@@ -369,7 +390,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
                     )
                   }
                   onRename={() => store.getState().startRename(row.id)}
-                  onDuplicate={() => edit(() => duplicate(session, store, row.id))}
+                  onDuplicate={() => edit(() => duplicateRow(row))}
                   onDelete={() => askDelete(row)}
                   onVariables={() => store.getState().openTab(row.id, { pin: true })}
                   onDiscard={() => {
@@ -392,9 +413,16 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
                     onRename={(name) => {
                       store.getState().cancelRename();
                       if (name.trim() !== '' && name !== row.name) {
-                        edit(() => session.apply({ type: 'renameItem', id: row.id, name }));
+                        edit(() =>
+                          session.apply(
+                            row.kind === 'example'
+                              ? { type: 'renameExample', id: row.id, name }
+                              : { type: 'renameItem', id: row.id, name },
+                          ),
+                        );
                       }
                     }}
+                    onToggleExamples={() => store.getState().toggle(row.id)}
                     onCancelRename={() => store.getState().cancelRename()}
                     drag={dragHandlers(row)}
                   />
@@ -462,7 +490,14 @@ function RowMenu({
           data-testid="explorer-menu"
           className="z-50 min-w-44 rounded-md border border-border bg-surface-raised p-1 text-sm text-fg shadow-lg"
         >
-          {!row.deleted && (
+          {row.kind === 'example' && (
+            <>
+              {item('Rename', onRename, 'menu-rename', 'F2')}
+              {item('Duplicate', onDuplicate, 'menu-duplicate', 'Ctrl/⌘ D')}
+              {item('Delete', onDelete, 'menu-delete', 'Del')}
+            </>
+          )}
+          {!row.deleted && row.kind !== 'example' && (
             <>
               {item('New request', onNewRequest, 'menu-new-request', 'Ctrl/⌘ N')}
               {item('New folder', onNewFolder, 'menu-new-folder')}
@@ -501,11 +536,13 @@ function DeleteDialog({
   onConfirm: () => void;
 }) {
   const what =
-    row?.kind === 'request'
-      ? 'request'
-      : row?.kind === 'folder'
-        ? 'folder and everything in it'
-        : 'collection and everything in it';
+    row?.kind === 'example'
+      ? 'example'
+      : row?.kind === 'request'
+        ? 'request and its examples'
+        : row?.kind === 'folder'
+          ? 'folder and everything in it'
+          : 'collection and everything in it';
   return (
     <Dialog.Root open={row !== null} onOpenChange={(open) => !open && onCancel()}>
       <Dialog.Portal>
@@ -563,6 +600,7 @@ function ExplorerRow({
   onPin,
   onRename,
   onCancelRename,
+  onToggleExamples,
   drag,
   ...triggerProps
 }: {
@@ -576,6 +614,8 @@ function ExplorerRow({
   onPin: () => void;
   onRename: (name: string) => void;
   onCancelRename: () => void;
+  /** Requests: shows or hides their examples. */
+  onToggleExamples: () => void;
   drag: DragHandlers;
 }) {
   const Chevron = row.expanded ? ChevronDown : ChevronRight;
@@ -594,7 +634,11 @@ function ExplorerRow({
       role="treeitem"
       aria-level={row.depth + 1}
       aria-selected={selected}
-      aria-expanded={row.kind === 'request' ? undefined : row.expanded}
+      aria-expanded={
+        row.kind === 'example' || (row.kind === 'request' && !row.hasChildren)
+          ? undefined
+          : row.expanded
+      }
       data-testid="explorer-item"
       data-id={row.id}
       data-kind={row.kind}
@@ -604,7 +648,7 @@ function ExplorerRow({
       data-drop={drop ?? undefined}
       title={row.problem ? `${row.path}: ${row.problem}` : row.name}
       onClick={onActivate}
-      onDoubleClick={() => row.kind === 'request' && onPin()}
+      onDoubleClick={() => (row.kind === 'request' || row.kind === 'example') && onPin()}
       style={{
         position: 'absolute',
         top,
@@ -617,7 +661,17 @@ function ExplorerRow({
         selected ? 'bg-hover text-fg' : 'text-fg hover:bg-hover/60'
       } ${dropClass}`}
     >
-      {row.kind === 'request' ? (
+      {row.kind === 'example' ? (
+        <>
+          <Bookmark size={12} className="ml-4 shrink-0 text-fg-muted" aria-hidden />
+          <span
+            data-testid="explorer-example-code"
+            className={`shrink-0 font-mono text-[10px] font-bold ${statusClass(row.code ?? 0)}`}
+          >
+            {row.code}
+          </span>
+        </>
+      ) : row.kind === 'request' ? (
         <span
           data-testid="explorer-method"
           className={`w-9 shrink-0 text-right font-mono text-[10px] font-bold ${methodColorClass(row.method ?? '')}`}
@@ -647,6 +701,22 @@ function ExplorerRow({
         >
           {row.name}
         </span>
+      )}
+      {row.exampleCount !== undefined && !renaming && (
+        <button
+          type="button"
+          data-testid="explorer-examples-toggle"
+          aria-label={`${row.expanded ? 'Hide' : 'Show'} ${row.exampleCount} example${row.exampleCount === 1 ? '' : 's'}`}
+          title={`${row.exampleCount} example${row.exampleCount === 1 ? '' : 's'}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleExamples();
+          }}
+          className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-hover px-1.5 text-[10px] leading-4 text-fg-muted hover:text-fg"
+        >
+          <Bookmark size={9} aria-hidden />
+          {row.exampleCount}
+        </button>
       )}
       {row.change && !row.unsaved && !row.conflict && !renaming && (
         <span

@@ -14,6 +14,7 @@ import {
   environmentFromPostman,
   globalsFromPostman,
 } from '../postman/environment';
+import { EXAMPLE_SUFFIX, exampleBodyFromFile, exampleFromPostman } from '../postman/example';
 import { requestFromPostmanItem } from '../postman/item';
 import {
   asArray,
@@ -34,6 +35,7 @@ import {
   RequestFileSchema,
 } from './schemas';
 import type {
+  ExampleBody,
   ProjectEnvironment,
   Collection,
   Folder,
@@ -95,6 +97,7 @@ export async function readProject(fs: ProjectFileSystem): Promise<ProjectReadRes
     'pigeon.json',
     context.problems,
   );
+  await readExamples(context, model);
   model.environments = await readEnvironments(context);
   const globals = await readGlobals(context);
   if (globals) model.globals = globals;
@@ -287,11 +290,85 @@ async function readRequest(
       body: { mode: 'none' },
       events: [],
       settings: {},
+      examples: [],
       extra: {},
       broken: true,
     };
   }
   return requestFromPostmanItem(raw, fileKey);
+}
+
+/**
+ * `examples/**\/*.example.json` (file-format.md §2.6) with their body sidecars. Each joins the
+ * request its `_pigeon.requestId` names, wherever it sits on disk (the next commit of that
+ * request moves it under the request's directory); unmatched ones are kept as orphans.
+ */
+async function readExamples(context: ReadContext, model: ProjectModel): Promise<void> {
+  if ((await context.fs.stat('examples'))?.kind !== 'dir') return;
+  const requests = new Map<string, ProjectRequest>();
+  const visit = (items: readonly ProjectItem[]) => {
+    for (const item of items) {
+      if (item.kind === 'request') requests.set(item.id, item);
+      else visit(item.children);
+    }
+  };
+  for (const collection of model.collections) visit(collection.children);
+
+  const entries = (await context.fs.list('examples', { recursive: true }))
+    .filter((entry) => entry.kind === 'file' && entry.path.endsWith(EXAMPLE_SUFFIX))
+    .map((entry) => entry.path)
+    .sort(compareStrings);
+  for (const path of entries) {
+    const directory = path.slice(0, path.lastIndexOf('/'));
+    const fileKey = path.slice(directory.length + 1, -EXAMPLE_SUFFIX.length);
+    if (fileKey === '') continue;
+    const raw = await readJson(context, path);
+    if (raw === undefined) {
+      model.orphanExamples.push({
+        ...brokenIdentity('example', `${directory}/${fileKey}`, undefined, fileKey),
+        fileKey,
+        requestId: '',
+        response: { code: 0, status: '', headers: [], cookies: [], body: { kind: 'none' } },
+        extra: {},
+        directory,
+        broken: true,
+      });
+      continue;
+    }
+    const bodyFile = asObject(raw['_pigeon'])['bodyFile'];
+    let body: ExampleBody | undefined;
+    if (typeof bodyFile === 'string' && bodyFile !== '' && !bodyFile.includes('/')) {
+      const bodyPath = `${directory}/${bodyFile}`;
+      try {
+        const bytes = await context.fs.readFile(bodyPath);
+        context.files.set(bodyPath, { hash: await sha256Hex(bytes) });
+        body = exampleBodyFromFile(bodyFile, bytes);
+      } catch (cause) {
+        context.problems.push(
+          error(bodyPath, 'missing', `Example body could not be read: ${messageOf(cause)}`),
+        );
+      }
+    }
+    const example = exampleFromPostman(raw, fileKey, body);
+    if (example.id === '') example.id = `example:${directory}/${fileKey}`;
+    const request = requests.get(example.requestId);
+    if (request && !request.broken) {
+      request.examples.push(example);
+      continue;
+    }
+    model.orphanExamples.push({ ...example, directory });
+    context.problems.push({
+      path,
+      kind: 'orphan',
+      severity: 'warning',
+      message: example.requestId
+        ? `Example "${example.name}" belongs to a request that is not in the project (${example.requestId}).`
+        : `Example "${example.name}" does not name its request (_pigeon.requestId).`,
+    });
+  }
+  for (const request of requests.values()) {
+    request.examples.sort((a, b) => compareStrings(a.fileKey, b.fileKey));
+  }
 }
 
 /** Reads, hashes and parses a JSON object file; records a `parse` problem instead of throwing. */
@@ -335,6 +412,7 @@ function projectFromFile(raw: JsonObject): ProjectModel {
     name: asString(raw['name']),
     formatVersion: pigeon['formatVersion'] as number,
     collections: [],
+    orphanExamples: [],
     environments: [],
     ...(raw['comparison'] === undefined ? {} : { comparison: raw['comparison'] }),
     extra,
@@ -392,6 +470,7 @@ function placeholderProject(): ProjectModel {
     name: '',
     formatVersion: CURRENT_FORMAT_VERSION,
     collections: [],
+    orphanExamples: [],
     environments: [],
     extra: {},
   };
