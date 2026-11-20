@@ -84,8 +84,10 @@ export function createDraft(
   now: string = new Date().toISOString(),
 ): Draft | null {
   if (id === PROJECT_ENTITY_ID) {
-    const data = { id: working.id, name: working.name };
-    if (sameJson({ id: base.id, name: base.name }, data)) return null;
+    // `comparison` (project comparison defaults, PIGN-035): `null` when removed.
+    const data = { id: working.id, name: working.name, comparison: working.comparison ?? null };
+    if (sameJson({ id: base.id, name: base.name, comparison: base.comparison ?? null }, data))
+      return null;
     return { ref: { kind: 'project', id }, op: 'update', data, baseHash: hashOf(id), savedAt: now };
   }
   if (id === GLOBALS_ENTITY_ID) {
@@ -155,12 +157,18 @@ export function applyDrafts(base: ProjectModel, drafts: readonly Draft[]): Appli
   const stale: Draft[] = [];
   for (const draft of drafts) {
     if (draft.ref.kind !== 'project') continue;
-    const { id, name } = draft.data ?? {};
+    const { id, name, comparison } = draft.data ?? {};
     model = {
       ...model,
       ...(typeof id === 'string' ? { id } : {}),
       ...(typeof name === 'string' ? { name } : {}),
     };
+    if (comparison === null) {
+      const { comparison: _removed, ...rest } = model;
+      model = rest;
+    } else if (comparison !== undefined) {
+      model = { ...model, comparison };
+    }
   }
   for (const draft of drafts) {
     if (draft.ref.kind !== 'globals') continue;

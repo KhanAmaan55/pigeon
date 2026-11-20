@@ -4,7 +4,7 @@
  * support (tests, a worker blocked by CSP) it runs inline after yielding a frame.
  */
 
-import type { BodyComparisonInput, BodyComparisonSettings, Finding } from '@pigeon/core';
+import type { BodyComparisonInput, BodyComparisonSettings, FieldRule, Finding } from '@pigeon/core';
 import { compareBodyTexts } from '@pigeon/core';
 
 export const WORKER_THRESHOLD = 256 * 1024;
@@ -37,10 +37,11 @@ function getWorker(): Worker | null {
 export function runBodyComparison(
   input: BodyComparisonInput,
   settings: BodyComparisonSettings,
+  rules: readonly FieldRule[] = [],
 ): Promise<Finding[]> {
   const inline = () =>
     new Promise<Finding[]>((resolve) =>
-      setTimeout(() => resolve(compareBodyTexts(input, settings)), 0),
+      setTimeout(() => resolve(compareBodyTexts(input, settings, rules)), 0),
     );
   const size = (input.baselineText?.length ?? 0) + (input.actualText?.length ?? 0);
   const target = size > WORKER_THRESHOLD ? getWorker() : null;
@@ -48,6 +49,6 @@ export function runBodyComparison(
   return new Promise((resolve) => {
     const id = ++nextId;
     pending.set(id, { resolve, fallback: () => void inline().then(resolve) });
-    target.postMessage({ id, input, settings });
+    target.postMessage({ id, input, settings, rules: [...rules] });
   });
 }

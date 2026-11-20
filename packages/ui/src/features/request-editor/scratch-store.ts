@@ -6,6 +6,7 @@ import type {
   EffectiveAuth,
   ExecutionPreferences,
   NewExample,
+  ProjectFieldRule,
   ExecutionResult,
   KeyValue,
   Request,
@@ -58,6 +59,11 @@ export interface RequestBinding {
   skippedScripts?: () => string[];
   /** Compares a result with the request's baseline example (PIGN-034). */
   compare?: (result: ExecutionResult) => Promise<ComparisonOutcome | undefined>;
+  /** Adds (or merges) a field rule in the request's `compare.json` (PIGN-035). */
+  addRule?: (rule: ProjectFieldRule) => void;
+  /** The request's rules and the project's (read-only here), and replacing the request's. */
+  rules?: () => { request: ProjectFieldRule[]; project: ProjectFieldRule[] };
+  setRules?: (rules: ProjectFieldRule[]) => void;
 }
 
 /** The comparison of the latest result. */
@@ -106,6 +112,13 @@ export interface ScratchRequestState {
   comparison: ComparisonState;
   /** Re-runs the comparison of the latest result (project requests only). */
   compare: (() => Promise<void>) | null;
+  /** Adds a field rule (from a finding's action), then compares again. */
+  addRule: ((rule: ProjectFieldRule) => void) | null;
+  /** The rules panel: request rules (editable) and project rules; edits compare again. */
+  rules: {
+    read: () => { request: ProjectFieldRule[]; project: ProjectFieldRule[] };
+    write: (rules: ProjectFieldRule[]) => void;
+  } | null;
   /** Sends the request; a send while one is in flight cancels and supersedes it. */
   send: () => Promise<void>;
   /** Cancels the in-flight request; its result becomes a quiet "Cancelled". */
@@ -169,6 +182,22 @@ export function createScratchRequestStore(
       status: 'idle',
       result: null,
       comparison: null,
+      addRule: binding?.addRule
+        ? (rule) => {
+            binding.addRule!(rule);
+            void get().compare?.();
+          }
+        : null,
+      rules:
+        binding?.rules && binding.setRules
+          ? {
+              read: binding.rules,
+              write: (rules) => {
+                binding.setRules!(rules);
+                void get().compare?.();
+              },
+            }
+          : null,
       compare: binding?.compare
         ? async () => {
             const result = get().result;

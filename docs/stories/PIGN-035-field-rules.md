@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-035 | 7 — Comparison | MVP | Todo | PIGN-034 |
+| PIGN-035 | 7 — Comparison | MVP | Done | PIGN-034 |
 
 ## Goal
 Let users relax comparison per field (optional, ignore, nullable, dynamic, explicit types) from the findings list or a rules panel, persisted in `compare.json` (request) and `pigeon.json` (project defaults).
@@ -27,12 +27,12 @@ As a developer, I want to mark expected differences as optional or ignored, so r
 - Status/headers/value comparisons (PIGN-036).
 
 ## Acceptance criteria
-- [ ] Removed field + **Mark optional** → finding becomes warn, outcome warn; after Save for Commit `compare.json` contains the rule (golden).
-- [ ] `ignore` on `$.meta` hides all findings under `$.meta`.
-- [ ] `nullable` makes `string → null` pass.
-- [ ] Project rule `$..requestId` (ignore) applies to every request; request rule can't escalate severity.
-- [ ] Invalid path pattern is rejected inline with an explanation.
-- [ ] Property test: adding any rule never increases the outcome severity.
+- [x] Removed field + **Mark optional** → finding becomes warn, outcome warn; after Save for Commit `compare.json` contains the rule (golden).
+- [x] `ignore` on `$.meta` hides all findings under `$.meta`.
+- [x] `nullable` makes `string → null` pass.
+- [x] Project rule `$..requestId` (ignore) applies to every request; request rule can't escalate severity.
+- [x] Invalid path pattern is rejected inline with an explanation.
+- [x] Property test: adding any rule never increases the outcome severity.
 
 ## Technical notes
 - Compare config lives with examples (`examples/<…>/<request>/compare.json`) and moves with the request (planner support like PIGN-027).
@@ -46,3 +46,10 @@ As a developer, I want to mark expected differences as optional or ignored, so r
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+- `@pigeon/compare` `rules.ts`: `applyRules(findings, rules)` (project rules first, then request rules; relax-only: `ignore` → `ignored` for the path and everything below it, `optional` → removed field becomes warn, `nullable` / `dynamic` accept null ↔ value / value changes, findings a rule relaxed carry `rule` and say so in the message), `validateRulePath` (inline explanations), `typeOverride` used inside `compareJson` (`CompareOptions.rules`). `type` rules **add** allowed types (`any`: everything) instead of replacing the baseline's — replacing could turn a pass into a fail, which the "rules never escalate" requirement forbids; response-comparison §4.5 updated. Property test: any set of rules (flags and types) never raises the outcome.
+- Formats: `ProjectRequest.comparison` from `examples/…/<request>/compare.json` (`pigeonCompare`, `requestId`, optional `baseline`, `status`, `headers`, `body`, `rules`, unknown keys kept); written only when it sets something, rules sorted by path then JSON; `compare.json` files of unknown requests are kept as `orphanComparisons`. Golden: the examples fixture gained a `compare.json`.
+- Core: commands `setComparisonConfig` (a change of the request; the planner owns its `compare.json`, so it moves, renames and deletes with the request) and `setComparisonDefaults` (`pigeon.json` `comparison`; project drafts now carry it). `effectiveComparison` (project body settings overridden by the request's, project + request rules, baseline mode), `baselineFor` (`auto` / `example` / `none`), `upsertRule`, `projectRules`. The comparison service applies the rules (worker included).
+- UI: finding actions **Mark optional** (removed fields), **Allow null** (null ↔ value), **Mark dynamic** (value changes, values mode), **Ignore**: each upserts a rule at the finding's schema path as an unsaved change of the request and compares again. "Show ignored (N)". Rules panel in the Compare tab: the request's rules (path validated as you type, flags, note, delete, add) and the project's (read-only, "Edit in project settings"). Settings → **Comparison defaults** (status, compared headers and mode, body mode, additional fields, integers, project rules) edits `pigeon.json`.
+- Tests: rules table + property, compare.json mapping/golden, core (Mark optional → warn → committed `compare.json` bytes, project rules + request overrides → committed `pigeon.json`, baseline modes), UI (Mark optional → warn → commit, Ignore + Show ignored, invalid path rejected inline, project rule from Settings applies), E2E (mark optional + ignore → warn → commit) in Chromium, Firefox and WebKit.

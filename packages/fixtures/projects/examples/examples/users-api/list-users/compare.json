@@ -1,0 +1,20 @@
+{
+  "pigeonCompare": 1,
+  "requestId": "list-users",
+  "body": {
+    "additionalFields": "fail"
+  },
+  "rules": [
+    {
+      "path": "$.meta",
+      "ignore": true,
+      "note": "server stamps"
+    },
+    {
+      "path": "$[*].nickname",
+      "optional": true,
+      "nullable": true
+    }
+  ],
+  "x-compare": "kept"
+}

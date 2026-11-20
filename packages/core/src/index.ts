@@ -25,6 +25,8 @@ export type { Id, QueryParam, Request, RequestInit, RequestSettings, Url } from 
 export { createRequest, createUrl, RequestSchema, UrlSchema } from './model/request';
 
 export type {
+  ProjectComparisonConfig,
+  ProjectFieldRule,
   Collection,
   ExampleBody,
   ExampleBodyFormat,
@@ -80,8 +82,14 @@ export type {
   BodyComparisonSettings,
   ComparisonOutcome,
   ComparisonResult,
+  EffectiveComparison,
 } from './comparison/comparison-service';
 export {
+  baselineFor,
+  bodySettings,
+  effectiveComparison,
+  projectRules,
+  upsertRule,
   bodyComparisonInput,
   compareBodyTexts,
   compareExecution,
@@ -93,7 +101,8 @@ export {
   rememberComparison,
   selectBaseline,
 } from './comparison/comparison-service';
-export type { Finding, FindingKind, Outcome, Severity } from '@pigeon/compare';
+export type { FieldRule, Finding, FindingKind, Outcome, Severity } from '@pigeon/compare';
+export { validateRulePath } from '@pigeon/compare';
 export { scriptsNotRun, scriptsNotRunWarning } from './execution/scripts';
 export type { GraphqlError, GraphqlOperation, GraphqlView } from './execution/graphql';
 export { graphqlOperations, interpretGraphql } from './execution/graphql';

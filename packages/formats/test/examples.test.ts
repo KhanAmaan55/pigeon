@@ -181,3 +181,50 @@ describe('example sidecars', () => {
     expect(encodeBase64(new TextEncoder().encode('ab'))).toBe('YWI=');
   });
 });
+
+describe('compare.json (PIGN-035)', () => {
+  it('attaches the comparison config to its request and writes only what it sets', async () => {
+    const { result } = await fixture();
+    const list = request(result.model, 'list-users');
+    expect(list.comparison).toEqual({
+      body: { additionalFields: 'fail' },
+      rules: [
+        { path: '$.meta', ignore: true, note: 'server stamps' },
+        { path: '$[*].nickname', optional: true, nullable: true },
+      ],
+      extra: { 'x-compare': 'kept' },
+    });
+    expect(request(result.model, 'delete-user').comparison).toBeUndefined();
+  });
+
+  it('sorts rules by path, keeps the file where the request is, drops empty configs', async () => {
+    const { comparisonToFile, isEmptyComparison } = await import('../src/index');
+    expect(
+      comparisonToFile('r', {
+        rules: [
+          { path: '$.b', ignore: true },
+          { path: '$.a', optional: true },
+          { path: '$.a', nullable: true },
+        ],
+        extra: {},
+      }),
+    ).toEqual({
+      pigeonCompare: 1,
+      requestId: 'r',
+      rules: [
+        { path: '$.a', nullable: true },
+        { path: '$.a', optional: true },
+        { path: '$.b', ignore: true },
+      ],
+    });
+    expect(isEmptyComparison({ rules: [], extra: {} })).toBe(true);
+    const { result } = await fixture();
+    const list = request(result.model, 'list-users');
+    list.fileKey = 'all-users';
+    let files = serializeProject(result.model);
+    expect(files.has('examples/users-api/all-users/compare.json')).toBe(true);
+    list.comparison = { rules: [], extra: {} };
+    files = serializeProject(result.model);
+    expect(files.has('examples/users-api/all-users/compare.json')).toBe(false);
+  });
+});

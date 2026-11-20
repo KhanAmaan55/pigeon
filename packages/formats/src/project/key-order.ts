@@ -1,7 +1,7 @@
 import type { KeyOrderPath, KeyOrderSpec } from '../canonical-json';
 
 export type ProjectFileKind =
-  'pigeon' | 'collection' | 'folder' | 'request' | 'environment' | 'example';
+  'pigeon' | 'collection' | 'folder' | 'request' | 'environment' | 'example' | 'compare';
 
 const KINDS = {
   pigeon: ['pigeon', 'id', 'name', 'collections', 'comparison'],
@@ -36,6 +36,11 @@ const KINDS = {
     'body',
   ],
   examplePigeon: ['requestId', 'bodyFile'],
+  compare: ['pigeonCompare', 'requestId', 'baseline', 'status', 'headers', 'body', 'rules'],
+  compareBaseline: ['mode', 'exampleId'],
+  compareHeaders: ['compare', 'mode', 'ignore'],
+  compareBody: ['mode', 'additionalFields', 'distinguishIntegers', 'arrays'],
+  compareRule: ['path', 'optional', 'nullable', 'ignore', 'dynamic', 'type', 'note'],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 const PATH_KINDS: Readonly<Record<ProjectFileKind, Readonly<Record<string, keyof typeof KINDS>>>> =
@@ -45,6 +50,7 @@ const PATH_KINDS: Readonly<Record<ProjectFileKind, Readonly<Record<string, keyof
       comparison: 'comparison',
       'comparison.headers': 'comparisonHeaders',
       'comparison.body': 'comparisonBody',
+      'comparison.rules': 'compareRule',
     },
     collection: {
       '': 'collection',
@@ -64,6 +70,13 @@ const PATH_KINDS: Readonly<Record<ProjectFileKind, Readonly<Record<string, keyof
     environment: {
       '': 'environment',
       values: 'envVariable',
+    },
+    compare: {
+      '': 'compare',
+      baseline: 'compareBaseline',
+      headers: 'compareHeaders',
+      body: 'compareBody',
+      rules: 'compareRule',
     },
     example: {
       '': 'example',
@@ -94,6 +107,7 @@ export const PROJECT_KEY_ORDERS: Readonly<Record<ProjectFileKind, KeyOrderSpec>>
   request: createProjectKeyOrder('request'),
   environment: createProjectKeyOrder('environment'),
   example: createProjectKeyOrder('example'),
+  compare: createProjectKeyOrder('compare'),
 };
 
 /** Returns the canonical ordering specification for a particular project file. */

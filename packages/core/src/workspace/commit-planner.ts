@@ -14,6 +14,8 @@
  */
 
 import {
+  COMPARE_FILE,
+  isEmptyComparison,
   EXAMPLE_SUFFIX,
   exampleBodyFileName,
   exampleDirectory,
@@ -274,6 +276,10 @@ function pathEntries(model: ProjectModel): Array<[ProjectPath, string]> {
           entries.push([`${examples}/${example.fileKey}${EXAMPLE_SUFFIX}`, item.id]);
           const body = exampleBodyFileName(example);
           if (body) entries.push([`${examples}/${body}`, item.id]);
+        }
+        // And its comparison config (PIGN-035).
+        if (!isEmptyComparison(item.comparison)) {
+          entries.push([`${examples}/${COMPARE_FILE}`, item.id]);
         }
       } else {
         entries.push([`${dir}/${item.fileKey}/folder.json`, item.id]);

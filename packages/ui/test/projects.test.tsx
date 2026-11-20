@@ -2088,3 +2088,88 @@ describe('comparison with the baseline (PIGN-034)', () => {
     expect(screen.queryByTestId('comparison-badge')).toBeNull();
   });
 });
+
+describe('field rules (PIGN-035)', () => {
+  async function setup() {
+    let body: unknown = { id: 1, name: 'Ada', email: 'ada@example.com', meta: { at: 1 } };
+    const transport = new MockTransport().on({ url: /./ }, () => ({
+      headers: [['Content-Type', 'application/json']],
+      body: JSON.stringify(body),
+    }));
+    const { platform, fs } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await user.dblClick(screen.getByText('List users'));
+    await user.click(screen.getByTestId('send-button'));
+    await user.click(await screen.findByTestId('save-as-example'));
+    await waitFor(() =>
+      expect(screen.getByTestId('comparison-badge').getAttribute('data-outcome')).toBe('pass'),
+    );
+    const send = async (next: unknown, outcome: string) => {
+      body = next;
+      await user.click(screen.getByTestId('send-button'));
+      await waitFor(() =>
+        expect(screen.getByTestId('comparison-badge').getAttribute('data-outcome')).toBe(outcome),
+      );
+      fireEvent.click(screen.getByTestId('comparison-badge'));
+    };
+    return { fs, user, send };
+  }
+
+  it('Mark optional turns a removed field into a warning and is committed to compare.json', async () => {
+    const { fs, user, send } = await setup();
+    await send({ id: 1, name: 'Ada', meta: { at: 1 } }, 'fail');
+    fireEvent.click(screen.getByTestId('finding-mark-optional'));
+    await waitFor(() =>
+      expect(screen.getByTestId('comparison-badge').getAttribute('data-outcome')).toBe('warn'),
+    );
+    expect(screen.getByTestId('compare-finding-message').textContent).toContain('relaxed by rule');
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    await waitFor(async () =>
+      expect(JSON.parse(await fs.readText('examples/users-api/list-users/compare.json'))).toEqual({
+        pigeonCompare: 1,
+        requestId: 'list-users',
+        rules: [{ path: '$.email', optional: true }],
+      }),
+    );
+  });
+
+  it('Ignore hides findings below the path until "Show ignored"', async () => {
+    const { send } = await setup();
+    await send({ id: 1, name: 'Ada', email: 'x', meta: { at: 'now', extra: 1 } }, 'fail');
+    fireEvent.click(screen.getAllByTestId('finding-ignore')[0]!);
+    await waitFor(() =>
+      expect(screen.getByTestId('comparison-badge').getAttribute('data-outcome')).not.toBe('fail'),
+    );
+    const toggle = await screen.findByTestId('compare-show-ignored');
+    expect(toggle.parentElement?.textContent).toMatch(/Show ignored \(\d\)/);
+    const before = screen.queryAllByTestId('compare-finding').length;
+    fireEvent.click(toggle);
+    expect(screen.getAllByTestId('compare-finding').length).toBeGreaterThan(before);
+  });
+
+  it('rejects invalid rule paths inline and applies project rules from Settings', async () => {
+    const { user, send } = await setup();
+    await send({ id: 1, name: 'Ada', meta: { at: 1 } }, 'fail');
+    const panel = screen.getByTestId('compare-rules');
+    fireEvent.click(within(panel).getByText(/Rules \(/));
+    const path = within(panel).getByTestId('rule-new-path');
+    await act(async () => path.focus());
+    await user.keyboard('email');
+    expect(within(panel).getByTestId('rule-new-path-error').textContent).toMatch(/starts with \$/);
+    expect((within(panel).getByTestId('rule-add') as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(within(panel).getByTestId('edit-project-rules'));
+    const settings = await screen.findByTestId('project-comparison-settings');
+    const newPath = within(settings).getByTestId('rule-new-path');
+    await act(async () => newPath.focus());
+    await user.keyboard('$..email');
+    fireEvent.click(within(settings).getByTestId('rule-add'));
+    fireEvent.click(within(settings).getByTestId('rule-optional'));
+    fireEvent.click(within(settings).getByTestId('rule-ignore'));
+    fireEvent.click(screen.getByTestId('activity-collections'));
+    await send({ id: 1, name: 'Ada', meta: { at: 1 } }, 'pass');
+  });
+});

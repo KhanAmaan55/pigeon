@@ -22,6 +22,7 @@ import {
   exampleToPostman,
 } from '../postman/example';
 import { requestToPostmanItem } from '../postman/item';
+import { COMPARE_FILE, comparisonToFile, isEmptyComparison } from './comparison';
 import { asObject, nonEmpty, type JsonObject } from '../postman/json';
 import { PROJECT_KEY_ORDERS, type ProjectFileKind } from './key-order';
 import { COLLECTION_SCHEMA } from './schemas';
@@ -43,6 +44,12 @@ export function serializeProject(model: ProjectModel): Map<ProjectPath, Uint8Arr
   }
   for (const orphan of model.orphanExamples) {
     if (!orphan.broken) writeExample(files, orphan.directory, orphan);
+  }
+  for (const orphan of model.orphanComparisons ?? []) {
+    files.set(
+      `${orphan.directory}/${COMPARE_FILE}`,
+      encodeFile('compare', comparisonToFile(orphan.requestId, orphan.config)),
+    );
   }
   if (model.globals) {
     files.set(
@@ -79,6 +86,12 @@ function writeItem(
       );
       const examples = exampleDirectory(directory, item.fileKey);
       for (const example of item.examples) writeExample(files, examples, example);
+      if (!isEmptyComparison(item.comparison)) {
+        files.set(
+          `${examples}/${COMPARE_FILE}`,
+          encodeFile('compare', comparisonToFile(item.id, item.comparison!)),
+        );
+      }
     }
     return;
   }

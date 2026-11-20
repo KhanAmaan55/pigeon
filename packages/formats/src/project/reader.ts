@@ -10,6 +10,7 @@ import type { ProjectFileSystem, ProjectPath } from '@pigeon/platform';
 import { sha256Hex } from '../hash';
 import { environmentFromPostman, globalsFromPostman } from '../postman/environment';
 import { EXAMPLE_SUFFIX, exampleBodyFromFile, exampleFromPostman } from '../postman/example';
+import { COMPARE_FILE, comparisonFromFile } from './comparison';
 import { collectionFromPostman, folderFromPostman } from '../postman/collection';
 import { requestFromPostmanItem } from '../postman/item';
 import {
@@ -259,6 +260,35 @@ async function readRequest(
   return requestFromPostmanItem(raw, fileKey);
 }
 
+/** `compare.json` files (PIGN-035): each joins the request its `requestId` names. */
+async function readComparisons(
+  context: ReadContext,
+  model: ProjectModel,
+  requests: ReadonlyMap<string, ProjectRequest>,
+  paths: readonly string[],
+): Promise<void> {
+  for (const path of paths) {
+    const raw = await readJson(context, path);
+    if (raw === undefined) continue;
+    const { requestId, config } = comparisonFromFile(raw);
+    const request = requests.get(requestId);
+    if (request && !request.broken && !request.comparison) {
+      request.comparison = config;
+      continue;
+    }
+    const directory = path.slice(0, path.lastIndexOf('/'));
+    (model.orphanComparisons ??= []).push({ directory, requestId, config });
+    context.problems.push({
+      path,
+      kind: 'orphan',
+      severity: 'warning',
+      message: request
+        ? 'A second comparison config for the same request is kept but not used.'
+        : `Comparison config for a request that is not in the project (${requestId || 'no requestId'}).`,
+    });
+  }
+}
+
 /**
  * `examples/**\/*.example.json` (file-format.md §2.6) with their body sidecars. Each joins the
  * request its `_pigeon.requestId` names, wherever it sits on disk (the next commit of that
@@ -275,7 +305,17 @@ async function readExamples(context: ReadContext, model: ProjectModel): Promise<
   };
   for (const collection of model.collections) visit(collection.children);
 
-  const entries = (await context.fs.list('examples', { recursive: true }))
+  const listed = await context.fs.list('examples', { recursive: true });
+  await readComparisons(
+    context,
+    model,
+    requests,
+    listed
+      .filter((entry) => entry.kind === 'file' && entry.path.endsWith(`/${COMPARE_FILE}`))
+      .map((entry) => entry.path)
+      .sort(compareStrings),
+  );
+  const entries = listed
     .filter((entry) => entry.kind === 'file' && entry.path.endsWith(EXAMPLE_SUFFIX))
     .map((entry) => entry.path)
     .sort(compareStrings);

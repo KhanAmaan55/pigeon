@@ -1,4 +1,10 @@
-import type { ComparisonResult, Finding, ProjectExample, Severity } from '@pigeon/core';
+import type {
+  ComparisonResult,
+  Finding,
+  ProjectExample,
+  ProjectFieldRule,
+  Severity,
+} from '@pigeon/core';
 import type { NormalizedResponse } from '@pigeon/core';
 import { CircleX, Info, LoaderCircle, TriangleAlert, EyeOff } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -6,6 +12,7 @@ import { useMemo, useState } from 'react';
 
 import type { ComparisonState } from '../request-editor/scratch-store';
 import { OUTCOMES } from './outcome';
+import { RulesTable } from './RulesTable';
 import { SideBySide } from './SideBySide';
 import { indexJson, lineOf } from './json-lines';
 
@@ -42,14 +49,27 @@ export function CompareTab({
   baseline,
   response,
   onShowInBody,
+  onAddRule,
+  rules,
+  onEditProjectRules,
 }: {
   comparison: ComparisonState;
   /** The example the comparison used (for the side-by-side view). */
   baseline: ProjectExample | undefined;
   response: NormalizedResponse;
   onShowInBody: (line: number) => void;
+  /** Row actions (Mark optional, Allow null, Ignore, Mark dynamic); absent = read-only. */
+  onAddRule?: (rule: ProjectFieldRule) => void;
+  /** The rules panel. */
+  rules?: {
+    request: ProjectFieldRule[];
+    project: ProjectFieldRule[];
+    onChange: (rules: ProjectFieldRule[]) => void;
+  };
+  onEditProjectRules?: () => void;
 }) {
   const [view, setView] = useState<'findings' | 'side-by-side'>('findings');
+  const [showIgnored, setShowIgnored] = useState(false);
   const [selected, setSelected] = useState<{ finding: Finding; nonce: number } | null>(null);
   const actualIndex = useMemo(() => indexJson(response.bodyText ?? ''), [response.bodyText]);
 
@@ -77,7 +97,10 @@ export function CompareTab({
   }
   const result: ComparisonResult = comparison.outcome.result;
   const outcome = OUTCOMES[result.outcome];
-  const groups = groupFindings(result.findings);
+  const ignored = result.findings.filter((f) => f.severity === 'ignored').length;
+  const groups = groupFindings(
+    showIgnored ? result.findings : result.findings.filter((f) => f.severity !== 'ignored'),
+  );
 
   return (
     <div data-testid="compare-tab" className="flex min-h-0 flex-1 flex-col text-sm">
@@ -115,6 +138,17 @@ export function CompareTab({
           ))}
         </div>
       </header>
+      {ignored > 0 && view === 'findings' && (
+        <label className="flex shrink-0 items-center gap-1.5 border-b border-border px-3 py-1 text-xs text-fg-muted">
+          <input
+            type="checkbox"
+            data-testid="compare-show-ignored"
+            checked={showIgnored}
+            onChange={(event) => setShowIgnored(event.target.checked)}
+          />
+          Show ignored ({ignored})
+        </label>
+      )}
       {view === 'findings' ? (
         groups.length === 0 ? (
           <p data-testid="compare-no-findings" className="p-3 text-fg-muted">
@@ -157,6 +191,7 @@ export function CompareTab({
                             </p>
                           )}
                         </div>
+                        {onAddRule && <RuleActions finding={finding} onAddRule={onAddRule} />}
                         {line !== undefined && (
                           <button
                             type="button"
@@ -194,6 +229,86 @@ export function CompareTab({
           selected={selected}
         />
       )}
+      {rules && (
+        <details
+          data-testid="compare-rules"
+          className="max-h-[50%] shrink-0 overflow-auto border-t border-border px-3 py-1.5"
+        >
+          <summary className="cursor-default text-xs font-semibold tracking-wide text-fg-muted uppercase">
+            Rules ({rules.request.length} request · {rules.project.length} project)
+          </summary>
+          <h4 className="pt-2 pb-1 text-xs text-fg-muted">This request (compare.json)</h4>
+          <RulesTable rules={rules.request} onChange={rules.onChange} testId="request-rules" />
+          <h4 className="flex items-center gap-2 pt-3 pb-1 text-xs text-fg-muted">
+            Project (pigeon.json, read-only here)
+            {onEditProjectRules && (
+              <button
+                type="button"
+                data-testid="edit-project-rules"
+                onClick={onEditProjectRules}
+                className="rounded px-1 text-accent hover:underline"
+              >
+                Edit in project settings
+              </button>
+            )}
+          </h4>
+          <RulesTable rules={rules.project} testId="project-rules" />
+        </details>
+      )}
+    </div>
+  );
+}
+
+/** "Mark optional", "Allow null", "Ignore", "Mark dynamic" for a finding (§6), at its schema path. */
+function RuleActions({
+  finding,
+  onAddRule,
+}: {
+  finding: Finding;
+  onAddRule: (rule: ProjectFieldRule) => void;
+}) {
+  const path = finding.schemaPath ?? finding.path;
+  if (!path || finding.severity === 'ignored') return null;
+  const actions: Array<{ label: string; testId: string; rule: ProjectFieldRule }> = [];
+  if (finding.kind === 'body.field.removed') {
+    actions.push({
+      label: 'Mark optional',
+      testId: 'finding-mark-optional',
+      rule: { path, optional: true },
+    });
+  }
+  if (
+    finding.kind === 'body.type.changed' &&
+    (finding.baseline === 'null' || finding.actual === 'null')
+  ) {
+    actions.push({
+      label: 'Allow null',
+      testId: 'finding-allow-null',
+      rule: { path, nullable: true },
+    });
+  }
+  if (finding.kind === 'body.value.changed') {
+    actions.push({
+      label: 'Mark dynamic',
+      testId: 'finding-mark-dynamic',
+      rule: { path, dynamic: true },
+    });
+  }
+  actions.push({ label: 'Ignore', testId: 'finding-ignore', rule: { path, ignore: true } });
+  return (
+    <div className="flex shrink-0 gap-1">
+      {actions.map((action) => (
+        <button
+          key={action.testId}
+          type="button"
+          data-testid={action.testId}
+          title={`Add a rule for ${path}`}
+          onClick={() => onAddRule(action.rule)}
+          className="rounded px-1.5 py-0.5 text-xs text-fg-muted hover:bg-hover hover:text-fg"
+        >
+          {action.label}
+        </button>
+      ))}
     </div>
   );
 }

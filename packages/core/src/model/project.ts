@@ -11,6 +11,8 @@ export type {
   ProjectItem,
   ProjectModel,
   ProjectEnvironment,
+  ProjectComparisonConfig,
+  ProjectFieldRule,
   ExampleBody,
   ExampleBodyFormat,
   OrphanExample,

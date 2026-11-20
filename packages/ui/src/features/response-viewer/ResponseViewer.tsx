@@ -192,6 +192,10 @@ function ResponseTabs({
 }) {
   const comparison = useScratchRequest((s) => s.comparison);
   const canCompare = useScratchRequest((s) => s.compare !== null);
+  const addRule = useScratchRequest((s) => s.addRule);
+  const rulesApi = useScratchRequest((s) => s.rules);
+  // The rules panel follows edits of compare.json / pigeon.json.
+  useProjectState((s) => s.model, null);
   const [reveal, setReveal] = useState<{ line: number; nonce: number } | undefined>(undefined);
   const { files } = usePlatform();
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
@@ -367,6 +371,11 @@ function ResponseTabs({
             comparison={comparison}
             baseline={baselineExample}
             response={response}
+            {...(addRule ? { onAddRule: addRule } : {})}
+            {...(rulesApi ? { rules: { ...rulesApi.read(), onChange: rulesApi.write } } : {})}
+            onEditProjectRules={() =>
+              window.dispatchEvent(new CustomEvent('pigeon:open-view', { detail: 'settings' }))
+            }
             onShowInBody={(line) => {
               setReveal({ line, nonce: Date.now() });
               onTab('body');

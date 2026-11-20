@@ -8,6 +8,7 @@ export { describeTypes, jsonTypeOf } from './json-type';
 export type { PathSegment } from './path';
 export { formatPath, keySegment, matchPath, parsePath, toSchemaPath } from './path';
 export { summarize } from './result';
+export { applyRules, typeOverride, validateRulePath } from './rules';
 export type {
   CompareOptions,
   ComparisonSummary,

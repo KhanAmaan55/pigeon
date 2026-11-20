@@ -108,6 +108,8 @@ export interface ProjectRequest extends BrokenFlag {
   settings: ProjectRequestSettings;
   /** Saved responses (`examples/…/<request fileKey>/`, PIGN-027), in file-key order. */
   examples: ProjectExample[];
+  /** `examples/…/<request fileKey>/compare.json` (PIGN-035); absent = project defaults only. */
+  comparison?: ProjectComparisonConfig;
   /** Unknown item keys; unknown `request` / `protocolProfileBehavior` / `_pigeon` keys nested under those names. */
   extra: ExtraFields;
 }
@@ -160,6 +162,39 @@ export interface ProjectExample extends BrokenFlag {
   response: ResponseExample;
   /** Unknown keys; unknown `_pigeon` keys nested under `_pigeon`. */
   extra: ExtraFields;
+}
+
+/** A field rule (response-comparison.md §4.5); unknown keys kept in `extra`. */
+export interface ProjectFieldRule {
+  path: string;
+  optional?: boolean;
+  nullable?: boolean;
+  ignore?: boolean;
+  dynamic?: boolean;
+  type?: string | string[];
+  note?: string;
+  extra?: ExtraFields;
+}
+
+/**
+ * A request's comparison config (`compare.json`, file-format.md §2.7): only what overrides the
+ * project defaults. `headers` / `body` keep the keys as written (typed by the comparison code).
+ */
+export interface ProjectComparisonConfig {
+  baseline?: { mode: 'auto' } | { mode: 'example'; exampleId: string } | { mode: 'none' };
+  status?: string;
+  headers?: ExtraFields;
+  body?: ExtraFields;
+  rules: ProjectFieldRule[];
+  /** Unknown top-level keys. */
+  extra: ExtraFields;
+}
+
+/** A `compare.json` whose request is not in the project: kept where it is. */
+export interface OrphanComparison {
+  directory: string;
+  requestId: string;
+  config: ProjectComparisonConfig;
 }
 
 /** An example whose request is not in the project: kept where it is, never deleted. */
@@ -236,6 +271,8 @@ export interface ProjectModel {
   globals?: ProjectGlobals;
   /** Examples whose `requestId` matches no request (reported as problems). */
   orphanExamples: OrphanExample[];
+  /** `compare.json` files whose request is not in the project. */
+  orphanComparisons?: OrphanComparison[];
   /** `pigeon.json` `comparison`, preserved until PIGN-035 models it. */
   comparison?: unknown;
   extra: ExtraFields;

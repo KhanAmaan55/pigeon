@@ -7,6 +7,7 @@
 
 import { describeTypes, jsonTypeOf } from './json-type';
 import { keySegment } from './path';
+import { typeOverride } from './rules';
 import type { CompareOptions, Finding, FindingKind, SchemaNode, Severity } from './types';
 
 interface Entry {
@@ -33,6 +34,7 @@ export function compareJson(
 ): Finding[] {
   const distinguishIntegers = options.distinguishIntegers ?? false;
   const addedSeverity = ADDED_SEVERITY[options.additionalFields ?? 'warn'];
+  const typeRules = (options.rules ?? []).filter((rule) => rule.type !== undefined);
   const findings: Finding[] = [];
   const byKey = new Map<string, Finding>();
 
@@ -69,6 +71,10 @@ export function compareJson(
   while (stack.length > 0) {
     const { node, value, path, schemaPath } = stack.pop()!;
     const type = jsonTypeOf(value, distinguishIntegers);
+    // `type` rules (§4.5) widen the baseline's types at their path (rules only relax).
+    const override = typeRules.length > 0 ? typeOverride(typeRules, path, schemaPath) : undefined;
+    if (override === 'any') continue;
+    if (override?.includes(type) && !node.types.includes(type)) continue; // allowed; no shape to check
     const types = node.types;
     if (!types.includes(type)) {
       if (type === 'number' && types.includes('integer')) {

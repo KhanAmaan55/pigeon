@@ -21,6 +21,16 @@ export function AppShell() {
   const notify = useAppStore((s) => s.notify);
   const [dragging, setDragging] = useState(false);
 
+  // Other features ask for a sidebar view (e.g. "Edit in project settings").
+  useEffect(() => {
+    const onOpenView = (event: Event) => {
+      const requested = (event as CustomEvent<SidebarView>).detail;
+      if (requested) setView(requested);
+    };
+    window.addEventListener('pigeon:open-view', onOpenView);
+    return () => window.removeEventListener('pigeon:open-view', onOpenView);
+  }, []);
+
   // Cmd/Ctrl+O: import a file into the open project (docs/ui-ux.md §3.9).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

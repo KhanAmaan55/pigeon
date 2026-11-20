@@ -63,6 +63,8 @@ export interface CompareOptions {
   additionalFields?: 'ignore' | 'warn' | 'fail';
   /** Split numbers into `integer` / `number` (default off). */
   distinguishIntegers?: boolean;
+  /** Rules whose `type` overrides the baseline's types (other rules: `applyRules`). */
+  rules?: readonly FieldRule[];
 }
 
 export type Outcome = 'pass' | 'warn' | 'fail';

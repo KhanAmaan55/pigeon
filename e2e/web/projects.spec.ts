@@ -788,6 +788,41 @@ test.describe('comparison', () => {
   });
 });
 
+test.describe('field rules', () => {
+  test('mark optional and ignore relax the comparison to warn, then commit', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Rules API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await page.getByTestId('explorer-item').filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    const url = page.getByTestId('url-input');
+    await url.fill(`${TEST_SERVER_URL}/json/user`);
+    await page.getByTestId('send-button').click();
+    await page.getByTestId('save-as-example').click();
+    const badge = page.getByTestId('comparison-badge');
+    await expect(badge).toHaveAttribute('data-outcome', 'pass');
+
+    await url.fill(`${TEST_SERVER_URL}/json/user-v2`);
+    await page.getByTestId('send-button').click();
+    await expect(badge).toHaveAttribute('data-outcome', 'fail');
+    await badge.click();
+    await page.getByTestId('finding-mark-optional').click();
+    await expect(badge).toHaveAttribute('data-outcome', 'fail'); // the id type change remains
+    await page
+      .getByTestId('compare-finding')
+      .filter({ hasText: '$.id' })
+      .getByTestId('finding-ignore')
+      .click();
+    await expect(badge).toHaveAttribute('data-outcome', 'warn');
+    await page.keyboard.press('ControlOrMeta+Shift+s');
+    await expect(page.getByTestId('toast')).toContainText('Wrote');
+  });
+});
+
 test.describe('comparison of large bodies', () => {
   test('compares a 5 MB body in a worker while the editor stays usable', async ({
     page,

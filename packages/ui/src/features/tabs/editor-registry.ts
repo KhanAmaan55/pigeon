@@ -5,14 +5,17 @@
 
 import type { ProjectRequest, ProjectSession, Request, VariableScopes } from '@pigeon/core';
 import {
+  baselineFor,
   bodyComparisonInput,
   buildScopes,
   comparisonResult,
+  effectiveComparison,
   inheritedAuth,
-  projectBodySettings,
+  projectRules,
   scriptsNotRun,
-  selectBaseline,
+  upsertRule,
 } from '@pigeon/core';
+import { isEmptyComparison } from '@pigeon/formats';
 import { runBodyComparison } from '../compare/run-compare';
 import type { Platform } from '@pigeon/platform';
 
@@ -86,15 +89,41 @@ export function getTabEditor(
       compare: async (result) => {
         const request = session.findRequest(requestId);
         if (!request || !result.response) return undefined;
-        const example = selectBaseline(request.examples, result.response.status);
+        const effective = effectiveComparison(session.getWorkingModel(), request);
+        if (effective.baseline.mode === 'none') return undefined;
+        const example = baselineFor(request.examples, effective.baseline, result.response.status);
         if (!example) return { kind: 'no-baseline', requestId };
         const findings = await runBodyComparison(
           bodyComparisonInput(example, result),
-          projectBodySettings(session.getWorkingModel()),
+          effective.body,
+          effective.rules,
         );
         const comparison = comparisonResult(requestId, example, result, findings);
         projectStore.getState().setComparison(comparison);
         return { kind: 'compared', result: comparison };
+      },
+      rules: () => ({
+        request: session.findRequest(requestId)?.comparison?.rules ?? [],
+        project: projectRules(session.getWorkingModel()),
+      }),
+      setRules: (rules) => {
+        const current = session.findRequest(requestId)?.comparison ?? { rules: [], extra: {} };
+        const config = { ...current, rules };
+        session.apply({
+          type: 'setComparisonConfig',
+          requestId,
+          config: isEmptyComparison(config) ? undefined : config,
+        });
+        projectStore.getState().pinTab(requestId);
+      },
+      addRule: (rule) => {
+        const request = session.findRequest(requestId);
+        session.apply({
+          type: 'setComparisonConfig',
+          requestId,
+          config: upsertRule(request?.comparison, rule),
+        });
+        projectStore.getState().pinTab(requestId);
       },
       createExample: (example) => {
         session.apply({ type: 'createExample', requestId, example });

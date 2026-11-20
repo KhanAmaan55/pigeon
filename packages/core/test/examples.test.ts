@@ -274,6 +274,7 @@ describe('examples follow their request', () => {
       'collections/users-api/list-users.request.json',
       'examples/users-api/list-users/avatar.body.bin',
       'examples/users-api/list-users/avatar.example.json',
+      'examples/users-api/list-users/compare.json',
       'examples/users-api/list-users/success.body.json',
       'examples/users-api/list-users/success.example.json',
     ]);

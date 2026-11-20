@@ -97,7 +97,7 @@ Rules come from project defaults (`pigeon.json`) and request config (`compare.js
 | `optional: true` | `field.removed` → **warn** |
 | `nullable: true` | `null` ↔ any type → pass |
 | `dynamic: true` | `value.changed` → pass |
-| `type: [...]` / `'any'` | overrides the baseline types for that path |
+| `type: [...]` / `'any'` | adds allowed types at that path (`any`: any type); it never removes a baseline type, so a rule can't escalate |
 
 Severity can only be **relaxed** by rules, never escalated (except `additionalFields: 'fail'`).
 

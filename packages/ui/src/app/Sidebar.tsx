@@ -4,6 +4,7 @@ import { PendingChanges } from '../features/pending-changes/PendingChanges';
 import { Welcome } from '../features/projects/Welcome';
 import { Diagnostics } from '../features/settings/Diagnostics';
 import { ExampleSettings } from '../features/settings/ExampleSettings';
+import { ProjectComparisonSettings } from '../features/settings/ProjectComparisonSettings';
 import { RequestDefaults } from '../features/settings/RequestDefaults';
 import { useAppStore } from '../stores/AppStoreProvider';
 import type { SidebarView } from './views';
@@ -25,6 +26,7 @@ export function Sidebar({ view }: { view: SidebarView }) {
         <div className="min-h-0 flex-1 overflow-y-auto">
           <RequestDefaults />
           <ExampleSettings />
+          <ProjectComparisonSettings />
           <Diagnostics />
         </div>
       ) : view === 'environments' ? (

@@ -12,6 +12,7 @@ import type {
   ProjectAuth,
   ProjectEnvironment,
   ProjectEnvVariable,
+  ProjectComparisonConfig,
   ProjectExample,
 } from '@pigeon/formats';
 import { allocateSlug, slugify } from '@pigeon/formats';
@@ -89,6 +90,10 @@ export type EditCommand =
   | { type: 'renameExample'; id: string; name: string }
   | { type: 'duplicateExample'; id: string; newId: string }
   | { type: 'deleteExample'; id: string }
+  /** A request's `compare.json` (PIGN-035); `undefined` removes it. */
+  | { type: 'setComparisonConfig'; requestId: string; config: ProjectComparisonConfig | undefined }
+  /** `pigeon.json` `comparison`: project comparison defaults (PIGN-035). */
+  | { type: 'setComparisonDefaults'; comparison: Record<string, unknown> | undefined }
   /** A whole collection from an import (PIGN-028); its file key follows its (editable) name. */
   | { type: 'importCollection'; collection: Collection; index?: number };
 
@@ -167,7 +172,10 @@ export function touchedIds(model: ProjectModel, command: EditCommand): string[] 
     case 'setGlobals':
       return [GLOBALS_ENTITY_ID];
     case 'createExample':
+    case 'setComparisonConfig':
       return [command.requestId];
+    case 'setComparisonDefaults':
+      return [PROJECT_ENTITY_ID];
     case 'importCollection': {
       const ids = [command.collection.id];
       const walk = (items: readonly ProjectItem[]) => {
@@ -493,6 +501,17 @@ export function applyCommand(
           values: command.values,
         },
       };
+
+    case 'setComparisonConfig':
+      return replaceItem(model, command.requestId, (item) => {
+        if (item.kind !== 'request')
+          throw new CommandError(`"${command.requestId}" is not a request`);
+        assertEditable(item);
+        return withoutUndefined({ ...item, comparison: command.config });
+      });
+
+    case 'setComparisonDefaults':
+      return withoutUndefined({ ...model, comparison: command.comparison });
 
     case 'importCollection': {
       const { collection } = command;

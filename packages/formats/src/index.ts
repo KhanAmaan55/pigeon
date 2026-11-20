@@ -65,8 +65,20 @@ export { isManagedPath, isProjectFile } from './project/managed';
 export { CURRENT_FORMAT_VERSION, GLOBALS_PATH, readProject } from './project/reader';
 export { COLLECTION_SCHEMA } from './project/schemas';
 export { encodeFile, exampleDirectory, serializeProject } from './project/writer';
+export {
+  COMPARE_FILE,
+  comparisonFromFile,
+  comparisonToFile,
+  isEmptyComparison,
+  ruleFromFile,
+  ruleToFile,
+  sortRules,
+} from './project/comparison';
 export type {
   AuthType,
+  OrphanComparison,
+  ProjectComparisonConfig,
+  ProjectFieldRule,
   Collection,
   ExampleBody,
   ExampleBodyFormat,

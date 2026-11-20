@@ -7,9 +7,15 @@
  * a hash of the baseline body and the settings (derived data, never committed).
  */
 
-import type { Finding, Outcome, SchemaNode } from '@pigeon/compare';
-import { compareJson, inferSchema, summarize } from '@pigeon/compare';
-import type { ExampleBodyFormat, ProjectExample } from '@pigeon/formats';
+import type { FieldRule, Finding, Outcome, SchemaNode } from '@pigeon/compare';
+import { applyRules, compareJson, inferSchema, summarize } from '@pigeon/compare';
+import type {
+  ExampleBodyFormat,
+  ProjectComparisonConfig,
+  ProjectExample,
+  ProjectFieldRule,
+} from '@pigeon/formats';
+import { ruleFromFile } from '@pigeon/formats';
 
 import { isJsonMediaType, parseMediaType } from '../execution/response';
 import type { ExecutionResult } from '../execution/types';
@@ -31,16 +37,76 @@ export const DEFAULT_BODY_COMPARISON: Readonly<BodyComparisonSettings> = Object.
 export function projectBodySettings(
   model: Pick<ProjectModel, 'comparison'>,
 ): BodyComparisonSettings {
-  const body = (model.comparison as { body?: Partial<BodyComparisonSettings> } | undefined)?.body;
+  return bodySettings((model.comparison as { body?: unknown } | undefined)?.body);
+}
+
+/** `raw` body settings (pigeon.json or compare.json) over `base`; invalid values are ignored. */
+export function bodySettings(
+  raw: unknown,
+  base: BodyComparisonSettings = DEFAULT_BODY_COMPARISON,
+): BodyComparisonSettings {
+  const body = (typeof raw === 'object' && raw !== null ? raw : undefined) as
+    Partial<BodyComparisonSettings> | undefined;
   const pick = <K extends keyof BodyComparisonSettings>(key: K, allowed: readonly unknown[]) =>
-    body && allowed.includes(body[key])
-      ? (body[key] as BodyComparisonSettings[K])
-      : DEFAULT_BODY_COMPARISON[key];
+    body && allowed.includes(body[key]) ? (body[key] as BodyComparisonSettings[K]) : base[key];
   return {
     mode: pick('mode', ['schema', 'values', 'none']),
     additionalFields: pick('additionalFields', ['ignore', 'warn', 'fail']),
     distinguishIntegers: pick('distinguishIntegers', [true, false]),
   };
+}
+
+/** Rules of `pigeon.json` `comparison.rules` (project-wide). */
+export function projectRules(model: Pick<ProjectModel, 'comparison'>): ProjectFieldRule[] {
+  const rules = (model.comparison as { rules?: unknown } | undefined)?.rules;
+  return Array.isArray(rules)
+    ? rules.filter((r) => typeof r === 'object' && r !== null).map(ruleFromFile)
+    : [];
+}
+
+export interface EffectiveComparison {
+  body: BodyComparisonSettings;
+  /** Project rules first, then the request's (§4.5). */
+  rules: FieldRule[];
+  baseline: NonNullable<ProjectComparisonConfig['baseline']>;
+}
+
+/** What a request is compared with: project defaults, overridden by its `compare.json`. */
+export function effectiveComparison(
+  model: Pick<ProjectModel, 'comparison'>,
+  request: { comparison?: ProjectComparisonConfig | undefined },
+): EffectiveComparison {
+  const config = request.comparison;
+  return {
+    body: bodySettings(config?.body, projectBodySettings(model)),
+    rules: [...projectRules(model), ...(config?.rules ?? [])] as FieldRule[],
+    baseline: config?.baseline ?? { mode: 'auto' },
+  };
+}
+
+/** The baseline example for a response, per the request's baseline mode (§2). */
+export function baselineFor(
+  examples: readonly ProjectExample[],
+  baseline: EffectiveComparison['baseline'],
+  status: number | undefined,
+): ProjectExample | undefined {
+  if (baseline.mode === 'none') return undefined;
+  if (baseline.mode === 'example') return examples.find((e) => e.id === baseline.exampleId);
+  return selectBaseline(examples, status);
+}
+
+/** `config` with `rule` added: flags merge into an existing rule for the same path. */
+export function upsertRule(
+  config: ProjectComparisonConfig | undefined,
+  rule: ProjectFieldRule,
+): ProjectComparisonConfig {
+  const base = config ?? { rules: [], extra: {} };
+  const index = base.rules.findIndex((r) => r.path === rule.path);
+  const rules =
+    index === -1
+      ? [...base.rules, rule]
+      : base.rules.map((r, i) => (i === index ? { ...r, ...rule } : r));
+  return { ...base, rules };
 }
 
 /** `auto` baseline (§2): first example with `status`, else the first example. */
@@ -113,6 +179,15 @@ function parseJson(text: string | undefined): { ok: true; value: unknown } | { o
 export function compareBodyTexts(
   input: BodyComparisonInput,
   settings: BodyComparisonSettings = DEFAULT_BODY_COMPARISON,
+  rules: readonly FieldRule[] = [],
+): Finding[] {
+  return applyRules(compareBodyStructure(input, settings, rules), rules);
+}
+
+function compareBodyStructure(
+  input: BodyComparisonInput,
+  settings: BodyComparisonSettings,
+  rules: readonly FieldRule[],
 ): Finding[] {
   if (settings.mode === 'none') return [];
   const baseline =
@@ -153,6 +228,7 @@ export function compareBodyTexts(
   return compareJson(snapshot(input.baselineText!, baseline.value, settings), actual.value, {
     additionalFields: settings.additionalFields,
     distinguishIntegers: settings.distinguishIntegers,
+    rules,
   });
 }
 
@@ -199,11 +275,17 @@ export function compareExecution(
   request: { id: string; examples: readonly ProjectExample[] },
   result: ExecutionResult,
   settings: BodyComparisonSettings = DEFAULT_BODY_COMPARISON,
+  options: { rules?: readonly FieldRule[]; baseline?: EffectiveComparison['baseline'] } = {},
 ): ComparisonOutcome | undefined {
   if (!result.response) return undefined;
-  const example = selectBaseline(request.examples, result.response.status);
+  if (options.baseline?.mode === 'none') return undefined;
+  const example = baselineFor(
+    request.examples,
+    options.baseline ?? { mode: 'auto' },
+    result.response.status,
+  );
   if (!example) return { kind: 'no-baseline', requestId: request.id };
-  const findings = compareBodyTexts(bodyComparisonInput(example, result), settings);
+  const findings = compareBodyTexts(bodyComparisonInput(example, result), settings, options.rules);
   return { kind: 'compared', result: comparisonResult(request.id, example, result, findings) };
 }
 
