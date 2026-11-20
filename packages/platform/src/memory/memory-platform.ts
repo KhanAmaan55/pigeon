@@ -19,6 +19,9 @@ import { MockTransport } from './mock-transport';
 export class MemoryProjectLocator implements ProjectLocator {
   /** What `pickProjectFolder` returns next (default: cancelled). */
   pickResult: ProjectLocation | null = null;
+  /** Unset by default; tests assign them to simulate web locators. */
+  createBrowserWorkspace?: (name: string) => Promise<ProjectLocation>;
+  requestPermission?: (loc: ProjectLocation) => Promise<boolean>;
   readonly #projects = new Map<string, MemoryFs>();
 
   async pickProjectFolder(): Promise<ProjectLocation | null> {
@@ -37,7 +40,7 @@ export class MemoryProjectLocator implements ProjectLocator {
     return fs.root;
   }
 
-  async reopen(loc: ProjectLocation): Promise<'ok' | 'missing'> {
+  async reopen(loc: ProjectLocation): Promise<'ok' | 'needs-permission' | 'missing'> {
     return loc.kind === 'memory' && this.#projects.has(loc.id) ? 'ok' : 'missing';
   }
 

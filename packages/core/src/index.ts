@@ -49,6 +49,13 @@ export {
 export { RequestExecutor } from './execution/executor';
 export type { ResolvedFiles } from './execution/project-files';
 export { resolveProjectFiles } from './execution/project-files';
+export type { ProjectZipContents } from './workspace/project-zip';
+export {
+  collectProjectFiles,
+  exportProjectZip,
+  importProjectZip,
+  readProjectZip,
+} from './workspace/project-zip';
 export type { ItemLocation, Unsubscribe } from './workspace/project-session';
 export {
   initializeProject,

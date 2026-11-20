@@ -1,6 +1,8 @@
 /** Test-only entry point (`@pigeon/platform/conformance`); imports Vitest, so never import it from app code. */
 export type { FsConformanceOptions } from './fs';
 export { fsConformance } from './fs';
+export type { FsConformanceCase } from './fs-cases';
+export { fsConformanceCases } from './fs-cases';
 export type { TransportConformanceOptions } from './transport';
 export { transportConformance } from './transport';
 export type { TransportConformanceCase, TransportConformanceContext } from './transport-cases';

@@ -2,7 +2,10 @@
 declare global {
   interface Window {
     __pigeonTest?: {
-      preloadProject(files: Record<string, string>): Promise<void>;
+      openHandle(handle: FileSystemDirectoryHandle): void;
+      preloadProject(files: Record<string, string>, folderName?: string): Promise<void>;
+      simulatePermissionPromptAfterReload(): void;
+      runFsConformance(): Promise<Array<{ name: string; error: string }>>;
     };
   }
 }

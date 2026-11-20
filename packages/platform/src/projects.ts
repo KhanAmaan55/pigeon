@@ -9,4 +9,8 @@ export interface ProjectLocator {
   reopen(loc: ProjectLocation): Promise<'ok' | 'needs-permission' | 'missing'>;
   /** Web fs-access only; must run inside a user gesture. */
   requestPermission?(loc: ProjectLocation): Promise<boolean>;
+  /** Web only (`capabilities.browserWorkspace`): a new, empty IndexedDB-backed project. */
+  createBrowserWorkspace?(name: string): Promise<ProjectLocation>;
+  /** Web only: whether the browser agreed to keep Pigeon's storage; `undefined` until asked. */
+  storagePersisted?(): boolean | undefined;
 }

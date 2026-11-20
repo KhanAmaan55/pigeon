@@ -1,4 +1,4 @@
-import { AlertTriangle, FolderOpen, FolderPlus, X } from 'lucide-react';
+import { AlertTriangle, Database, FileArchive, FolderOpen, FolderPlus, X } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 
@@ -12,19 +12,25 @@ import { locationKey, locationLabel } from '../../stores/locations';
  * Open folder and recent projects. The scratch request stays usable meanwhile.
  */
 export function Welcome() {
-  const canOpenFolders = useCapabilities().projectFolders !== 'none';
+  const capabilities = useCapabilities();
+  const canOpenFolders = capabilities.projectFolders !== 'none';
+  const canUseWorkspaces = capabilities.browserWorkspace;
   const busy = useAppStore((s) => s.busy);
   const error = useAppStore((s) => s.error);
   const recents = useAppStore((s) => s.recentProjects);
   const openFolder = useAppStore((s) => s.openFolder);
   const createProject = useAppStore((s) => s.createProject);
+  const createWorkspace = useAppStore((s) => s.createWorkspace);
+  const importProjectZip = useAppStore((s) => s.importProjectZip);
   const clearError = useAppStore((s) => s.clearError);
-  const [creating, setCreating] = useState(false);
+  /** Which "new project" form is open. */
+  const [creating, setCreating] = useState<'folder' | 'workspace' | null>(null);
   const [name, setName] = useState('');
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void createProject(name).then(() => setCreating(false));
+    const create = creating === 'workspace' ? createWorkspace : createProject;
+    void create(name).then(() => setCreating(null));
   };
 
   return (
@@ -35,7 +41,7 @@ export function Welcome() {
       <p className="text-fg-muted">
         No project open. Open a folder with a Pigeon project, or create one.
       </p>
-      {canOpenFolders ? (
+      {canOpenFolders || canUseWorkspaces ? (
         <div className="flex flex-col gap-2">
           {creating ? (
             <form aria-label="Create project" className="flex flex-col gap-2" onSubmit={submit}>
@@ -55,11 +61,11 @@ export function Welcome() {
                   data-testid="create-project-submit"
                   className="h-8 flex-1 rounded bg-accent px-3 font-semibold text-accent-fg disabled:opacity-60"
                 >
-                  Choose location…
+                  {creating === 'workspace' ? 'Create workspace' : 'Choose location…'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCreating(false)}
+                  onClick={() => setCreating(null)}
                   className="h-8 rounded border border-border px-3 hover:bg-hover"
                 >
                   Cancel
@@ -67,30 +73,70 @@ export function Welcome() {
               </div>
             </form>
           ) : (
+            <>
+              {canOpenFolders && (
+                <button
+                  type="button"
+                  data-testid="create-project"
+                  disabled={busy}
+                  onClick={() => setCreating('folder')}
+                  className="inline-flex h-8 items-center gap-2 rounded bg-accent px-3 font-semibold text-accent-fg disabled:opacity-60"
+                >
+                  <FolderPlus size={16} aria-hidden />
+                  Create project
+                </button>
+              )}
+              {canUseWorkspaces && (
+                <button
+                  type="button"
+                  data-testid="new-browser-workspace"
+                  disabled={busy}
+                  onClick={() => setCreating('workspace')}
+                  className={`inline-flex h-8 items-center gap-2 rounded px-3 disabled:opacity-60 ${
+                    canOpenFolders
+                      ? 'border border-border hover:bg-hover'
+                      : 'bg-accent font-semibold text-accent-fg'
+                  }`}
+                >
+                  <Database size={16} aria-hidden />
+                  New browser workspace
+                </button>
+              )}
+            </>
+          )}
+          {canOpenFolders && (
             <button
               type="button"
-              data-testid="create-project"
+              data-testid="open-folder"
               disabled={busy}
-              onClick={() => setCreating(true)}
-              className="inline-flex h-8 items-center gap-2 rounded bg-accent px-3 font-semibold text-accent-fg disabled:opacity-60"
+              onClick={() => void openFolder()}
+              className="inline-flex h-8 items-center gap-2 rounded border border-border px-3 hover:bg-hover disabled:opacity-60"
             >
-              <FolderPlus size={16} aria-hidden />
-              Create project
+              <FolderOpen size={16} aria-hidden />
+              Open folder…
             </button>
           )}
-          <button
-            type="button"
-            data-testid="open-folder"
-            disabled={busy}
-            onClick={() => void openFolder()}
-            className="inline-flex h-8 items-center gap-2 rounded border border-border px-3 hover:bg-hover disabled:opacity-60"
-          >
-            <FolderOpen size={16} aria-hidden />
-            Open folder…
-          </button>
+          {canUseWorkspaces && (
+            <button
+              type="button"
+              data-testid="import-project-zip"
+              disabled={busy}
+              onClick={() => void importProjectZip()}
+              className="inline-flex h-8 items-center gap-2 rounded border border-border px-3 hover:bg-hover disabled:opacity-60"
+            >
+              <FileArchive size={16} aria-hidden />
+              Import project (.zip)…
+            </button>
+          )}
+          {canUseWorkspaces && !canOpenFolders && (
+            <p className="text-xs text-fg-muted">
+              This browser can't open folders: projects live in browser storage. Export a zip
+              regularly to keep a copy.
+            </p>
+          )}
         </div>
       ) : (
-        <p className="text-fg-muted">This browser cannot open project folders.</p>
+        <p className="text-fg-muted">This browser cannot store projects.</p>
       )}
       {error && (
         <div
@@ -128,6 +174,7 @@ function RecentProjects({ recents }: { recents: RecentProject[] }) {
         {recents.map((recent) => {
           const key = locationKey(recent.location);
           const missing = status[key] === 'missing';
+          const needsPermission = status[key] === 'needs-permission';
           return (
             <li
               key={key}
@@ -152,6 +199,17 @@ function RecentProjects({ recents }: { recents: RecentProject[] }) {
                   {locationLabel(recent.location)}
                 </span>
               </button>
+              {needsPermission && (
+                <button
+                  type="button"
+                  data-testid="recent-reconnect"
+                  disabled={busy}
+                  onClick={() => void openRecent(recent)}
+                  className="h-7 shrink-0 rounded border border-border px-2 text-xs hover:bg-hover"
+                >
+                  Reconnect
+                </button>
+              )}
               <button
                 type="button"
                 aria-label={`Remove ${recent.name} from recent projects`}

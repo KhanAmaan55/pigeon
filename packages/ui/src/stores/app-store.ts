@@ -4,7 +4,14 @@
  * Multiple open projects arrive with PIGN-021.
  */
 
-import { initializeProject, isPigeonProject, ProjectSession } from '@pigeon/core';
+import {
+  exportProjectZip,
+  initializeProject,
+  isPigeonProject,
+  ProjectSession,
+  readProjectZip,
+} from '@pigeon/core';
+import { slugify } from '@pigeon/formats';
 import type { Platform, ProjectFileSystem, ProjectLocation } from '@pigeon/platform';
 import { createStore } from 'zustand';
 
@@ -48,6 +55,12 @@ export interface AppState {
   loadRecents: () => Promise<void>;
   openFolder: () => Promise<void>;
   createProject: (name: string) => Promise<void>;
+  /** Web: a new IndexedDB-backed project. */
+  createWorkspace: (name: string) => Promise<void>;
+  /** Web: a new browser workspace from a project zip the user picks. */
+  importProjectZip: () => Promise<void>;
+  /** Downloads / saves the open project's files as a zip. */
+  exportProjectZip: () => Promise<void>;
   openLocation: (location: ProjectLocation) => Promise<void>;
   openRecent: (recent: RecentProject) => Promise<void>;
   confirmInit: (name: string) => Promise<void>;
@@ -59,7 +72,8 @@ export interface AppState {
 
 export type AppStore = ReturnType<typeof createAppStore>;
 
-type AppPlatform = Pick<Platform, 'projects' | 'openProjectFs' | 'appState'>;
+type AppPlatform = Pick<Platform, 'projects' | 'openProjectFs' | 'appState'> &
+  Partial<Pick<Platform, 'files'>>;
 
 export function createAppStore(platform: AppPlatform) {
   return createStore<AppState>()((set, get) => {
@@ -149,6 +163,47 @@ export function createAppStore(platform: AppPlatform) {
           const fs = await platform.openProjectFs(location);
           if (!(await isPigeonProject(fs))) await initializeProject(fs, trimmed);
           await show(await ProjectSession.fromFs(fs));
+        }),
+
+      createWorkspace: (name) =>
+        run(async () => {
+          const trimmed = name.trim();
+          if (trimmed === '') throw new Error('Enter a project name.');
+          if (!platform.projects.createBrowserWorkspace) {
+            throw new Error('Browser workspaces are not available here.');
+          }
+          const location = await platform.projects.createBrowserWorkspace(trimmed);
+          const fs = await platform.openProjectFs(location);
+          await initializeProject(fs, trimmed);
+          await show(await ProjectSession.fromFs(fs));
+        }),
+
+      importProjectZip: () =>
+        run(async () => {
+          if (!platform.files || !platform.projects.createBrowserWorkspace) {
+            throw new Error('Importing a project zip needs browser workspaces.');
+          }
+          const [picked] = await platform.files.pickFiles({ accept: ['.zip', 'application/zip'] });
+          if (!picked) return;
+          const contents = readProjectZip(picked.bytes);
+          const name =
+            contents.projectName || picked.name.replace(/\.zip$/i, '') || 'Imported project';
+          const location = await platform.projects.createBrowserWorkspace(name);
+          const fs = await platform.openProjectFs(location);
+          for (const [path, bytes] of contents.files) await fs.writeFileAtomic(path, bytes);
+          await show(await ProjectSession.fromFs(fs));
+        }),
+
+      exportProjectZip: () =>
+        run(async () => {
+          const project = get().project;
+          if (!project || !platform.files) return;
+          const zip = await exportProjectZip(project.session.fs);
+          const base = slugify(project.session.name, {
+            kind: 'project',
+            id: project.session.id || 'export',
+          });
+          await platform.files.saveFile(`${base}.zip`, zip, 'application/zip');
         }),
 
       openLocation: (location) =>

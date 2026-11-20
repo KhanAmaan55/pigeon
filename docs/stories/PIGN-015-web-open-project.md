@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-015 | 2 — Projects | MVP | Todo | PIGN-014 |
+| PIGN-015 | 2 — Projects | MVP | Done | PIGN-014 |
 
 ## Goal
 Give the web version real projects: open/create a local folder via the File System Access API in Chromium, or use an IndexedDB **browser workspace** in any browser, with zip import/export.
@@ -28,10 +28,10 @@ As a web user, I want to work on a real project folder (Chromium) or a browser-s
 - Refresh/external change detection (PIGN-020), editing (PIGN-016+).
 
 ## Acceptance criteria
-- [ ] Chromium: Open folder → the fixture project tree renders; reload → Reconnect → tree renders again.
-- [ ] Firefox/WebKit: "Open folder" is not shown; "New browser workspace" creates a project that persists across reloads.
-- [ ] Export zip → import zip into a new workspace yields identical files (byte-equal).
-- [ ] `fsConformance` passes for `IdbFs` (fake-indexeddb) and `FsAccessFs` (Playwright Chromium via OPFS handle).
+- [x] Chromium: Open folder → the fixture project tree renders; reload → Reconnect → tree renders again.
+- [x] Firefox/WebKit: "Open folder" is not shown; "New browser workspace" creates a project that persists across reloads.
+- [x] Export zip → import zip into a new workspace yields identical files (byte-equal).
+- [x] `fsConformance` passes for `IdbFs` (fake-indexeddb) and `FsAccessFs` (Playwright Chromium via OPFS handle).
 
 ## Technical notes
 - Test hook: in test builds expose `window.__pigeonTest.openHandle(handle)` to inject an OPFS handle (the native picker can't be automated).
@@ -45,3 +45,11 @@ As a web user, I want to work on a real project folder (Chromium) or a browser-s
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+- `platform-web`: `FsAccessFs` (File System Access handles; `createWritable()` writes, copy+delete renames, case-only renames through a temporary name, Chromium `.crswap` files hidden), `IdbFs` (browser workspace: loads the workspace into a `MemoryFs` for semantics and reads, writes every change through to the `blobs` store in one transaction), `IdbAppState`, `WebProjectLocator`, and the `pigeon` database helper (`idb.ts`). `createWebPlatform` wires them when IndexedDB exists.
+- `ProjectLocator` gained optional `createBrowserWorkspace(name)` and `storagePersisted()`. On web, `createProject` creates `<picked parent>/<name>` when folders are available, else a workspace. `navigator.storage.persist()` is requested once on the first workspace, **not awaited** (Firefox answers through a prompt that can stay open); the explorer shows the result on a workspace badge (there is no project-settings screen yet).
+- Reconnect: `reopen` returns `needs-permission` when `queryPermission` isn't `granted`; the recent-project row shows **Reconnect**, which calls `requestPermission` in the click.
+- fs conformance is now framework-free (`fsConformanceCases()` in `@pigeon/platform/conformance/fs-cases`, wrapped for Vitest by `fsConformance`), so Playwright runs it in Chromium against `FsAccessFs` on OPFS. In Node it runs for `IdbFs` (fake-indexeddb) and `FsAccessFs` on fake handles.
+- Project zips live in `core/workspace/project-zip.ts` (fflate): project files only (`isManagedPath` from `formats/project/managed.ts`, plus `.gitattributes`), fixed entry times so equal projects give equal zips, unsafe/unmanaged entries skipped on import, a single wrapping folder unwrapped. Import always creates a new browser workspace.
+- E2E hooks (`apps/web/src/test-hooks.ts`, e2e builds only): `openHandle`, `preloadProject` (OPFS folder), `simulatePermissionPromptAfterReload`, `runFsConformance`. Chromium's export goes through the native save picker, so the zip round trip runs in Firefox/WebKit E2E (and in core unit tests everywhere).

@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./conformance": "./src/conformance/index.ts",
-    "./conformance/transport-cases": "./src/conformance/transport-cases.ts"
+    "./conformance/transport-cases": "./src/conformance/transport-cases.ts",
+    "./conformance/fs-cases": "./src/conformance/fs-cases.ts"
   },
   "scripts": {
     "build": "tsc -b"

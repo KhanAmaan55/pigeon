@@ -16,6 +16,7 @@ export {
   urlToPostman,
 } from './postman/item';
 export { createEmptyProject } from './project/create';
+export { isManagedPath, isProjectFile } from './project/managed';
 export { CURRENT_FORMAT_VERSION, readProject } from './project/reader';
 export { COLLECTION_SCHEMA } from './project/schemas';
 export { encodeFile, serializeProject } from './project/writer';

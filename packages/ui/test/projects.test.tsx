@@ -282,3 +282,79 @@ describe('explorer tree', () => {
     );
   });
 });
+
+describe('browser workspaces and project zips', () => {
+  function workspacePlatform() {
+    const platform = createMemoryPlatform({
+      capabilities: { browserWorkspace: true, projectFolders: 'none' },
+    });
+    platform.projects.createBrowserWorkspace = async () => platform.projects.add(new MemoryFs());
+    return platform;
+  }
+
+  it('offers workspaces instead of folders when the browser has no folder access', async () => {
+    const platform = workspacePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    expect(screen.queryByTestId('open-folder')).toBeNull();
+    expect(screen.queryByTestId('create-project')).toBeNull();
+
+    await user.click(screen.getByTestId('new-browser-workspace'));
+    expect(document.activeElement).toBe(screen.getByTestId('create-project-name'));
+    await user.keyboard('Notes');
+    await user.click(screen.getByTestId('create-project-submit'));
+    await waitFor(() => expect(screen.getByTestId('project-tab').textContent).toContain('Notes'));
+  });
+
+  it('exports the open project and imports it into a new workspace', async () => {
+    const platform = workspacePlatform();
+    const store = createAppStore(platform);
+    await store.getState().createWorkspace('Shop API');
+    const fs = store.getState().project!.session.fs;
+    await fs.writeFileAtomic(
+      'collections/shop/collection.json',
+      '{"info":{"_postman_id":"c","name":"Shop"}}\n',
+    );
+    await fs.writeFileAtomic('collections/shop/notes.md', 'not exported');
+
+    await store.getState().exportProjectZip();
+    const [saved] = platform.files.saved;
+    expect(saved).toMatchObject({ name: 'shop-api.zip', mime: 'application/zip' });
+
+    platform.files.queuePick([{ name: 'shop-api.zip', bytes: saved!.data as Uint8Array }]);
+    await store.getState().importProjectZip();
+    expect(store.getState().error).toBeNull();
+    const imported = store.getState().project!.session;
+    expect(imported.fs).not.toBe(fs);
+    expect(imported.name).toBe('Shop API');
+    expect(imported.getWorkingModel().collections.map((c) => c.name)).toEqual(['Shop']);
+    expect(await imported.fs.exists('collections/shop/notes.md')).toBe(false);
+
+    platform.files.queuePick([{ name: 'bad.zip', bytes: new Uint8Array([1, 2]) }]);
+    await store.getState().importProjectZip();
+    expect(store.getState().error).toMatch(/not a valid zip/);
+  });
+
+  it('reconnects folders that need permission again', async () => {
+    const platform = createMemoryPlatform();
+    const fs = new MemoryFs();
+    await fs.writeFileAtomic(
+      'pigeon.json',
+      '{"pigeon":{"formatVersion":1},"id":"p","name":"Repo","collections":[]}',
+    );
+    const location = platform.projects.add(fs);
+    await platform.appState.set('app', 'recentProjects', [
+      { projectId: 'p', name: 'Repo', location, lastOpenedAt: '2026-01-01T00:00:00Z' },
+    ]);
+    let granted = false;
+    platform.projects.reopen = async () => (granted ? 'ok' : 'needs-permission');
+    platform.projects.requestPermission = async () => (granted = true);
+
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    const recent = await screen.findByTestId('recent-project');
+    await waitFor(() => expect(recent.getAttribute('data-status')).toBe('needs-permission'));
+    await user.click(within(recent).getByTestId('recent-reconnect'));
+    await waitFor(() => expect(screen.getByTestId('project-tab').textContent).toContain('Repo'));
+  });
+});

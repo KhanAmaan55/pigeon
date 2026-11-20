@@ -447,3 +447,33 @@ async function copyDirectory(
     await fs.writeFileAtomic(projectPath, bytes);
   }
 }
+
+describe('managed paths', () => {
+  it('matches file-format.md §1.1', async () => {
+    const { isManagedPath, isProjectFile } = await import('../src/project/managed');
+    for (const path of [
+      'pigeon.json',
+      'collections/users-api/collection.json',
+      'collections/users-api/admin/folder.json',
+      'collections/users-api/admin/nested/x.request.json',
+      'environments/local.postman_environment.json',
+      'environments/globals.postman_globals.json',
+      'examples/users-api/list-users/compare.json',
+      'examples/users-api/list-users/200-ok.example.json',
+      'examples/users-api/list-users/200-ok.body.json',
+    ]) {
+      expect(isManagedPath(path), path).toBe(true);
+    }
+    for (const path of [
+      'README.md',
+      'collections/collection.json',
+      'collections/users-api/README.md',
+      'environments/nested/x.postman_environment.json',
+      'examples/compare.json',
+      '.gitattributes',
+    ]) {
+      expect(isManagedPath(path), path).toBe(false);
+    }
+    expect(isProjectFile('.gitattributes')).toBe(true);
+  });
+});

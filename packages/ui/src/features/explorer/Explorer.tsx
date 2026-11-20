@@ -1,8 +1,18 @@
 import { observeElementRect, useVirtualizer } from '@tanstack/react-virtual';
-import { AlertTriangle, ChevronDown, ChevronRight, Folder, Library, RefreshCw } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  FileArchive,
+  Folder,
+  Library,
+  RefreshCw,
+} from 'lucide-react';
 import type { KeyboardEvent } from 'react';
 import { useMemo, useRef } from 'react';
 
+import { usePlatform } from '../../app/PlatformProvider';
 import { IconButton } from '../../components/IconButton';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { methodColorClass } from '../request-editor/methods';
@@ -16,6 +26,8 @@ const FALLBACK_RECT = { width: 280, height: 800 };
 /** Collection explorer (docs/ui-ux.md §3.2): a virtualized tree of the open project. */
 export function Explorer() {
   const project = useAppStore((s) => s.project);
+  const exportZip = useAppStore((s) => s.exportProjectZip);
+  const platform = usePlatform();
   const model = useProjectState((s) => s.model, null);
   const problems = useProjectState((s) => s.problems, null);
   const expanded = useProjectState((s) => s.expanded, null);
@@ -91,6 +103,15 @@ export function Explorer() {
         >
           {model?.name || 'Untitled project'}
         </span>
+        {project.session.location.kind === 'browser-workspace' && (
+          <WorkspaceBadge persisted={platform.projects.storagePersisted?.()} />
+        )}
+        <IconButton
+          label="Export project (.zip)"
+          icon={<FileArchive size={14} />}
+          data-testid="export-project-zip"
+          onClick={() => void exportZip()}
+        />
         <IconButton
           label="Refresh from disk"
           icon={<RefreshCw size={14} />}
@@ -210,5 +231,25 @@ function ExplorerRow({
         </span>
       )}
     </div>
+  );
+}
+
+function WorkspaceBadge({ persisted }: { persisted: boolean | undefined }) {
+  const note =
+    persisted === true
+      ? 'Stored in this browser (persistent storage granted).'
+      : persisted === false
+        ? 'Stored in this browser; it may clear it under storage pressure. Export a zip to keep a copy.'
+        : 'Stored in this browser. Export a zip to keep a copy.';
+  return (
+    <span
+      data-testid="workspace-badge"
+      data-persisted={persisted === undefined ? 'unknown' : String(persisted)}
+      title={note}
+      aria-label={note}
+      className="inline-flex shrink-0 items-center text-fg-muted"
+    >
+      <Database size={14} aria-hidden />
+    </span>
   );
 }

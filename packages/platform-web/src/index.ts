@@ -3,11 +3,21 @@ import { createMemoryServices, defineCapabilities, PickedFileStore } from '@pige
 
 import { FetchTransport } from './fetch-transport';
 import { WebFileExchange } from './files';
+import { openPigeonDb } from './idb';
+import { IdbAppState } from './idb-app-state';
+import { WebProjectLocator } from './project-locator';
 
 export type { FetchTransportOptions } from './fetch-transport';
 export { FetchTransport } from './fetch-transport';
 export type { FileEnvironment } from './files';
 export { WebFileExchange } from './files';
+export { FsAccessFs } from './fs-access-fs';
+export { DB_NAME, openPigeonDb } from './idb';
+export { IdbAppState } from './idb-app-state';
+export type { WorkspaceRecord } from './idb-fs';
+export { deleteWorkspace, IdbFs } from './idb-fs';
+export type { HandleRecord, HandleStore, WebProjectLocatorOptions } from './project-locator';
+export { WebProjectLocator } from './project-locator';
 /** Re-exported for existing callers; the list lives in `@pigeon/platform`. */
 export { isForbiddenHeader } from '@pigeon/platform';
 
@@ -52,18 +62,42 @@ export function detectWebOs(nav: {
 }
 
 /**
- * Real capabilities, transport and file exchange; fs, state, secrets and dialogs stay
- * memory-backed until their stories land.
+ * Real capabilities, transport, project folders / browser workspaces, app state (IndexedDB) and
+ * file exchange; secrets and dialogs stay memory-backed until their stories land. Without
+ * IndexedDB (rare: some private modes) everything local stays in memory.
  */
 export function createWebPlatform(): Platform {
   const pickedFiles = new PickedFileStore();
-  return {
-    kind: 'web',
+  const memory = createMemoryServices();
+  const base = {
+    kind: 'web' as const,
     os: detectWebOs(navigator as Navigator & { userAgentData?: { platform?: string } }),
     capabilities: detectWebCapabilities(window),
     transport: new FetchTransport({ pickedFiles }),
     pickedFiles,
-    ...createMemoryServices(),
+    ...memory,
     files: new WebFileExchange(),
+  };
+  if (!('indexedDB' in window)) return base;
+
+  let db: Promise<IDBDatabase> | undefined;
+  const getDb = () => (db ??= openPigeonDb());
+  const win = window as Window & {
+    showDirectoryPicker?: (opts?: {
+      mode?: 'read' | 'readwrite';
+    }) => Promise<FileSystemDirectoryHandle>;
+  };
+  const projects = new WebProjectLocator({
+    db: getDb,
+    ...(win.showDirectoryPicker
+      ? { pickDirectory: () => win.showDirectoryPicker!({ mode: 'readwrite' }) }
+      : {}),
+    ...(navigator.storage?.persist ? { persistStorage: () => navigator.storage.persist() } : {}),
+  });
+  return {
+    ...base,
+    projects,
+    openProjectFs: (loc) => projects.open(loc),
+    appState: new IdbAppState(getDb),
   };
 }
