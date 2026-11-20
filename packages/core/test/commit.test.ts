@@ -208,7 +208,7 @@ describe('Save for Commit (PIGN-019)', () => {
     expect(plan.writes).toEqual([]);
   });
 
-  it('keeps drafts and leaves no temporary files when a write fails mid-plan', async () => {
+  it('keeps the failed draft and leaves no temporary files when a write fails mid-plan', async () => {
     const memory = new MemoryFs();
     let writes = 0;
     const failing: ProjectFileSystem = {
@@ -232,8 +232,14 @@ describe('Save for Commit (PIGN-019)', () => {
     session.apply({ type: 'createRequest', id: 'b', parentId: 'billing-collection', name: 'B' });
     await session.save();
 
-    await expect(session.commit(await session.planCommit())).rejects.toBeInstanceOf(CommitError);
-    expect(session.drafts.map((d) => d.ref.id).sort()).toEqual(['a', 'b', 'billing-collection']);
+    const error = await session.commit(await session.planCommit()).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(CommitError);
+    // The other files are still written (PIGN-040): only the failed entity keeps its draft.
+    const failed = (error as CommitError).failed;
+    expect(failed).toHaveLength(1);
+    expect((error as CommitError).message).toContain(`${failed[0]} (disk full)`);
+    expect(session.drafts.map((d) => d.ref.id)).toEqual(['a']);
+    expect(session.conflicts).toEqual([]);
     expect((await memory.list('', { recursive: true })).some((e) => e.path.includes('.tmp'))).toBe(
       false,
     );

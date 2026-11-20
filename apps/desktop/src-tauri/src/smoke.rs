@@ -18,6 +18,7 @@ const TIMEOUT: Duration = Duration::from_secs(60);
 const PROBE: &str = include_str!("smoke.js");
 /// Replaced in [`PROBE`] with the URL of [`serve_probe_target`].
 const URL_PLACEHOLDER: &str = "__SMOKE_HTTP_URL__";
+const ROOT_PLACEHOLDER: &str = "__SMOKE_PROJECT_ROOT__";
 /// First line of every probe target answer; the request head it received follows.
 const PROBE_MARKER: &str = "native-ok";
 
@@ -33,9 +34,11 @@ pub fn install(builder: Builder<Wry>) -> Builder<Wry> {
     if let Err(error) = std::fs::create_dir_all(&data) {
         finish(Err(format!("smoke data directory: {error}")));
     }
-    crate::data_dir::use_isolated(data);
     let url = serve_probe_target()
         .unwrap_or_else(|error| finish(Err(format!("probe target server: {error}"))));
+    let root = seed_project(&data, &url)
+        .unwrap_or_else(|error| finish(Err(format!("smoke project: {error}"))));
+    crate::data_dir::use_isolated(data);
     // A plain thread, not `Builder::setup`: Tauri keeps only the last setup hook, and main's
     // registers app state.
     thread::spawn(|| {
@@ -44,9 +47,58 @@ pub fn install(builder: Builder<Wry>) -> Builder<Wry> {
     });
     builder.plugin(
         plugin::Builder::<Wry>::new("smoke")
-            .js_init_script(PROBE.replace(URL_PLACEHOLDER, &url))
+            .js_init_script(PROBE.replace(URL_PLACEHOLDER, &url).replace(
+                ROOT_PLACEHOLDER,
+                &serde_json::to_string(&root).unwrap_or_default(),
+            ))
             .build(),
     )
+}
+
+/// A Pigeon project in the smoke data directory, already granted and listed as a recent project,
+/// so the probe can open it without the folder picker (PIGN-040: open → edit → Save for Commit →
+/// external change → reload on every OS). Returns the project root as the app stores it.
+fn seed_project(data: &std::path::Path, url: &str) -> io::Result<String> {
+    let dir = data.join("Smoke project");
+    let files = [
+        (
+            "pigeon.json",
+            r#"{"pigeon":{"formatVersion":1},"id":"smoke-project","name":"Smoke project","collections":["smoke"]}"#.to_owned(),
+        ),
+        (
+            "collections/smoke/collection.json",
+            r#"{"info":{"_postman_id":"smoke-collection","name":"Smoke","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},"_pigeon":{"order":["ping"]}}"#.to_owned(),
+        ),
+        (
+            "collections/smoke/ping.request.json",
+            serde_json::json!({
+                "id": "smoke-ping",
+                "name": "Ping",
+                "request": { "method": "GET", "header": [], "url": { "raw": format!("{url}/ping") } }
+            })
+            .to_string(),
+        ),
+    ];
+    for (path, text) in files {
+        let file = dir.join(path);
+        std::fs::create_dir_all(file.parent().unwrap_or(&dir))?;
+        std::fs::write(file, text)?;
+    }
+    let root = dir.display().to_string();
+    std::fs::write(
+        data.join("project-roots.json"),
+        serde_json::to_vec(&[&root]).map_err(io::Error::other)?,
+    )?;
+    let app = serde_json::json!({
+        "recentProjects": [{
+            "projectId": "smoke-project",
+            "name": "Smoke project",
+            "location": { "kind": "native", "absolutePath": root },
+            "lastOpenedAt": "2026-01-01T00:00:00.000Z"
+        }]
+    });
+    std::fs::write(data.join("app.json"), app.to_string())?;
+    Ok(root)
 }
 
 /// A tiny HTTP server for the probe's request. It answers `native-ok` followed by the request

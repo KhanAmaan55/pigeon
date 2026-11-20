@@ -18,7 +18,7 @@ import {
   isManagedPath,
   readProject,
   serializeProject,
-  sha256Hex,
+  contentHash,
 } from '@pigeon/formats';
 import type {
   AppStateStore,
@@ -78,13 +78,47 @@ export interface CommitResult {
 /** A Save for Commit that failed part-way; drafts are intact and the base follows the disk. */
 export class CommitError extends Error {
   override readonly name = 'CommitError';
+  /** Files that could not be written, deleted or renamed. */
+  readonly failed: ProjectPath[];
   constructor(
     message: string,
     readonly written: ProjectPath[],
-    options?: { cause?: unknown },
+    options: { cause?: unknown; failed?: ProjectPath[] } = {},
   ) {
-    super(message, options);
+    super(message, options.cause === undefined ? undefined : { cause: options.cause });
+    this.failed = options.failed ?? [];
   }
+}
+
+/** Why a file operation failed, in words (Node / Rust error codes and messages). */
+export function describeFsFailure(error: unknown): string {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code: unknown }).code)
+      : '';
+  const message = error instanceof Error ? error.message : String(error);
+  if (
+    code === 'EACCES' ||
+    code === 'EPERM' ||
+    /permission denied|access is denied/i.test(message)
+  ) {
+    return 'permission denied: is the file or its folder read-only?';
+  }
+  if (code === 'EBUSY' || /being used by another process|resource busy|locked/i.test(message)) {
+    return 'the file is locked by another program';
+  }
+  if (code === 'EROFS' || /read-only file system/i.test(message)) return 'read-only file system';
+  if (code === 'ENOSPC' || /no space left/i.test(message)) return 'the disk is full';
+  return message;
+}
+
+function parentOf(path: ProjectPath): ProjectPath {
+  const index = path.lastIndexOf('/');
+  return index === -1 ? '' : path.slice(0, index);
+}
+
+function baseNameOf(path: ProjectPath): string {
+  return path.slice(path.lastIndexOf('/') + 1);
 }
 
 /** Where an entity stands (data-model.md §10); drafts carry their operation for badges. */
@@ -535,22 +569,26 @@ export class ProjectSession {
     const brokenPaths = new Set(
       this.#read.problems.filter((p) => p.severity === 'error').map((p) => p.path),
     );
-    return planCommit({
+    const plan = await planCommit({
       base: this.#read.model,
       drafts,
       ...(ids ? { selection: ids } : {}),
       disk: await this.scanDisk(),
       knownPaths: new Set(this.#read.files.keys()),
       brokenPaths,
-      hash: sha256Hex,
+      hash: (bytes, path) => contentHash(path, bytes),
     });
+    return { ...plan, warnings: [...plan.warnings, ...longPathWarnings(this.fs.root, plan)] };
   }
 
   /** Managed project files on disk (path → sha-256) and other files below `collections/` (`null`). */
   async scanDisk(): Promise<DiskState> {
     const disk = new Map<ProjectPath, string | null>();
     const add = async (path: ProjectPath) =>
-      disk.set(path, isManagedPath(path) ? await sha256Hex(await this.fs.readFile(path)) : null);
+      disk.set(
+        path,
+        isManagedPath(path) ? await contentHash(path, await this.fs.readFile(path)) : null,
+      );
     if ((await this.fs.stat('pigeon.json'))?.kind === 'file') await add('pigeon.json');
     for (const dir of ['collections', 'environments', 'examples']) {
       if ((await this.fs.stat(dir))?.kind !== 'dir') continue;
@@ -562,30 +600,35 @@ export class ProjectSession {
   }
 
   /**
-   * Applies a plan: writes (atomically, per file), deletes, then removes empty directories. On
-   * success the committed drafts are cleared and the base re-read. On failure nothing is lost:
-   * drafts stay, the base follows the disk, and the error lists what was written.
+   * Applies a plan: case-only renames, writes (atomically, per file), deletes, then removes empty
+   * directories. A file that fails (read-only, locked, …) doesn't stop the others: the drafts of
+   * the entities whose files all landed are done, the others stay, and the error lists the files
+   * that failed and why. The base follows the disk either way.
    */
   async commit(plan: CommitPlan): Promise<CommitResult> {
     if (this.readOnly) throw new Error('This project is read-only.');
     const written: ProjectPath[] = [];
-    try {
-      for (const write of plan.writes) {
+    const deleted: ProjectPath[] = [];
+    const failures: Array<{ path: ProjectPath; error: unknown }> = [];
+    const { deletes, failed } = await this.#renameCaseOnly(plan);
+    failures.push(...failed);
+    for (const write of plan.writes) {
+      try {
         await this.fs.writeFileAtomic(write.path, write.bytes);
-        this.#ownWrites.set(write.path, await sha256Hex(write.bytes));
+        this.#ownWrites.set(write.path, await contentHash(write.path, write.bytes));
         written.push(write.path);
+      } catch (error) {
+        failures.push({ path: write.path, error });
       }
-      for (const path of plan.deletes) {
+    }
+    for (const path of deletes) {
+      try {
         if (await this.fs.exists(path)) await this.fs.remove(path);
         this.#ownWrites.delete(path);
+        deleted.push(path);
+      } catch (error) {
+        failures.push({ path, error });
       }
-    } catch (error) {
-      await this.reload();
-      throw new CommitError(
-        `Save for Commit stopped after ${written.length} of ${plan.writes.length} files: ${error instanceof Error ? error.message : String(error)}`,
-        written,
-        { cause: error },
-      );
     }
     const removedDirs: ProjectPath[] = [];
     for (const dir of plan.rmdirs) {
@@ -593,13 +636,73 @@ export class ProjectSession {
         await this.fs.remove(dir);
         removedDirs.push(dir);
       } catch {
-        // Not empty after all (a file appeared) or already gone: keep it.
+        // Not empty after all (a file appeared, or a delete failed) or already gone: keep it.
       }
     }
-    for (const id of plan.entityIds) this.#drafts.delete(id);
+    // Drafts of entities with a failed file stay (an unknown owner keeps them all).
+    const owners = new Map<ProjectPath, string | undefined>([
+      ...plan.writes.map((write) => [write.path, write.entityId] as const),
+      ...Object.entries(plan.deleteOwners),
+    ]);
+    const kept = new Set(failures.map((failure) => owners.get(failure.path)));
+    const done = kept.has(undefined) ? [] : plan.entityIds.filter((id) => !kept.has(id));
+    for (const id of done) this.#drafts.delete(id);
     await this.reload();
     await this.#persistDrafts();
-    return { written, deleted: [...plan.deletes], removedDirs };
+    if (failures.length > 0) {
+      const total = plan.writes.length + plan.deletes.length;
+      throw new CommitError(
+        `Save for Commit could not change ${failures.length} of ${total} files: ${failures
+          .map((failure) => `${failure.path} (${describeFsFailure(failure.error)})`)
+          .join('; ')}. The other files were written; the drafts of what failed are kept.`,
+        written,
+        { cause: failures[0]!.error, failed: failures.map((failure) => failure.path) },
+      );
+    }
+    return { written, deleted, removedDirs };
+  }
+
+  /**
+   * Deletes whose path differs from a write only in case (an entity renamed from `Admin` to
+   * `admin`) are renames on a case-insensitive disk: writing `admin/x` and deleting `Admin/x`
+   * would delete the new file. The differing directory or file is renamed through a temporary
+   * name instead (`Admin → .Admin.pigeon-case-… → admin`), and those deletes are dropped.
+   */
+  async #renameCaseOnly(
+    plan: CommitPlan,
+  ): Promise<{ deletes: ProjectPath[]; failed: Array<{ path: ProjectPath; error: unknown }> }> {
+    const writes = new Map(plan.writes.map((write) => [write.path.toLowerCase(), write.path]));
+    const renames = new Map<ProjectPath, ProjectPath>();
+    const skipped = new Set<ProjectPath>();
+    for (const from of plan.deletes) {
+      const to = writes.get(from.toLowerCase());
+      if (to === undefined || to === from) continue;
+      skipped.add(from);
+      const a = from.split('/');
+      const b = to.split('/');
+      const index = a.findIndex((segment, i) => segment !== b[i]);
+      renames.set(a.slice(0, index + 1).join('/'), b.slice(0, index + 1).join('/'));
+    }
+    const failed: Array<{ path: ProjectPath; error: unknown }> = [];
+    const done: Array<[ProjectPath, ProjectPath]> = [];
+    const ordered = [...renames].sort(([a], [b]) => a.split('/').length - b.split('/').length);
+    for (const [original, to] of ordered) {
+      // A shallower rename already moved this path's parent.
+      const moved = done.find(([f]) => original.startsWith(`${f}/`));
+      const from = moved ? `${moved[1]}${original.slice(moved[0].length)}` : original;
+      try {
+        if (await this.fs.exists(from)) {
+          const name = baseNameOf(from);
+          const temp = `${parentOf(from)}${parentOf(from) ? '/' : ''}.${name}.pigeon-case-${crypto.randomUUID().slice(0, 8)}`;
+          await this.fs.rename(from, temp);
+          await this.fs.rename(temp, to);
+        }
+        done.push([original, to]);
+      } catch (error) {
+        failed.push({ path: from, error });
+      }
+    }
+    return { deletes: plan.deletes.filter((path) => !skipped.has(path)), failed };
   }
 
   /** Save (if needed) and Save for Commit of `ids` (default: everything), in one step. */
@@ -1061,4 +1164,29 @@ export async function initializeProject(fs: ProjectFileSystem, name: string): Pr
     await fs.writeFileAtomic(path, bytes);
   }
   for (const dir of PROJECT_DIRECTORIES) await fs.mkdirp(dir);
+}
+
+/** Windows' MAX_PATH is 260; beyond this many characters Pigeon warns (platform.md §5.3). */
+export const LONG_PATH_LIMIT = 240;
+
+/**
+ * One warning when planned writes have full paths (project root included) longer than
+ * `LONG_PATH_LIMIT`, naming the longest. The writes are still attempted.
+ */
+export function longPathWarnings(
+  root: ProjectLocation,
+  plan: Pick<CommitPlan, 'writes'>,
+): string[] {
+  if (root.kind !== 'native') return [];
+  const base = root.absolutePath.replace(/[\\/]+$/, '').length + 1;
+  const long = plan.writes
+    .map((write) => ({ path: write.path, length: base + write.path.length }))
+    .filter((write) => write.length > LONG_PATH_LIMIT)
+    .sort((a, b) => b.length - a.length);
+  const longest = long[0];
+  if (!longest) return [];
+  const files = long.length === 1 ? '1 file has' : `${long.length} files have`;
+  return [
+    `${files} a path longer than ${LONG_PATH_LIMIT} characters with the project folder (longest: ${longest.path}, ${longest.length}). Windows may fail to write or check them out: use shorter names or move the project closer to the drive root.`,
+  ];
 }

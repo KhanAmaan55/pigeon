@@ -247,18 +247,28 @@ pub fn write_atomic(root: &Path, path: &str, bytes: &[u8]) -> FsResult<()> {
     Ok(())
 }
 
-/// Windows: editors and virus scanners briefly lock files; retry a few times (platform.md §5.3).
-fn rename_with_retry(from: &Path, to: &Path) -> std::io::Result<()> {
+/// Windows: editors and virus scanners briefly lock files; retry 3 times with backoff
+/// (50, 100, 150 ms) before reporting the error (platform.md §5.3).
+fn with_retry<T>(mut operation: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
     let mut attempt = 0;
     loop {
-        match fs::rename(from, to) {
-            Err(error) if error.kind() == ErrorKind::PermissionDenied && attempt < 3 => {
+        match operation() {
+            Err(error) if is_transient(&error) && attempt < 3 => {
                 attempt += 1;
                 std::thread::sleep(Duration::from_millis(50 * attempt));
             }
             result => return result,
         }
     }
+}
+
+/// A sharing violation (Windows error 32/33) or access denied while another program holds the file.
+fn is_transient(error: &std::io::Error) -> bool {
+    error.kind() == ErrorKind::PermissionDenied || matches!(error.raw_os_error(), Some(32 | 33))
+}
+
+fn rename_with_retry(from: &Path, to: &Path) -> std::io::Result<()> {
+    with_retry(|| fs::rename(from, to))
 }
 
 pub fn stat(root: &Path, path: &str) -> FsResult<Option<Stat>> {
@@ -298,10 +308,15 @@ fn collect(native: &Path, dir: &str, recursive: bool, out: &mut Vec<Entry>) -> F
             continue; // not valid Unicode: cannot be a project path
         };
         let path = join(dir, &name);
-        // Follows symlinks, like the other implementations see them.
         let Ok(meta) = fs::metadata(item.path()) else {
             continue;
         };
+        // Symlinked files read like files; symlinked directories are left out, so nothing (scans,
+        // deletes) ever reaches outside the project through them (PIGN-040).
+        let is_link = item.file_type().is_ok_and(|t| t.is_symlink());
+        if is_link && meta.is_dir() {
+            continue;
+        }
         if meta.is_dir() {
             out.push(Entry {
                 path: path.clone(),
@@ -330,12 +345,18 @@ pub fn remove(root: &Path, path: &str, recursive: bool) -> FsResult<()> {
         return Err(FsErr::new("invalid-path", path));
     }
     let native = resolve(root, path)?;
+    if fs::symlink_metadata(&native).is_ok_and(|meta| meta.file_type().is_symlink()) {
+        // The link itself, never its target (a directory link is a directory on Windows).
+        return with_retry(|| fs::remove_file(&native).or_else(|_| fs::remove_dir(&native)))
+            .map_err(|e| FsErr::io(path, &e));
+    }
     let meta = fs::metadata(&native).map_err(|e| FsErr::io(path, &e))?;
     if !meta.is_dir() {
-        return fs::remove_file(&native).map_err(|e| FsErr::io(path, &e));
+        return with_retry(|| fs::remove_file(&native)).map_err(|e| FsErr::io(path, &e));
     }
     if recursive {
-        return fs::remove_dir_all(&native).map_err(|e| FsErr::io(path, &e));
+        // Does not follow symlinks inside the tree.
+        return with_retry(|| fs::remove_dir_all(&native)).map_err(|e| FsErr::io(path, &e));
     }
     let empty = fs::read_dir(&native)
         .map_err(|e| FsErr::io(path, &e))?
@@ -722,6 +743,85 @@ mod tests {
         assert_eq!(code(rename(root, "nope", "x")), "not-found");
         rename(root, "dir", "moved").unwrap();
         assert_eq!(read(root, "moved/new/c.txt").unwrap(), b"a");
+    }
+
+    #[test]
+    fn renames_over_an_existing_file_on_every_os() {
+        let tmp = TempDir::new("over");
+        let root = tmp.0.as_path();
+        write_atomic(root, "dir/a.json", b"new").unwrap();
+        write_atomic(root, "dir/b.json", b"old").unwrap();
+        rename(root, "dir/a.json", "dir/b.json").unwrap();
+        assert_eq!(read(root, "dir/b.json").unwrap(), b"new");
+        // Atomic writes replace existing files the same way.
+        write_atomic(root, "dir/b.json", b"newer").unwrap();
+        assert_eq!(read(root, "dir/b.json").unwrap(), b"newer");
+        let names: Vec<_> = list(root, "dir", false)
+            .unwrap()
+            .into_iter()
+            .map(|e| e.path)
+            .collect();
+        assert_eq!(names, ["dir/b.json"], "no temporary files left");
+    }
+
+    #[test]
+    fn retries_transient_errors_then_gives_up() {
+        let mut calls = 0;
+        let result: std::io::Result<()> = with_retry(|| {
+            calls += 1;
+            Err(std::io::Error::from(ErrorKind::PermissionDenied))
+        });
+        assert!(result.is_err());
+        assert_eq!(calls, 4, "first try plus 3 retries");
+        let mut calls = 0;
+        let result = with_retry(|| {
+            calls += 1;
+            if calls < 3 {
+                Err(std::io::Error::from(ErrorKind::PermissionDenied))
+            } else {
+                Ok(calls)
+            }
+        });
+        assert_eq!(result.unwrap(), 3);
+        let mut calls = 0;
+        let _ = with_retry(|| -> std::io::Result<()> {
+            calls += 1;
+            Err(std::io::Error::from(ErrorKind::NotFound))
+        });
+        assert_eq!(calls, 1, "not-found is not retried");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_directories_are_not_listed_or_deleted_through() {
+        let tmp = TempDir::new("links");
+        let root = tmp.0.as_path();
+        let outside = TempDir::new("outside");
+        fs::write(outside.0.join("keep.json"), b"{}").unwrap();
+        write_atomic(root, "collections/c/a.json", b"{}").unwrap();
+        std::os::unix::fs::symlink(&outside.0, root.join("collections/c/linked")).unwrap();
+        std::os::unix::fs::symlink(
+            outside.0.join("keep.json"),
+            root.join("collections/c/file-link.json"),
+        )
+        .unwrap();
+        let names: Vec<_> = list(root, "collections", true)
+            .unwrap()
+            .into_iter()
+            .map(|e| e.path)
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "collections/c",
+                "collections/c/a.json",
+                "collections/c/file-link.json"
+            ]
+        );
+        remove(root, "collections/c/linked", false).unwrap();
+        remove(root, "collections/c/file-link.json", false).unwrap();
+        remove(root, "collections", true).unwrap();
+        assert_eq!(fs::read(outside.0.join("keep.json")).unwrap(), b"{}");
     }
 
     #[test]

@@ -50,6 +50,13 @@ pub fn project_path(root: &Path, native: &Path) -> Option<String> {
     Some(segments.join("/"))
 }
 
+/// Like [`project_path`], for a root that may be reached through a symlink: watchers report
+/// resolved paths (macOS reports `/private/var/…` for a root under `/var/…`), so the canonical
+/// root is tried too (PIGN-040).
+pub fn project_path_in(roots: &[PathBuf], native: &Path) -> Option<String> {
+    roots.iter().find_map(|root| project_path(root, native))
+}
+
 fn kind_of(kind: &EventKind) -> Option<&'static str> {
     match kind {
         EventKind::Create(_) => Some("created"),
@@ -75,6 +82,12 @@ pub fn project_watch<R: Runtime>(
         .watch(&root_path, RecursiveMode::Recursive)
         .map_err(|e| format!("Cannot watch {}: {e}", root_path.display()))?;
 
+    let mut match_roots = vec![root_path.clone()];
+    if let Ok(canonical) = std::fs::canonicalize(&root_path) {
+        if canonical != root_path {
+            match_roots.push(canonical);
+        }
+    }
     let batch_root = root.clone();
     std::thread::spawn(move || {
         // Ends when the watcher (the sender) is dropped by `project_unwatch`.
@@ -84,7 +97,7 @@ pub fn project_watch<R: Runtime>(
                 if let Ok(event) = event {
                     if let Some(kind) = kind_of(&event.kind) {
                         for path in &event.paths {
-                            if let Some(project) = project_path(&root_path, path) {
+                            if let Some(project) = project_path_in(&match_roots, path) {
                                 pending.insert(project, kind);
                             }
                         }
@@ -153,6 +166,37 @@ mod tests {
             project_path(root, Path::new("/repo/api/a.json.crswap")),
             None
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_watcher_on_a_symlinked_root_reports_writes() {
+        let dir = std::env::temp_dir().join(format!("pigeon-watch-link-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("real").join("collections")).unwrap();
+        let link = dir.join("link");
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink(dir.join("real"), &link).unwrap();
+        let roots = vec![link.clone(), link.canonicalize().unwrap()];
+        let (tx, rx) = channel::<notify::Result<notify::Event>>();
+        let mut watcher = notify::recommended_watcher(tx).unwrap();
+        watcher.watch(&link, RecursiveMode::Recursive).unwrap();
+        std::thread::sleep(Duration::from_millis(200));
+        std::fs::write(link.join("collections").join("a.json"), b"{}").unwrap();
+        let mut seen = Vec::new();
+        while let Ok(Ok(event)) = rx.recv_timeout(Duration::from_secs(5)) {
+            seen.extend(
+                event
+                    .paths
+                    .iter()
+                    .filter_map(|p| project_path_in(&roots, p)),
+            );
+            if seen.iter().any(|p| p == "collections/a.json") {
+                break;
+            }
+        }
+        drop(watcher);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(seen.iter().any(|p| p == "collections/a.json"), "{seen:?}");
     }
 
     #[test]

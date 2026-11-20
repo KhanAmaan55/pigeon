@@ -57,7 +57,7 @@ Fixtures in `packages/fixtures/postman/`:
 ### 3.6 Filesystem / Git workflows
 - `fsConformance` suite against MemoryFs, IdbFs, NodeFs (macOS, Windows, Linux CI runners), FsAccessFs (Playwright Chromium via OPFS).
 - Git scenario tests (NodeFs + real `git` binary in CI, integration only): init repo → create project → commit; change in Pigeon → Save for Commit → `git diff` shows only expected lines; `git checkout` other branch → reload → working model matches; merge conflict markers in a request file → entity marked broken, not overwritten; `_pigeon.order` conflict resolved by deleting lines → loads.
-- Cross-OS (PIGN-040): CRLF files on disk load correctly and are rewritten as LF only when changed; case-only renames; reserved names; long paths; unicode NFC/NFD names from macOS; read-only files; locked files (Windows) retry.
+- Cross-OS (PIGN-040, `packages/core/test/cross-os.test.ts`, NodeFs on real temp folders in the verify matrix): CRLF files on disk load correctly and are rewritten as LF only when changed; reopen + Save for Commit writes nothing; case-only renames; reserved names; long paths; unicode NFC/NFD names from macOS; read-only files (POSIX); symlinked roots; a `core.autocrlf=true` clone has LF files and no phantom changes. Locked-file retries are unit-tested in NodeFs and Rust. The desktop `--smoke` run (every OS in CI) opens a seeded project, edits a request, Saves for Commit, changes the file through IPC and waits for the reload.
 
 ### 3.7 Response comparison
 - Table-driven tests: `(baseline, actual, config) → expected findings` in `compare/test/cases/*.json` so cases are easy to add.

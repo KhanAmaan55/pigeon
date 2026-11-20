@@ -12,5 +12,8 @@
   },
   "dependencies": {
     "@pigeon/platform": "workspace:*"
+  },
+  "devDependencies": {
+    "@pigeon/test-server": "workspace:*"
   }
 }

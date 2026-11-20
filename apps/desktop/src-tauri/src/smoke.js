@@ -3,12 +3,16 @@
 // rendered, the bundled monospace font has loaded, a request built in the editor (path variable,
 // duplicate, disabled and browser-forbidden headers) has gone through the native transport
 // (http_send) intact, the desktop platform is wired in, project folders stay closed until
-// picked and no errors were logged.
+// picked, a project folder goes through open → edit → Save for Commit → external change →
+// reload, and no errors were logged.
 (() => {
   if (window.top !== window) return;
 
   // A local server without CORS headers, started by smoke.rs (which fills in the URL).
   const PROBE_URL = '__SMOKE_HTTP_URL__';
+  // The project smoke.rs seeded as a granted recent project (it fills in a JSON string literal).
+  // eslint-disable-next-line no-undef
+  const PROJECT_ROOT = __SMOKE_PROJECT_ROOT__;
 
   const errors = [];
   window.addEventListener('error', (event) => errors.push(event.message));
@@ -113,6 +117,53 @@
     );
     if (!denied || !String(denied.message).includes('no access')) {
       throw new Error(`ungranted folder was readable: ${JSON.stringify(denied)}`);
+    }
+
+    // A project on disk (PIGN-040): open the recent project, edit a request, Save for Commit,
+    // then change the file outside Pigeon and see the app reload it.
+    const recent = await waitFor('recent project', () => find('recent-project'));
+    recent.querySelector('button').click();
+    const item = (name) =>
+      [...document.querySelectorAll('[data-testid="explorer-item"]')].find(
+        (row) => row.querySelector('[data-testid="explorer-item-name"]')?.textContent === name,
+      );
+    (await waitFor('request in the explorer', () => item('Ping'))).click();
+    const url = await waitFor('project request in the editor', () => {
+      const input = find('url-input');
+      return input?.value === `${PROBE_URL}/ping` ? input : null;
+    });
+    setValue(url, `${PROBE_URL}/edited`);
+    await delay(100);
+    const mac = navigator.userAgent.includes('Mac');
+    window.dispatchEvent(
+      new window.KeyboardEvent('keydown', {
+        key: 'S',
+        code: 'KeyS',
+        shiftKey: true,
+        metaKey: mac,
+        ctrlKey: !mac,
+        bubbles: true,
+      }),
+    );
+    await waitFor('Save for Commit toast', () => (text('toast') ?? '').includes('Wrote'));
+    const path = 'collections/smoke/ping.request.json';
+    const onDisk = new TextDecoder().decode(
+      await invoke('project_fs_read', { root: PROJECT_ROOT, path }),
+    );
+    if (!onDisk.includes(`${PROBE_URL}/edited`)) throw new Error(`not written: ${onDisk}`);
+    if (onDisk.includes('\r')) throw new Error('written with CR line endings');
+    // Another program edits the file: the explorer follows (file watching or refresh on focus).
+    const changed = new TextEncoder().encode(onDisk.replace('"Ping"', '"Ping externally"'));
+    const meta = new TextEncoder().encode(JSON.stringify({ root: PROJECT_ROOT, path }));
+    const frame = new Uint8Array(4 + meta.byteLength + changed.byteLength);
+    new DataView(frame.buffer).setUint32(0, meta.byteLength, true);
+    frame.set(meta, 4);
+    frame.set(changed, 4 + meta.byteLength);
+    await invoke('project_fs_write', frame);
+    for (let attempt = 0; !item('Ping externally'); attempt++) {
+      if (attempt >= 100) throw new Error('the external change was not picked up within 10s');
+      if (attempt % 10 === 9) window.dispatchEvent(new window.Event('focus'));
+      await delay(100);
     }
     if (errors.length > 0) throw new Error(errors.join('\n'));
   }

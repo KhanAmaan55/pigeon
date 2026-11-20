@@ -194,6 +194,8 @@ Only keys that override `pigeon.json` defaults are written. `rules` sorted by `p
 
 **Invariant (tested):** `serialize(read(files)) === files` for any files Pigeon wrote, and Save for Commit with no drafts is a no-op.
 
+**Line endings (PIGN-040):** files are compared by `contentHash` (`formats/src/hash.ts`): SHA-256 with CRLF → LF in text files (everything but `*.bin` example bodies). A CRLF checkout (Git `core.autocrlf`, a Windows editor) therefore equals Pigeon's LF output: it loads, raises no external-change or conflict, and is only rewritten (as LF) when its entity really changes.
+
 ## 4. Naming rules
 
 `fileKey` (slug) is derived from the entity name when created or renamed:
@@ -237,10 +239,19 @@ Rules:
               else → conflict (plan blocked for that entity).
 6. Pre-check: never write over a managed file that failed to parse on load unless the user chose "Overwrite".
 7. Show plan (A/M/D/R list + per-file diff) in Pending Changes → apply.
-8. Apply: writes via writeFileAtomic (temp + rename), then deletes, then rmdir.
-9. Update base model and file hashes; clear committed drafts; record own-write hashes so the watcher ignores them.
+8. Apply: case-only renames (below), writes via writeFileAtomic (temp + rename), then deletes, then rmdir.
+   A file that fails (read-only, locked after 3 retries, disk full) does not stop the others; the
+   error lists each failed path and why (`CommitError.failed`).
+9. Update base model and file hashes; clear the drafts of entities whose files all landed (the
+   others stay, so nothing is lost); record own-write hashes so the watcher ignores them.
+10. Warn (not block) when a written path, project folder included, is longer than 240 characters
+    (Windows MAX_PATH, `LONG_PATH_LIMIT`).
 ```
 Renames are displayed as `R old → new` when a deleted and a written path have the same content hash or belong to the same entity id.
+
+Case-only renames (a hand-made `Admin/` folder whose entity is renamed to slug `admin`): on a case-insensitive disk, writing `admin/x` then deleting `Admin/x` would delete the new file. The commit renames the differing directory (or file) through a temporary name instead (`Admin → .Admin.pigeon-case-… → admin`, which also works on case-sensitive disks) and drops those deletes.
+
+Symlinks: listings include symlinked files but leave symlinked directories out, and removing a symlink removes the link, never its target, so Pigeon never scans or deletes outside the project through a link. A symlinked project root works (the desktop watcher also matches the resolved root, e.g. macOS `/private/var/…`).
 
 Partial commits: selecting one entity commits it plus any structural prerequisites (e.g. committing a request inside a newly created folder also commits the folder's creation). The planner computes and shows these.
 

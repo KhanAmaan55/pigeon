@@ -214,6 +214,8 @@ export {
   CommitError,
   initializeProject,
   isPigeonProject,
+  LONG_PATH_LIMIT,
+  longPathWarnings,
   PROJECT_DIRECTORIES,
   ProjectSession,
   SECRET_KEY_SEPARATOR,

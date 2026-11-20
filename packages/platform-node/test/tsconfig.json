@@ -13,6 +13,9 @@
     },
     {
       "path": "../../platform"
+    },
+    {
+      "path": "../../test-server"
     }
   ]
 }

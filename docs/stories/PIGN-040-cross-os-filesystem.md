@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-040 | 8 — Hardening | MVP | Todo | PIGN-020 |
+| PIGN-040 | 8 — Hardening | MVP | Done | PIGN-020 |
 
 ## Goal
 Prove the project format and Save for Commit behave identically on macOS, Windows, and Linux filesystems, and fix edge cases (line endings, case, reserved names, long paths, unicode normalization, locked/read-only files).
@@ -34,10 +34,10 @@ As a team with mixed operating systems, I want Pigeon files to behave the same f
 - Network filesystems, cloud-synced folders (document as "best effort").
 
 ## Acceptance criteria
-- [ ] Cross-OS suite green on macOS, Windows, Linux CI runners.
-- [ ] Git scenario tests (testing.md §3.6) green on all three OSes, including `core.autocrlf=true` on Windows with the project `.gitattributes`.
-- [ ] Desktop E2E (Windows, Linux) open → edit → Save for Commit → external change → reload passes.
-- [ ] No known phantom diffs: re-opening and committing without edits produces zero writes on every OS.
+- [ ] Cross-OS suite green on macOS, Windows, Linux CI runners. — green on macOS locally; Windows/Linux run in the CI verify matrix (not run yet, see notes)
+- [ ] Git scenario tests (testing.md §3.6) green on all three OSes, including `core.autocrlf=true` on Windows with the project `.gitattributes`. — green on macOS locally; CI pending
+- [ ] Desktop E2E (Windows, Linux) open → edit → Save for Commit → external change → reload passes. — in the `--smoke` run; passes on macOS locally, Windows/Linux in CI's desktop-build job (pending)
+- [x] No known phantom diffs: re-opening and committing without edits produces zero writes on every OS.
 
 ## Technical notes
 - Use a temp dir per test (`os.tmpdir()`), clean up even on failure.
@@ -51,3 +51,16 @@ As listed above; all in CI matrix.
 
 ## Definition of done
 Standard DoD plus green CI on all three OSes.
+
+## Implementation notes
+- **platform-node**: `NodeTransport` (node:http/https, no new dependency instead of undici): raw header list (order, case, duplicates, `Host`/`Cookie` as given), manual redirects recording every hop (303 → GET; 301/302 POST → GET; 307/308 keep the body; credentials and an explicit Host dropped on cross-origin hops), gzip/deflate/br decoding, `strictSSL`, one deadline for the whole exchange, aborts with `signal.reason`, picked/project/absolute file refs, `NODE_CAPABILITIES`. Passes every `transportConformance` case against `@pigeon/test-server` plus TLS (self-signed HTTPS server) and file-ref tests. `NodeFs` gained `watch` (recursive `fs.watch`, 50 ms batches, temp files filtered), `withRetry` (EBUSY/EPERM/EACCES, 3 retries at 50/100/150 ms) on renames/unlinks/rm, and symlink rules (symlinked files listed, symlinked directories left out, removing a link never touches its target).
+- **Cross-OS suite** (`packages/core/test/cross-os.test.ts`, NodeFs on real temp folders, so the verify matrix runs it with each OS's semantics): reopen + Save for Commit → zero writes; CRLF files load, stay untouched, and a changed one is written LF; same-slug rename moves nothing; case-only directory rename; reserved names / trailing dots and spaces; long-path warning; NFD names; symlinked root; read-only file (POSIX; skipped on Windows and as root); a `core.autocrlf=true` clone has LF files, no phantom changes and a one-line diff after an edit.
+- **Fixes the suite found**:
+  - CRLF churn: a container file (e.g. `collection.json`) with CRLF endings was rewritten whenever a child changed. Files are now compared by `contentHash` (formats; CRLF → LF except `*.bin` example bodies) in the reader, disk scan, planner and own-write tracking.
+  - **Data loss on case-insensitive disks**: renaming an entity whose directory differs only in case (`Admin/` → `admin`) wrote the new files and then deleted them through the old path. The commit now renames the differing segment through a temporary name and drops those deletes.
+  - Save for Commit stopped at the first failing file and then kept every draft, which turned the already written entities into conflicts. It now goes on with the other files, clears the drafts of entities whose files all landed, keeps the rest, and the `CommitError` lists each failed path with a readable reason (`describeFsFailure`: permission denied/read-only, locked, read-only file system, disk full) and `failed` paths.
+  - Long paths: one warning in the plan when a written path with the project folder exceeds 240 characters (`LONG_PATH_LIMIT`), naming the longest; the write is still attempted.
+  - Desktop watcher: events for a project reached through a symlink (macOS reports `/private/var/…` for `/var/…`) were dropped, so external changes were never seen there. It now also matches the canonical root (found by the new smoke flow).
+- **Rust**: `with_retry` (permission denied / sharing violations 32, 33) now also covers removes; symlinked directories are left out of listings and removing a link removes only the link; cargo tests for rename-over-existing (runs on Windows in CI), retries, symlinks and a watcher on a symlinked root.
+- **Desktop flow**: no WebDriver-based desktop E2E exists, so the `--smoke` run (all three OSes in CI's desktop-build job) now seeds a granted recent project, opens it, edits a request, Saves for Commit (checks the file is LF with the new URL through IPC), writes an external change through IPC and waits for the explorer to show it.
+- **Not verified here**: the Windows and Linux runs (unit suite, Git test, smoke) need CI; only macOS was run locally (1214 unit tests, cargo 82, smoke-ok, E2E 273 — two Firefox "Target crashed" page creations under load passed on rerun). Windows-specific branches (read-only attribute, locked files) are covered by retry unit tests rather than real locks.

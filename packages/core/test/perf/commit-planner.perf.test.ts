@@ -1,4 +1,4 @@
-import { sha256Hex } from '@pigeon/formats';
+import { contentHash } from '@pigeon/formats';
 import { describe, expect, it } from 'vitest';
 
 import type { Draft, ProjectModel } from '../../src/index';
@@ -53,7 +53,7 @@ describe('commit planner performance (pnpm test:perf)', () => {
         disk,
         knownPaths,
         brokenPaths: new Set(),
-        hash: sha256Hex,
+        hash: (bytes: Uint8Array, path: string) => contentHash(path, bytes),
       });
     // Best of three after a warm-up: the suite runs in parallel, so single timings are noisy.
     let plan = await run();

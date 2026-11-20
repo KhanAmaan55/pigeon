@@ -61,6 +61,8 @@ export interface CommitPlan {
   deletes: ProjectPath[];
   /** Directories left empty, deepest first. */
   rmdirs: ProjectPath[];
+  /** The entity each deleted file belonged to (to keep its draft when the delete fails). */
+  deleteOwners: Readonly<Record<ProjectPath, string>>;
   /** Delete + write pairs of one entity, for display (`R old → new`). */
   renames: PlannedRename[];
   /** Entities that can't be committed; the plan doesn't include them. */
@@ -81,8 +83,8 @@ export interface PlanInput {
   knownPaths: ReadonlySet<ProjectPath>;
   /** Managed files that failed to parse on load. */
   brokenPaths: ReadonlySet<ProjectPath>;
-  /** sha-256 of the bytes, to compare with the disk. */
-  hash: (bytes: Uint8Array) => Promise<string>;
+  /** The content hash of a file's bytes (`contentHash`), to compare with the disk. */
+  hash: (bytes: Uint8Array, path: ProjectPath) => Promise<string>;
 }
 
 export async function planCommit(input: PlanInput): Promise<CommitPlan> {
@@ -170,7 +172,8 @@ export async function planCommit(input: PlanInput): Promise<CommitPlan> {
       continue;
     }
     const onDisk = input.disk.get(path);
-    if (onDisk !== undefined && onDisk !== null && onDisk === (await input.hash(bytes))) continue;
+    if (onDisk !== undefined && onDisk !== null && onDisk === (await input.hash(bytes, path)))
+      continue;
     writes.push({
       path,
       bytes,
@@ -240,6 +243,12 @@ export async function planCommit(input: PlanInput): Promise<CommitPlan> {
     prerequisites: prerequisites.filter((id) => !blockedIds.has(id)),
     writes,
     deletes,
+    deleteOwners: Object.fromEntries(
+      deletes.flatMap((path) => {
+        const owner = baseOwners.get(path);
+        return owner ? [[path, owner]] : [];
+      }),
+    ),
     rmdirs,
     renames,
     blocked,

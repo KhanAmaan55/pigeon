@@ -190,6 +190,10 @@ importers:
       '@pigeon/platform':
         specifier: workspace:*
         version: link:../platform
+    devDependencies:
+      '@pigeon/test-server':
+        specifier: workspace:*
+        version: link:../test-server
 
   packages/platform-web:
     dependencies:

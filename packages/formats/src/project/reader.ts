@@ -7,7 +7,7 @@
 
 import type { ProjectFileSystem, ProjectPath } from '@pigeon/platform';
 
-import { sha256Hex } from '../hash';
+import { contentHash } from '../hash';
 import { environmentFromPostman, globalsFromPostman } from '../postman/environment';
 import { EXAMPLE_SUFFIX, exampleBodyFromFile, exampleFromPostman } from '../postman/example';
 import { COMPARE_FILE, comparisonFromFile } from './comparison';
@@ -342,7 +342,7 @@ async function readExamples(context: ReadContext, model: ProjectModel): Promise<
       const bodyPath = `${directory}/${bodyFile}`;
       try {
         const bytes = await context.fs.readFile(bodyPath);
-        context.files.set(bodyPath, { hash: await sha256Hex(bytes) });
+        context.files.set(bodyPath, { hash: await contentHash(bodyPath, bytes) });
         body = exampleBodyFromFile(bodyFile, bytes);
       } catch (cause) {
         context.problems.push(
@@ -381,7 +381,7 @@ async function readJson(context: ReadContext, path: ProjectPath): Promise<JsonOb
     context.problems.push(error(path, 'parse', `Could not read file: ${messageOf(cause)}`));
     return undefined;
   }
-  context.files.set(path, { hash: await sha256Hex(bytes) });
+  context.files.set(path, { hash: await contentHash(path, bytes) });
   let value: unknown;
   try {
     value = JSON.parse(decoder.decode(bytes));

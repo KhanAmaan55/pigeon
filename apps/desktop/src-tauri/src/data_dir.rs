@@ -22,6 +22,9 @@ pub fn isolated() -> Option<&'static PathBuf> {
 pub fn app_data_dir<R: Runtime, M: Manager<R>>(manager: &M) -> Result<PathBuf, String> {
     match ISOLATED.get() {
         Some(dir) => Ok(dir.clone()),
-        None => manager.path().app_data_dir().map_err(|error| error.to_string()),
+        None => manager
+            .path()
+            .app_data_dir()
+            .map_err(|error| error.to_string()),
     }
 }

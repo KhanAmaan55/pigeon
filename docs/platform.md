@@ -174,7 +174,7 @@ All three OSes use the same `platform-desktop` package and the same Rust code:
 - Keyboard: `Ctrl`; menu in-window (or none) — shortcuts must not depend on a native menu.
 - Packaging: NSIS `.exe` and/or `.msi`. Authenticode signing (D-11) avoids SmartScreen warnings.
 - App data: `%APPDATA%\<app-id>\`.
-- Filesystem: paths converted from POSIX to `\` only inside `platform-desktop`; reserved names (`CON`, `NUL`, `COM1`…) and trailing dots/spaces avoided by slug rules; MAX_PATH (260) — warn when project root + longest managed path > 240 chars; rename-over-existing is supported by Rust `std::fs::rename`. Files may be locked by other processes (editors, antivirus) → retry write up to 3 times with backoff, then report.
+- Filesystem: paths converted from POSIX to `\` only inside `platform-desktop`; reserved names (`CON`, `NUL`, `COM1`…) and trailing dots/spaces avoided by slug rules; MAX_PATH (260) — warn when project root + longest managed path > 240 chars (the write is still attempted); rename-over-existing is supported by Rust `std::fs::rename` (cargo-tested). Files may be locked by other processes (editors, antivirus) → writes, renames and removes retry up to 3 times with backoff (50/100/150 ms; Rust `with_retry`, NodeFs `withRetry`), then Save for Commit reports the file and goes on with the others.
 - Line endings: Pigeon always writes LF; project `.gitattributes` (`* text=auto eol=lf` for managed paths) prevents `core.autocrlf` churn.
 
 ### 5.4 Linux
@@ -243,7 +243,7 @@ The web version uses `fetch()`. The browser, not Pigeon, decides what is allowed
 
 ## 7. Node (tests, future CLI)
 
-`platform-node` implements `NodeFs` (node:fs/promises) and `NodeTransport` (undici). It is used by the cross-OS filesystem conformance suite (PIGN-040) and the CLI runner (PIGN-054). Capabilities mirror desktop (no CORS, all headers).
+`platform-node` implements `NodeFs` (node:fs/promises; recursive `fs.watch`; locked-file retries; symlinked directories not followed) and `NodeTransport` (node:http/https: raw header order and duplicates, manual redirects with every hop, gzip/deflate/br, `strictSSL`, timeouts, aborts; `NODE_CAPABILITIES`). Both pass the shared conformance suites. They are used by the cross-OS integration suite (`packages/core/test/cross-os.test.ts`, PIGN-040) and the CLI runner (PIGN-054). Capabilities mirror desktop (no CORS, all headers).
 
 ## 8. Conformance suites
 

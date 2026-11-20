@@ -2,7 +2,7 @@ export const PACKAGE_NAME = '@pigeon/formats';
 
 export { stringifyCanonical } from './canonical-json';
 export type { CanonicalJsonOptions, KeyOrderPath, KeyOrderSpec } from './canonical-json';
-export { sha256Hex } from './hash';
+export { contentHash, sha256Hex } from './hash';
 export { beautifyJson } from './json-format';
 export type { DetectedFormat } from './detect';
 export { detectFormat } from './detect';
