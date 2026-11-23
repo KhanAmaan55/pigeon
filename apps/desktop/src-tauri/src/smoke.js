@@ -213,6 +213,20 @@
     }
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await waitFor('history entry closed', () => !find('history-entry'));
+    // Read-only Git status (PIGN-057): answers for the project folder (a temp folder outside any
+    // repository, so no branch is shown) and refuses folders the user never opened.
+    const git = await invoke('git_status', { root: PROJECT_ROOT });
+    if (typeof git.available !== 'boolean' || (git.available && git.repository !== null)) {
+      throw new Error(`unexpected git status: ${JSON.stringify(git)}`);
+    }
+    if (find('status-git')) throw new Error('a Git branch is shown outside a repository');
+    const gitDenied = await invoke('git_status', { root: '/' }).then(
+      () => null,
+      (error) => error,
+    );
+    if (!gitDenied || !String(gitDenied).includes('no access')) {
+      throw new Error(`git_status ran for an ungranted folder: ${JSON.stringify(gitDenied)}`);
+    }
     // OS keychain secrets (PIGN-053): the OAuth token went through the keychain commands (an
     // in-memory credential store in smoke runs), and Settings → Secrets names the keychain.
     await invoke('keychain_status', {});

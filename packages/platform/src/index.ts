@@ -1,5 +1,7 @@
 export type { AppStateNamespace, AppStateStore } from './app-state';
 export type { Capabilities } from './capabilities';
+export type { GitFileState, GitFileStatus, GitStatus, GitStatusReader } from './git';
+export { MemoryGitStatus } from './git';
 export { defineCapabilities } from './capabilities';
 export type { ConfirmOptions, Dialogs, MessageOptions } from './dialogs';
 export type { FileExchange, PickedFile } from './files';

@@ -39,6 +39,7 @@ export const NODE_CAPABILITIES = defineCapabilities({
   persistentFolderAccess: true,
   fileReferencesByPath: true,
   secretStorage: 'local-state',
+  gitStatus: false,
   multiWindow: false,
   offline: true,
 });

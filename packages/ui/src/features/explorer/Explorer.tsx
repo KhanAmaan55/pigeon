@@ -28,6 +28,7 @@ import { methodColorClass } from '../request-editor/methods';
 import { curlSnippet, isEmptyComparison } from '@pigeon/formats';
 import { statusClass } from '../examples/ExamplesTab';
 import { useRunner } from '../runner/Runner';
+import { GitDot } from '../git/git-status';
 import { ExportDialog } from '../import-export/ExportDialog';
 import { disposeTabEditor } from '../tabs/editor-registry';
 import type { DropPosition } from './actions';
@@ -874,6 +875,7 @@ function ExplorerRow({
           !
         </span>
       )}
+      {!renaming && <GitDot row={row} />}
       {row.unsaved && !renaming && (
         <span
           data-testid="explorer-unsaved"

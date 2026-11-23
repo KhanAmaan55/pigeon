@@ -7,6 +7,7 @@ import { ResizeHandle } from '../components/ResizeHandle';
 import { Toast } from '../components/Toast';
 import { useAppStore, useAppStoreApi } from '../stores/AppStoreProvider';
 import { newRequest } from '../features/explorer/actions';
+import { useGitTracking } from '../features/git/git-status';
 import { useCorsProxyActivation } from '../features/settings/CorsProxySettings';
 import type { AppCommand } from './commands';
 import { COMMAND_EVENT } from './commands';
@@ -44,6 +45,7 @@ export function AppShell() {
 
   // Web proxy mode follows the active project (PIGN-052).
   useCorsProxyActivation();
+  useGitTracking();
   const registry = useCommandRegistry();
   const needsProject = () => {
     if (appStore.getState().project) return false;

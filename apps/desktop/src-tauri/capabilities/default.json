@@ -38,6 +38,7 @@
     "allow-history-list",
     "allow-history-get",
     "allow-history-remove",
-    "allow-history-clear"
+    "allow-history-clear",
+    "allow-git-status"
   ]
 }

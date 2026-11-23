@@ -85,7 +85,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-054](PIGN-054-cli-runner.md) | CLI regression runner | 9 Later | Later | 038, 040 | Done |
 | [PIGN-055](PIGN-055-graphql-introspection.md) | GraphQL introspection & autocomplete | 9 Later | Later | 032 | Todo |
 | [PIGN-056](PIGN-056-json-schema-export.md) | JSON Schema export of snapshots | 9 Later | Later | 035 | Done |
-| [PIGN-057](PIGN-057-git-status-awareness.md) | Read-only Git status awareness (desktop) | 9 Later | Later | 041 | Todo |
+| [PIGN-057](PIGN-057-git-status-awareness.md) | Read-only Git status awareness (desktop) | 9 Later | Later | 041 | Done |
 
 ### Parallelism notes
 - PIGN-005, PIGN-012 and PIGN-033 are pure libraries/tools and can be done early or in parallel with UI stories.

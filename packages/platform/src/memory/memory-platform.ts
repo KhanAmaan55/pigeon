@@ -92,6 +92,7 @@ export const MEMORY_CAPABILITIES: Readonly<Capabilities> = defineCapabilities({
   persistentFolderAccess: true,
   fileReferencesByPath: true,
   secretStorage: 'memory',
+  gitStatus: false,
   multiWindow: false,
   offline: true,
 });

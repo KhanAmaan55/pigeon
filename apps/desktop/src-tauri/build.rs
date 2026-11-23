@@ -37,6 +37,7 @@ fn main() {
             "history_get",
             "history_remove",
             "history_clear",
+            "git_status",
         ]),
     ))
     .expect("failed to run tauri-build");

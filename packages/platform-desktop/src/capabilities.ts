@@ -17,6 +17,7 @@ export const DESKTOP_CAPABILITIES: Readonly<Capabilities> = defineCapabilities({
   persistentFolderAccess: true,
   fileReferencesByPath: true,
   secretStorage: 'os-keychain', // falls back to secrets.json when unavailable (PIGN-053)
+  gitStatus: true, // read-only, through the installed git (PIGN-057); hidden when it's missing
   multiWindow: false, // later
   offline: true,
 });

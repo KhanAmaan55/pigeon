@@ -52,6 +52,7 @@ export function detectWebCapabilities(env: object = globalThis): Readonly<Capabi
     // Only files inside an opened fs-access project folder; elsewhere files must be re-picked.
     fileReferencesByPath: projectFolders === 'fs-access',
     secretStorage: 'indexeddb',
+    gitStatus: false,
     multiWindow: true, // browser tabs
     offline: false, // the app must be loaded from the network first
   });

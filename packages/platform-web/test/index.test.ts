@@ -13,6 +13,7 @@ describe('detectWebCapabilities', () => {
       fileReferencesByPath: true,
       fileWatch: false,
       secretStorage: 'indexeddb',
+      gitStatus: false,
     });
   });
 

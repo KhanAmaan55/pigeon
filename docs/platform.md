@@ -134,6 +134,7 @@ interface Capabilities {
   persistentFolderAccess: boolean;   // reopen folder without re-prompt
   fileReferencesByPath: boolean;     // form-data/binary file by path at send time
   secretStorage: SecretStore['backend'];
+  gitStatus: boolean;                // read-only Git status of project folders (PIGN-057)
   multiWindow: boolean;
   offline: boolean;                  // full offline for local workflows
 }
@@ -157,6 +158,7 @@ interface Capabilities {
 | persistentFolderAccess | ✅ (persisted scope) | ✅ | ✅ | ⚠️ re-prompt per session unless browser grants persistent permission | n/a | n/a |
 | fileReferencesByPath | ✅ | ✅ | ✅ | ⚠️ only files inside the opened project folder | ❌ re-pick | ❌ re-pick |
 | secretStorage | os-keychain (Keychain) | os-keychain (Credential Manager) | os-keychain (Secret Service; local-state fallback) | indexeddb | indexeddb | indexeddb |
+| gitStatus | ✅ (installed `git`) | ✅ | ✅ | ❌ | ❌ | ❌ |
 | multiWindow | later | later | later | browser tabs | browser tabs | browser tabs |
 | offline | ✅ full | ✅ full | ✅ full | ⚠️ app must be loaded; PWA future | ⚠️ | ⚠️ |
 
@@ -173,6 +175,7 @@ All three OSes use the same `platform-desktop` package and the same Rust code:
 - **AppState**: JSON files under `appDataDir()` (see [file-format.md §6](file-format.md#6-local-app-state)).
 - **Watch**: Rust `notify` watcher (`project_watch`, `src-tauri/src/watch.rs`; recursive, debounced 250 ms) → `project-fs-change` events → `FsChangeEvent[]`; the session verifies by hash.
 - **Secrets** (PIGN-053): `KeychainSecretStore` over Rust `keychain_status/get_all/set/delete/clear` (`src-tauri/src/keychain.rs`, `keyring` crate behind a `KeyStore` trait; an in-memory store in tests and `--smoke` runs). The availability probe runs once per launch; any keychain error switches to `FileSecretStore` (`secrets.json`) for the rest of the run, with the reason in Settings → Secrets and Diagnostics. Capability `secretStorage` is `os-keychain`; `platform.secrets.backend` reports what is in use now. Storage layout, migration and "Forget all secrets": [file-format.md §7](file-format.md#7-secrets).
+- **Git status** (PIGN-057, read-only): `DesktopGitStatus` → Rust `git_status(root)` (`src-tauri/src/git.rs`) for a granted project root only. It runs the user's installed `git` (none is bundled) and can only build the allow-listed read-only invocations `git --version`, `git rev-parse --show-prefix` and `git status --porcelain=v2 -z --branch --untracked-files=all -- .` (a `cargo test` checks the allowlist), each with `--no-optional-locks` and `-c core.fsmonitor=false`, no terminal prompts, and no console window on Windows. `-z` output keeps unicode and spaces in paths. When `git` is missing (on macOS also the Xcode shim without the command line tools, which would otherwise open an install dialog) the status is `available: false` and the UI shows nothing; outside a work tree it is `repository: null`. The UI reads it when the project opens, on window focus and shortly after project changes (Save for Commit, external changes), and shows the branch and changed-file count in the status bar and a dot per changed entity in the explorer (a request counts its example files). Capability `gitStatus` is `true` on desktop; whether `git` is installed is only known from the status. Pigeon never runs a Git command that writes.
 - **Keychain prompts**: on macOS an unsigned build is a different app to the Keychain after every rebuild, so reading entries written by an earlier build asks "Pigeon wants to use your confidential information" (choose *Always Allow*). Signed releases (D-11) keep one identity and do not ask again.
 
 ### 5.2 macOS
@@ -276,6 +279,7 @@ Options: `--port`, `--host` (default `127.0.0.1`), `--allow-origin <url>` (repea
 - The browser cannot run Git or read `.git` meaningfully. Pigeon on web never touches Git.
 - In Chromium with an fs-access folder that is inside a Git checkout, Save for Commit writes into the working tree; users run Git themselves. This is the full Git workflow on web.
 - In browser-workspace mode there is no Git; export a zip and commit elsewhere.
+- Desktop shows read-only Git status (branch, changed files; §5.1, PIGN-057); capability `gitStatus` is `false` on web.
 
 ## 7. Node (tests, CLI)
 

@@ -41,6 +41,7 @@ Activity bar (left icons): Collections, Environments, History, Pending Changes, 
 
 ### 3.2 Collection explorer
 - Virtualized tree: collections → folders → requests; method badge (colour per method), name, state badge (`M`, `A`, `D`, `!` conflict, ⚠ broken file).
+- Desktop in a Git checkout (PIGN-057, read-only): a small square dot marks entities whose file differs from Git `HEAD` — yellow changed (not staged), blue staged, green new/untracked, red conflict; a request includes its example files. It is separate from the draft letters (`M` = saved locally, not in the files yet). The status bar shows the branch and "N changed"; click to refresh. Hidden on web, outside a repository and without `git`.
 - Actions (context menu + keyboard): New request (`Cmd/Ctrl+N`), New folder, Rename (`F2`/`Enter`), Duplicate (`Cmd/Ctrl+D`), Delete (`Del`/`Cmd+Backspace`, confirm), Move (drag & drop, with drop indicators), Copy as cURL (requests; `{{variables}}` kept, literal credentials masked — PIGN-050), Run folder, Export collection.
 - Filter box (`Cmd/Ctrl+F` in explorer): fuzzy filter on name + URL.
 - Single click = preview tab (italic, replaced by next preview); double click or edit = pinned tab.

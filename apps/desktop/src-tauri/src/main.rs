@@ -4,6 +4,7 @@
 mod app_state;
 mod data_dir;
 mod files;
+mod git;
 mod history;
 mod http;
 mod keychain;
@@ -71,6 +72,7 @@ fn main() {
             history::history_get,
             history::history_remove,
             history::history_clear,
+            git::git_status,
             smoke::smoke_report
         ])
     } else {
@@ -107,7 +109,8 @@ fn main() {
             history::history_list,
             history::history_get,
             history::history_remove,
-            history::history_clear
+            history::history_clear,
+            git::git_status
         ])
     };
 

@@ -1,6 +1,7 @@
 import { useAppStore } from '../stores/AppStoreProvider';
 import { useAppConfig } from './AppConfig';
 import { OS_LABELS, PLATFORM_KIND_LABELS } from './platformLabels';
+import { GitStatusItem } from '../features/git/git-status';
 import { useCapabilities, usePlatform } from './PlatformProvider';
 
 const DETECTION_LABELS = {
@@ -61,6 +62,7 @@ export function StatusBar() {
           Browser mode — CORS applies
         </button>
       )}
+      <GitStatusItem />
       {detection && (
         <span
           data-testid="status-change-detection"

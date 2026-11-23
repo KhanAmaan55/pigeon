@@ -5,6 +5,7 @@ import { platform as osPlatform } from '@tauri-apps/plugin-os';
 import { FileAppState } from './app-state';
 import { DESKTOP_CAPABILITIES } from './capabilities';
 import { DesktopFileExchange } from './files';
+import { DesktopGitStatus } from './git';
 import { NativeTransport } from './native-transport';
 import { DesktopProjectLocator } from './project-locator';
 import { FileHistoryStore } from './history-store';
@@ -14,6 +15,7 @@ import { createDesktopOAuth } from './oauth';
 export { FileAppState } from './app-state';
 export { DESKTOP_CAPABILITIES } from './capabilities';
 export { DesktopFileExchange, encodeSaveFrame } from './files';
+export { DesktopGitStatus } from './git';
 export type { Invoke, NativeTransportOptions, WireBody, WireFileRef } from './native-transport';
 export { decodeResponseFrame, encodeRequestFrame, NativeTransport } from './native-transport';
 export { fromNativePath, isWindowsPath, nativeBaseName, toNativePath } from './paths';
@@ -69,6 +71,7 @@ export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): 
     history: new FileHistoryStore(),
     files: new DesktopFileExchange(),
     oauth: createDesktopOAuth(),
+    git: new DesktopGitStatus(),
   };
 }
 export { onMenuCommand } from './menu';

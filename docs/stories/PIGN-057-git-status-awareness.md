@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-057 | 9 — Later | Later | Todo | PIGN-041 |
+| PIGN-057 | 9 — Later | Later | Done | PIGN-041 |
 
 ## Goal
 On desktop, show which Pigeon project files are modified/untracked relative to Git `HEAD`, and the current branch — read-only. Pigeon still never commits, pushes, or pulls.
@@ -25,10 +25,10 @@ As a developer, I want to see which requests I've changed since my last commit, 
 - Any Git write operation, diffs from history, blame.
 
 ## Acceptance criteria
-- [ ] After Save for Commit, changed files show as Git-modified; after the user commits externally, decorations clear on refresh.
-- [ ] No Git subcommand other than the allowlisted read-only ones can be invoked (Rust test).
-- [ ] Missing `git` → feature hidden, no errors.
-- [ ] Works on macOS, Windows, Linux.
+- [x] After Save for Commit, changed files show as Git-modified; after the user commits externally, decorations clear on refresh.
+- [x] No Git subcommand other than the allowlisted read-only ones can be invoked (Rust test).
+- [x] Missing `git` → feature hidden, no errors.
+- [ ] Works on macOS, Windows, Linux. *Verified on macOS; the Rust temp-repository test runs on all three in CI once pushed (it skips when `git` is missing), and the Windows-only no-console flag compiles only there.*
 
 ## Technical notes
 - Use `-z` output parsing to handle unicode/space paths safely.
@@ -41,3 +41,11 @@ As a developer, I want to see which requests I've changed since my last commit, 
 
 ## Definition of done
 Standard DoD.
+
+## Implementation notes
+
+- **Rust** (`src-tauri/src/git.rs`): command `git_status(root)` for granted project roots only (`ProjectRoots::check`). `GitQuery` is a closed enum — `--version`, `rev-parse --show-prefix`, `status --porcelain=v2 -z --branch --untracked-files=all -- .` — and `git_args` / `is_allowed` are the only way to build arguments; every call adds `--no-optional-locks` and `-c core.fsmonitor=false` (a repository's config can't make Pigeon start a program), sets `GIT_TERMINAL_PROMPT=0`, clears `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE`, and hides the console window on Windows. The branch comes from the porcelain `# branch.head` header rather than a separate `rev-parse --abbrev-ref HEAD`. `-z` records are parsed for ordinary, renamed, unmerged and untracked entries; paths are made project-relative with `--show-prefix`. On macOS, `/usr/bin/git` without the command line tools would open an install dialog, so that case counts as "no git".
+- **Platform**: capability `gitStatus` (desktop `true`; web, Node, memory `false`), `Platform.git?: GitStatusReader`, types in `platform/src/git.ts` plus `MemoryGitStatus` for tests; `DesktopGitStatus` in platform-desktop. Whether `git` is installed is only known from the status (`available: false`), not from the capability: the UI hides everything then.
+- **UI** (`features/git/git-status.tsx`): a per-session store (one read at a time, coalesced), refreshed on project open, window focus and 400 ms after session changes (Save for Commit writes and reloads from the watcher both emit). Explorer `GitDot` (square, coloured per state, separate from the draft letters; a request counts its example files) and status bar `GitStatusItem` (branch, "N changed", click to refresh).
+- **Tests**: cargo — the allowlist (write subcommands, extra arguments and missing safety options are refused), porcelain parsing (unicode, spaces, renames, conflicts, detached HEAD), and a temporary repository through the installed `git` (not a repo → changes inside and outside the project → commit clears). TS — the desktop adapter, and UI tests for decorations, refresh on focus after an external commit, and hidden states. The desktop smoke test checks `git_status` on its (non-repository) project and that an ungranted folder is refused.
+- Not done: the optional "Open in Git client" / "Reveal in terminal" helpers.

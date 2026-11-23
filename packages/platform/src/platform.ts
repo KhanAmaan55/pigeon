@@ -3,6 +3,7 @@ import type { Capabilities } from './capabilities';
 import type { Dialogs } from './dialogs';
 import type { CorsProxyControl } from './cors-proxy';
 import type { FileExchange } from './files';
+import type { GitStatusReader } from './git';
 import type { HistoryStore } from './history';
 import type { OAuthBrowser } from './oauth';
 import type { ProjectFileSystem, ProjectLocation } from './fs';
@@ -38,4 +39,6 @@ export interface Platform {
    * `transport` sends through it and `capabilities` report proxy mode.
    */
   readonly corsProxy?: CorsProxyControl;
+  /** Desktop only (PIGN-057): read-only Git status of a project folder. */
+  readonly git?: GitStatusReader;
 }

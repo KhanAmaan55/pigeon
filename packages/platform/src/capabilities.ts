@@ -29,6 +29,8 @@ export interface Capabilities {
   fileReferencesByPath: boolean;
   secretStorage: SecretBackend;
   multiWindow: boolean;
+  /** Read-only Git status of project folders (PIGN-057): desktop with `git` installed. */
+  gitStatus: boolean;
   /** Full offline for local workflows. */
   offline: boolean;
 }
