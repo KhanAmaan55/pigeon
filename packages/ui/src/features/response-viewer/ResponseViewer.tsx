@@ -28,6 +28,7 @@ import { ErrorCard } from './ErrorCard';
 import { HeadersTable } from './HeadersTable';
 import { StatusLine } from './StatusLine';
 import { TimelineTab } from './TimelineTab';
+import { ConsolePanel, useConsoleEntries } from '../console/ConsolePanel';
 
 export type ResponseDock = 'bottom' | 'right';
 
@@ -103,6 +104,12 @@ export function ResponseViewer({
             <>
               {result.warnings.length > 0 && <Warnings warnings={result.warnings} />}
               {result.error && <ErrorCard error={result.error} />}
+              {/* A failed script: its output explains the error (PIGN-043). */}
+              {result.error?.kind === 'script' && (
+                <div className="flex max-h-60 min-h-0 flex-col border-t border-border">
+                  <ConsolePanel limit={50} />
+                </div>
+              )}
             </>
           )}
           {result.response && (
@@ -199,6 +206,8 @@ function ResponseTabs({
   // The rules panel follows edits of compare.json / pigeon.json.
   useProjectState((s) => s.model, null);
   const [reveal, setReveal] = useState<{ line: number; nonce: number } | undefined>(undefined);
+  const hasProject = useAppStore((s) => s.project !== null);
+  const consoleCount = useConsoleEntries().length;
   const { files } = usePlatform();
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
   const saveAsExample = useScratchRequest((s) => s.saveAsExample);
@@ -266,6 +275,19 @@ function ResponseTabs({
           {canCompare && (
             <ResponseTab value="compare" testId="response-compare-tab">
               Compare
+            </ResponseTab>
+          )}
+          {hasProject && (
+            <ResponseTab value="console" testId="response-console-tab">
+              Console
+              {consoleCount > 0 && (
+                <span
+                  data-testid="response-console-count"
+                  className="rounded-full bg-hover px-1.5 text-xs leading-4 text-fg"
+                >
+                  {consoleCount}
+                </span>
+              )}
             </ResponseTab>
           )}
           {saveAsExample && (
@@ -407,6 +429,14 @@ function ResponseTabs({
               onTab('body');
             }}
           />
+        </Tabs.Content>
+      )}
+      {hasProject && (
+        <Tabs.Content
+          value="console"
+          className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+        >
+          <ConsolePanel />
         </Tabs.Content>
       )}
       {saveAsExample && (

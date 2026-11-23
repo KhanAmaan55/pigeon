@@ -34,6 +34,7 @@ export const ERROR_TITLES: Readonly<Record<ExecutionErrorKind, string>> = Object
   'invalid-url': 'Invalid URL',
   'invalid-request': 'Invalid request',
   'file-unavailable': 'File unavailable',
+  script: 'Pre-request script error',
   unknown: 'Request failed',
 });
 
@@ -50,6 +51,7 @@ const MESSAGES: Readonly<Record<ExecutionErrorKind, string>> = {
   'invalid-url': 'The URL is not valid.',
   'invalid-request': 'The request is not valid.',
   'file-unavailable': 'A file in the request body could not be read.',
+  script: 'A pre-request script failed, so the request was not sent.',
   unknown: 'The request failed.',
 };
 

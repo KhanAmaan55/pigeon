@@ -7,6 +7,8 @@
 
 import type {
   ComparisonOutcome,
+  ConsoleEntry,
+  CurrentValueWrite,
   ExecutionResult,
   ProjectSession,
   RunEntry,
@@ -24,6 +26,7 @@ import {
   RequestExecutor,
   runRegression,
   runTargets,
+  scriptChain,
   scriptsNotRun,
 } from '@pigeon/core';
 import type { Platform } from '@pigeon/platform';
@@ -32,7 +35,8 @@ import { createStore } from 'zustand';
 import type { ProjectStore } from '../../stores/project-store';
 import { compareRequestResult } from '../compare/compare-request';
 import type { ScratchRequestEnvironment } from '../request-editor/scratch-store';
-import { getTabEditor, toEditorRequest } from '../tabs/editor-registry';
+import { workerScriptRunner } from '../scripts/run-script';
+import { applyScriptWrites, getTabEditor, toEditorRequest } from '../tabs/editor-registry';
 import { RUNNER_TAB_ID } from './tab';
 
 export { RUNNER_TAB_ID } from './tab';
@@ -170,6 +174,31 @@ export function createRunnerStore(
         const secrets = new Map<string, readonly string[]>();
         const pageOrigin =
           platform.capabilities.transport === 'fetch' ? env.pageOrigin?.() : undefined;
+        // Pre-request scripts run in runs too (PIGN-043), with the same project switch.
+        const scriptOptions = (
+          requestId: string,
+          requestName: string,
+          working: ReturnType<typeof session.getWorkingModel>,
+        ) => {
+          const enabled = projectStore.getState().scriptsEnabled;
+          const scripts = enabled ? scriptChain(working, requestId, 'prerequest') : [];
+          return {
+            skippedScripts: scriptsNotRun(working, requestId, enabled ? 'test' : undefined),
+            skippedScriptsReason: enabled ? ('tests' as const) : ('disabled' as const),
+            ...(scripts.length > 0
+              ? {
+                  preRequest: {
+                    runner: workerScriptRunner,
+                    scripts,
+                    requestName,
+                    onWrites: (writes: CurrentValueWrite[]) => applyScriptWrites(session, writes),
+                    onLogs: (entries: ConsoleEntry[]) =>
+                      projectStore.getState().appendConsole(entries),
+                  },
+                }
+              : {}),
+          };
+        };
         const execute = (target: RunTarget, signal: AbortSignal) => {
           const working = session.getWorkingModel();
           const request = session.findRequest(target.requestId)!;
@@ -189,7 +218,7 @@ export function createRunnerStore(
               itemId: target.requestId,
             }),
             ...(inherited === undefined ? {} : { inheritedAuth: inherited }),
-            skippedScripts: scriptsNotRun(working, target.requestId),
+            ...scriptOptions(target.requestId, editorRequest.name, working),
           });
           return executor.execute(editorRequest, ctx, {
             signal,

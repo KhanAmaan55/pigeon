@@ -172,7 +172,7 @@ export async function prepareRequest(
   const checked = validateBody(method, encoding.encoded, request.settings, ctx.capabilities);
   if (!checked.ok) return checked;
   const { encoded } = checked.value;
-  const scriptWarning = scriptsNotRunWarning(ctx.skippedScripts ?? []);
+  const scriptWarning = scriptsNotRunWarning(ctx.skippedScripts ?? [], ctx.skippedScriptsReason);
   const warnings = [
     ...(scriptWarning ? [scriptWarning] : []),
     ...variableWarnings,

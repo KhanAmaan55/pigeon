@@ -10,11 +10,15 @@ import type {
   ProjectModel,
   ProjectSession,
   ComparisonResult,
+  ConsoleEntry,
 } from '@pigeon/core';
 import { findContainer, GLOBALS_ENTITY_ID, rememberComparison } from '@pigeon/core';
 
 import { RUNNER_TAB_ID } from '../features/runner/tab';
 import { createStore } from 'zustand';
+
+/** Console entries kept per project. */
+export const CONSOLE_LIMIT = 500;
 
 /** An open request tab. An unpinned tab is the *preview* tab (at most one, replaced by the next preview). */
 export interface TabRef {
@@ -41,6 +45,13 @@ export interface ProjectState {
   /** Latest comparison per request (PIGN-034); local only. */
   comparisons: Readonly<Record<string, ComparisonResult>>;
   setComparison: (result: ComparisonResult) => void;
+  /** Run pre-request scripts on send (PIGN-043; per project, local state). */
+  scriptsEnabled: boolean;
+  setScriptsEnabled: (enabled: boolean) => void;
+  /** Script console output of this project, oldest first, at most `CONSOLE_LIMIT` (in memory). */
+  console: readonly ConsoleEntry[];
+  appendConsole: (entries: readonly ConsoleEntry[]) => void;
+  clearConsole: () => void;
   /** Response panel position, remembered per project. */
   dock: 'bottom' | 'right';
   setDock: (dock: 'bottom' | 'right') => void;
@@ -125,6 +136,17 @@ export function createProjectStore(session: ProjectSession) {
     dock: saved?.layout.responsePanel ?? 'bottom',
     setDock: (dock) => set({ dock }),
     comparisons: saved?.lastComparisons ?? {},
+    scriptsEnabled: saved?.scriptsEnabled !== false,
+    setScriptsEnabled: (scriptsEnabled) => {
+      set({ scriptsEnabled });
+      session.updateLocalState({ scriptsEnabled });
+    },
+    console: [],
+    appendConsole: (entries) => {
+      if (entries.length === 0) return;
+      set({ console: [...get().console, ...entries].slice(-CONSOLE_LIMIT) });
+    },
+    clearConsole: () => set({ console: [] }),
     setComparison: (result) => {
       const comparisons = rememberComparison(get().comparisons, result);
       set({ comparisons });

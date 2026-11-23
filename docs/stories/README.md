@@ -71,7 +71,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-040](PIGN-040-cross-os-filesystem.md) | Cross-OS filesystem conformance | 8 Hardening | MVP | 020 | Done |
 | [PIGN-041](PIGN-041-desktop-packaging.md) | Desktop packaging & release builds | 8 Hardening | MVP | 040 | Done |
 | [PIGN-042](PIGN-042-shortcuts-palette-performance.md) | Shortcuts, command palette & performance budget | 8 Hardening | MVP | 038 | Done |
-| [PIGN-043](PIGN-043-script-sandbox-prerequest.md) | Script sandbox & pre-request scripts | 9 Later | Later | 042 | Todo |
+| [PIGN-043](PIGN-043-script-sandbox-prerequest.md) | Script sandbox & pre-request scripts | 9 Later | Later | 042 | Done |
 | [PIGN-044](PIGN-044-test-scripts.md) | Test scripts & results | 9 Later | Later | 043 | Todo |
 | [PIGN-045](PIGN-045-cookie-jar.md) | Cookie jar & cookie manager | 9 Later | Later | 042 | Todo |
 | [PIGN-046](PIGN-046-digest-awsv4-auth.md) | Digest & AWS SigV4 auth | 9 Later | Later | 042 | Todo |

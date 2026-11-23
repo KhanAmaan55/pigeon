@@ -8,6 +8,7 @@ import { ExampleSettings } from '../features/settings/ExampleSettings';
 import { KeyboardSettings } from '../features/settings/Keyboard';
 import { ProjectComparisonSettings } from '../features/settings/ProjectComparisonSettings';
 import { RequestDefaults } from '../features/settings/RequestDefaults';
+import { ScriptSettings } from '../features/settings/ScriptSettings';
 import { useAppStore } from '../stores/AppStoreProvider';
 import type { SidebarView } from './views';
 import { SIDEBAR_VIEW_TITLES } from './views';
@@ -29,6 +30,7 @@ export function Sidebar({ view }: { view: SidebarView }) {
           <RequestDefaults />
           <ExampleSettings />
           <ProjectComparisonSettings />
+          <ScriptSettings />
           <KeyboardSettings />
           <Diagnostics />
         </div>

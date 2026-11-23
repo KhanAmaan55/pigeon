@@ -10,6 +10,9 @@ import type {
   RequestSettings,
   TransportErrorKind,
 } from '@pigeon/platform';
+import type { CurrentValueWrite, ScriptSource } from '../scripting/prerequest';
+import type { ConsoleEntry, ScriptRunner } from '../scripting/types';
+import type { SkippedScriptsReason } from './scripts';
 
 export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 
@@ -46,6 +49,18 @@ export interface ExecutionContext {
   inheritedAuth?: Auth;
   /** Where scripts exist that this send does not run (PIGN-031): a warning on the result. */
   skippedScripts?: string[];
+  skippedScriptsReason?: SkippedScriptsReason;
+  /**
+   * Pre-request scripts to run before the request is prepared (PIGN-043). Their request and
+   * variable changes apply to this send; `onWrites` saves variable writes as current values.
+   */
+  preRequest?: {
+    runner: ScriptRunner;
+    scripts: readonly ScriptSource[];
+    requestName: string;
+    onWrites?: (writes: CurrentValueWrite[]) => void;
+    onLogs?: (entries: ConsoleEntry[]) => void;
+  };
 }
 
 export function createExecutionContext(
@@ -62,6 +77,10 @@ export function createExecutionContext(
     ...(init.generators === undefined ? {} : { generators: init.generators }),
     ...(init.inheritedAuth === undefined ? {} : { inheritedAuth: init.inheritedAuth }),
     ...(init.skippedScripts === undefined ? {} : { skippedScripts: init.skippedScripts }),
+    ...(init.skippedScriptsReason === undefined
+      ? {}
+      : { skippedScriptsReason: init.skippedScriptsReason }),
+    ...(init.preRequest === undefined ? {} : { preRequest: init.preRequest }),
   };
 }
 

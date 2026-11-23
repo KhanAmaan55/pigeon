@@ -236,6 +236,8 @@ Transports report a coarse `kind`, a message and the raw `detail`; `classifyErro
 
 Order: collection pre-request → folder pre-request(s) → request pre-request → **send** → collection test → folder test(s) → request test. Scripts run in a QuickJS sandbox (Worker) with a `pm` subset: `pm.environment`, `pm.collectionVariables`, `pm.globals`, `pm.variables` (get/set/unset), `pm.request` (read + header/url/body mutation before send), `pm.response` (status, headers, json(), text(), responseTime), `pm.test`, `pm.expect` (chai-style subset), `console.log`. No `pm.sendRequest`, no `require` in the first iteration. Variable mutations from scripts are written as **current values** (local), never shared values. Scripts time out after 5 s.
 
+Pre-request scripts (PIGN-043): `core/scripting` (`runPreRequestScripts`, `scriptChain`, the `pm` prelude, `createQuickJsRunner` on `quickjs-emscripten-core` + the release-sync wasm build) runs before `prepareRequest`; its request and variable changes apply to that send (`ExecutionContext.preRequest`). The UI runs QuickJS in a Worker (`ui/src/features/scripts/run-script.ts`; a stuck worker is terminated 3 s after the deadline). A failure becomes an `ExecutionError` of kind `script`. Supported API: compatibility.md §A.7.
+
 ## 10. Results storage
 
 The latest `ExecutionResult` per request is kept in memory and persisted (bounded, see file-format §6) so reopening a request shows its last response. Results are never written to project files; the only way a response reaches files is **Save as example** or **Accept as new baseline**.

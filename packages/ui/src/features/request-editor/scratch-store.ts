@@ -3,6 +3,8 @@ import type {
   Body,
   BodyMode,
   ComparisonOutcome,
+  ConsoleEntry,
+  CurrentValueWrite,
   EffectiveAuth,
   ExecutionPreferences,
   NewExample,
@@ -13,6 +15,9 @@ import type {
   KeyValue,
   Request,
   RequestSettings,
+  ScriptRunner,
+  ScriptSource,
+  SkippedScriptsReason,
   VariableScopes,
 } from '@pigeon/core';
 import {
@@ -28,6 +33,8 @@ import {
 } from '@pigeon/core';
 import type { Platform, ProjectFileSystem } from '@pigeon/platform';
 import { createStore } from 'zustand';
+
+import { workerScriptRunner } from '../scripts/run-script';
 
 /**
  * Ties an editor to a project request (PIGN-016): edits go to `ProjectSession.apply`, and the
@@ -58,8 +65,16 @@ export interface RequestBinding {
   /** The request's scripts (`event[]`) and their editing (PIGN-031). */
   events?: () => unknown[];
   setEvents?: (events: unknown[]) => void;
-  /** Where scripts exist that a send skips (the request, its folders, its collection). */
+  /** Where scripts exist that a send skips (the request, its folders, its collection), and why. */
   skippedScripts?: () => string[];
+  skippedScriptsReason?: () => SkippedScriptsReason;
+  /**
+   * Pre-request scripts to run on send (PIGN-043), `null` when none run; their variable writes
+   * go to `onScriptWrites` (current values) and console output to `onScriptLogs`.
+   */
+  preRequest?: () => { scripts: ScriptSource[]; requestName: string } | null;
+  onScriptWrites?: (writes: CurrentValueWrite[]) => void;
+  onScriptLogs?: (entries: ConsoleEntry[]) => void;
   /** Compares a result with the request's baseline example (PIGN-034). */
   compare?: (result: ExecutionResult) => Promise<ComparisonOutcome | undefined>;
   /** Adds (or merges) a field rule in the request's `compare.json` (PIGN-035). */
@@ -169,6 +184,8 @@ export interface ScratchRequestEnvironment {
   pageOrigin?: () => string | undefined;
   /** Compare with the baseline after every send (default on). */
   autoCompare?: () => boolean;
+  /** Runs pre-request scripts (PIGN-043); the Worker-based runner by default. */
+  scriptRunner?: ScriptRunner;
 }
 
 export function createScratchRequestStore(
@@ -322,6 +339,7 @@ export function createScratchRequestStore(
         const pageOrigin =
           platform.capabilities.transport === 'fetch' ? env.pageOrigin?.() : undefined;
         const inherited = get().request.auth ? undefined : binding?.inheritedAuth?.().auth;
+        const preRequest = binding?.preRequest?.();
         const ctx = createExecutionContext({
           capabilities: platform.capabilities,
           preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
@@ -330,6 +348,20 @@ export function createScratchRequestStore(
           ...(binding?.scopes ? { scopes: binding.scopes() } : {}),
           ...(inherited === undefined ? {} : { inheritedAuth: inherited }),
           ...(binding?.skippedScripts ? { skippedScripts: binding.skippedScripts() } : {}),
+          ...(binding?.skippedScriptsReason
+            ? { skippedScriptsReason: binding.skippedScriptsReason() }
+            : {}),
+          ...(preRequest
+            ? {
+                preRequest: {
+                  runner: env.scriptRunner ?? workerScriptRunner,
+                  scripts: preRequest.scripts,
+                  requestName: preRequest.requestName,
+                  ...(binding?.onScriptWrites ? { onWrites: binding.onScriptWrites } : {}),
+                  ...(binding?.onScriptLogs ? { onLogs: binding.onScriptLogs } : {}),
+                },
+              }
+            : {}),
         });
         let secrets: readonly string[] = [];
         const result = await executor.execute(get().request, ctx, {

@@ -1899,7 +1899,9 @@ describe('scripts tab (PIGN-031)', () => {
     expect(screen.getByTestId('scripts-tab-indicator')).toBeTruthy();
     await act(async () => screen.getByTestId('scripts-tab').focus());
     const pre = await screen.findByTestId('script-prerequest');
-    expect(screen.getByTestId('scripts-not-run').textContent).toContain('not executed yet');
+    expect(screen.getByTestId('scripts-not-run').textContent).toContain(
+      'Pre-request scripts run before each send',
+    );
     expect(within(pre).getByTestId('script-prerequest-lines').textContent).toBe('1 line');
     expect((await within(pre).findByTestId('script-prerequest-editor')).textContent).toContain(
       "pm.variables.set('run', 'yes');",
@@ -1912,7 +1914,7 @@ describe('scripts tab (PIGN-031)', () => {
     await user.click(screen.getByTestId('send-button'));
     await waitFor(() => expect(transport.requests).toHaveLength(1));
     expect((await screen.findByTestId('response-panel')).textContent).toContain(
-      'Scripts were not run (not supported yet): collection Users API.',
+      'Test scripts were not run (not supported yet): collection Users API.',
     );
 
     await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
@@ -2558,4 +2560,50 @@ describe('accessibility (PIGN-042)', () => {
     await waitFor(() => expect(tabs[0]!.getAttribute('aria-selected')).toBe('true'));
     expect(document.activeElement).toBe(tabs[0]);
   });
+});
+
+describe('pre-request scripts (PIGN-043)', () => {
+  it('runs them on send, shows console output, stops on errors and can be turned off', async () => {
+    const transport = new MockTransport().on({ url: /./ }, { body: 'ok' });
+    const { platform } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await user.dblClick(screen.getByText('List users'));
+    await act(async () => screen.getByTestId('scripts-tab').focus());
+    const editor = await within(await screen.findByTestId('script-prerequest')).findByTestId(
+      'script-prerequest-editor',
+    );
+    setEditorText(
+      editor,
+      "pm.variables.set('run', 'yes');\npm.request.headers.add({ key: 'X-Script', value: pm.variables.get('run') });\nconsole.log('signed', pm.info.requestName);",
+    );
+
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(1), { timeout: 10_000 });
+    expect(transport.requests[0]!.headers).toContainEqual(['X-Script', 'yes']);
+    expect(await screen.findByTestId('response-console-count')).toBeTruthy();
+    fireEvent.mouseDown(screen.getByTestId('response-console-tab'));
+    await act(async () => screen.getByTestId('response-console-tab').focus());
+    const entry = await screen.findByTestId('console-entry');
+    expect(entry.textContent).toContain('signed List users');
+    expect(entry.textContent).toContain('this request');
+
+    setEditorText(editor, "throw new Error('boom');");
+    await user.click(screen.getByTestId('send-button'));
+    const error = await screen.findByTestId('response-error', {}, { timeout: 10_000 });
+    expect(error.getAttribute('data-kind')).toBe('script');
+    expect(error.textContent).toContain('Pre-request script error in this request: boom');
+    expect(transport.requests).toHaveLength(1);
+
+    await user.click(screen.getByTestId('activity-settings'));
+    await user.click(await screen.findByTestId('preference-run-scripts'));
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(2));
+    expect(transport.requests[1]!.headers.some(([name]) => name === 'X-Script')).toBe(false);
+    expect((await screen.findByTestId('response-panel')).textContent).toContain(
+      'Scripts were not run (script execution is off for this project)',
+    );
+  }, 30_000);
 });

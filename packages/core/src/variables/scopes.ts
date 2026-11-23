@@ -8,7 +8,8 @@ import type { ProjectEnvVariable } from '@pigeon/formats';
 
 import type { Collection, Folder, ProjectItem, ProjectModel } from '../model/project';
 
-export type ScopeKind = 'environment' | 'collection' | 'folder' | 'globals';
+/** `local`: request-local variables set by scripts (`pm.variables.set`), this send only. */
+export type ScopeKind = 'local' | 'environment' | 'collection' | 'folder' | 'globals';
 
 export interface ScopedValue {
   value: string;

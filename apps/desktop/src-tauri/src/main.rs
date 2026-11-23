@@ -103,7 +103,8 @@ mod tests {
     }
 
     /// The webview never talks to the network directly (requests go through Rust, PIGN-007)
-    /// and never runs inline or remote scripts.
+    /// and never runs inline or remote scripts. `'self'` lets the script sandbox's Worker load
+    /// its bundled QuickJS wasm (PIGN-043); it is the app's own assets, not the network.
     #[test]
     fn csp_stays_strict() {
         let config = config();
@@ -118,7 +119,7 @@ mod tests {
             }
             for source in sources(csp, "connect-src") {
                 assert!(
-                    source == "ipc:" || source.contains("localhost"),
+                    source == "'self'" || source == "ipc:" || source.contains("localhost"),
                     "{key} connect-src allows {source}"
                 );
             }

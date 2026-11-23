@@ -83,7 +83,12 @@ fn seed_project(data: &std::path::Path, url: &str) -> io::Result<String> {
             serde_json::json!({
                 "id": "smoke-ping",
                 "name": "Ping",
-                "request": { "method": "GET", "header": [], "url": { "raw": format!("{url}/ping") } }
+                "request": { "method": "GET", "header": [], "url": { "raw": format!("{url}/ping") } },
+                // Runs in the QuickJS sandbox in a Worker (PIGN-043).
+                "event": [{
+                    "listen": "prerequest",
+                    "script": { "exec": ["pm.request.headers.add({ key: 'X-Script', value: 'desktop' });"] }
+                }]
             })
             .to_string(),
         ),

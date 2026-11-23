@@ -273,7 +273,7 @@ Status: **Proposed** = recommended, confirm before the dependent story starts. *
 | D-07 | Local state storage | Desktop: JSON files in app-data dir (one per project + app file). Web: IndexedDB. SQLite deferred until needed (history, large caches). | **Accepted** (PIGN-018) | PIGN-018 |
 | D-08 | Web filesystem | File System Access API (Chromium) for real folders; IndexedDB browser workspace + zip import/export elsewhere. | Proposed | PIGN-015 |
 | D-09 | Validation | zod for file/import validation | Proposed | PIGN-006 |
-| D-10 | Script sandbox (later) | `quickjs-emscripten` in a Web Worker, identical on desktop and web | Proposed | PIGN-043 |
+| D-10 | Script sandbox | `quickjs-emscripten` in a Web Worker, identical on desktop and web | Decided (PIGN-043) | PIGN-043 |
 | D-11 | Distribution | App identifier (placeholder `dev.pigeon.desktop` since PIGN-003; avoid a `.app` suffix, which clashes with the macOS bundle extension), code-signing certificates (Apple Developer ID, Windows Authenticode), auto-update policy | **Open** | PIGN-041 |
 | D-12 | Web hosting | Target host/domain for the static site | **Open** | PIGN-039 |
 | D-13 | License | Open-source license (if any) | **Open** | before public release |

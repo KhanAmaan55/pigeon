@@ -690,8 +690,53 @@ test.describe('scripts', () => {
 
     await page.getByTestId('send-button').click();
     await expect(page.getByTestId('response-panel')).toContainText(
-      'Scripts were not run (not supported yet): this request.',
+      'Test scripts were not run (not supported yet): this request.',
     );
+  });
+
+  test('pre-request scripts add a header, log, and an infinite loop is stopped', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Pre API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await page.getByTestId('explorer-item').filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    const url = page.getByTestId('url-input');
+    await url.fill(`${TEST_SERVER_URL}/echo`);
+
+    await page.getByTestId('scripts-tab').click();
+    await expect(page.getByTestId('scripts-not-run')).toContainText('Pre-request scripts run');
+    const editor = page.getByTestId('script-prerequest-editor');
+    await editor.click();
+    await page.keyboard.type("pm.variables.set('who', 'pigeon-web');");
+    await page.keyboard.press('Enter');
+    await page.keyboard.type(
+      "pm.request.headers.add({ key: 'X-Who', value: pm.variables.get('who') });",
+    );
+    await page.keyboard.press('Enter');
+    await page.keyboard.type("console.log('signed', pm.info.requestName);");
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK', { timeout: 15_000 });
+    await expect(page.getByTestId('response-body')).toContainText('pigeon-web');
+    await page.getByTestId('response-console-tab').click();
+    await expect(page.getByTestId('console-entry')).toContainText('signed New Request');
+
+    // An endless script is stopped after 5 s; the page stays usable meanwhile.
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('while (true) {}');
+    await page.getByTestId('send-button').click();
+    await url.fill(`${TEST_SERVER_URL}/echo?typed=1`);
+    await expect(url).toHaveValue(`${TEST_SERVER_URL}/echo?typed=1`);
+    await expect(page.getByTestId('response-error')).toContainText('did not finish within 5 s', {
+      timeout: 15_000,
+    });
   });
 });
 

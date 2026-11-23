@@ -3,11 +3,18 @@
  * keeps its own last response, body-mode drafts and in-flight send while others are shown.
  */
 
-import type { ProjectRequest, ProjectSession, Request, VariableScopes } from '@pigeon/core';
+import type {
+  CurrentValueWrite,
+  ProjectRequest,
+  ProjectSession,
+  Request,
+  VariableScopes,
+} from '@pigeon/core';
 import {
   buildScopes,
   inheritedAuth,
   projectRules,
+  scriptChain,
   scriptsNotRun,
   uniqueExampleName,
   upsertRule,
@@ -83,7 +90,23 @@ export function getTabEditor(
         session.apply({ type: 'updateRequest', id: requestId, patch: { events } });
         projectStore.getState().pinTab(requestId);
       },
-      skippedScripts: () => scriptsNotRun(session.getWorkingModel(), requestId),
+      // Pre-request scripts run (PIGN-043) unless script execution is off for the project;
+      // test scripts are skipped until PIGN-044.
+      skippedScripts: () =>
+        scriptsNotRun(
+          session.getWorkingModel(),
+          requestId,
+          projectStore.getState().scriptsEnabled ? 'test' : undefined,
+        ),
+      skippedScriptsReason: () => (projectStore.getState().scriptsEnabled ? 'tests' : 'disabled'),
+      preRequest: () => {
+        if (!projectStore.getState().scriptsEnabled) return null;
+        const scripts = scriptChain(session.getWorkingModel(), requestId, 'prerequest');
+        const name = session.findRequest(requestId)?.name ?? '';
+        return scripts.length > 0 ? { scripts, requestName: name } : null;
+      },
+      onScriptWrites: (writes) => applyScriptWrites(session, writes),
+      onScriptLogs: (entries) => projectStore.getState().appendConsole(entries),
       compare: (result) => compareRequestResult(session, projectStore, requestId, result),
       rules: () => ({
         request: session.findRequest(requestId)?.comparison?.rules ?? [],
@@ -212,4 +235,11 @@ export function disposeTabEditor(session: ProjectSession, requestId: string): vo
   const registry = registries.get(session);
   registry?.get(requestId)?.dispose();
   registry?.delete(requestId);
+}
+
+/** Saves script variable writes as current values (never shared values, PIGN-043). */
+export function applyScriptWrites(session: ProjectSession, writes: readonly CurrentValueWrite[]) {
+  for (const write of writes) {
+    session.setCurrentValue(write.scopeKey, write.key, write.value ?? undefined);
+  }
 }

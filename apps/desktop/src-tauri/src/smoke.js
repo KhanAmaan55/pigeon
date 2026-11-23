@@ -138,6 +138,19 @@
     });
     setValue(url, `${PROBE_URL}/edited`);
     await delay(100);
+    // Its pre-request script runs in the sandbox (PIGN-043) and adds a header.
+    find('send-button').click();
+    const scripted = await waitFor('scripted response', () => {
+      if (text('response-error'))
+        throw new Error(`scripted send failed: ${text('response-error')}`);
+      const lines = [...(find('response-body')?.querySelectorAll('.cm-line') ?? [])].map((line) =>
+        line.textContent.toLowerCase(),
+      );
+      return lines.includes('get /smoke/edited http/1.1') ? lines : null;
+    });
+    if (!scripted.includes('x-script: desktop')) {
+      throw new Error(`pre-request script header missing: ${scripted.join(' | ')}`);
+    }
     const mac = navigator.userAgent.includes('Mac');
     window.dispatchEvent(
       new window.KeyboardEvent('keydown', {

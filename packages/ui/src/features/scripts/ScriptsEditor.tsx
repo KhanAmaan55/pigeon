@@ -4,6 +4,7 @@ import { Info } from 'lucide-react';
 import { useId } from 'react';
 
 import { CodeEditor } from '../../components/CodeEditor';
+import { useProjectState } from '../../stores/AppStoreProvider';
 
 const SCRIPTS: Array<{ listen: ScriptListen; label: string }> = [
   { listen: 'prerequest', label: 'Pre-request' },
@@ -27,6 +28,7 @@ export function ScriptsEditor({
   editorClassName?: string;
 }) {
   const id = useId();
+  const scriptsRun = useProjectState((s) => s.scriptsEnabled, true);
   return (
     <div data-testid="scripts-editor" className="flex flex-col gap-3 p-3 text-sm">
       <p
@@ -35,7 +37,9 @@ export function ScriptsEditor({
         className="flex items-center gap-2 rounded border border-border bg-surface px-2 py-1 text-xs text-fg-muted"
       >
         <Info size={12} className="shrink-0" aria-hidden />
-        Scripts are saved and exported but not executed yet.
+        {scriptsRun
+          ? 'Pre-request scripts run before each send, in a sandbox (Console tab in the response). Test scripts are saved but not run yet.'
+          : 'Script execution is off for this project (Settings → Scripts). Scripts are saved and exported.'}
       </p>
       {SCRIPTS.map(({ listen, label }) => {
         const script = readScript(events, listen);

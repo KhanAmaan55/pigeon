@@ -130,7 +130,20 @@ export type {
   StatusMode,
 } from '@pigeon/compare';
 export { validateRulePath } from '@pigeon/compare';
+export type { SkippedScriptsReason } from './execution/scripts';
 export { scriptsNotRun, scriptsNotRunWarning } from './execution/scripts';
+export type {
+  ConsoleEntry,
+  ConsoleLevel,
+  ScriptRunInput,
+  ScriptRunner,
+  ScriptRunOutput,
+  ScriptState,
+} from './scripting/types';
+export { SCRIPT_MEMORY_BYTES, SCRIPT_TIMEOUT_MS } from './scripting/types';
+export type { CurrentValueWrite, PreRequestOutcome, ScriptSource } from './scripting/prerequest';
+export { runPreRequestScripts, scriptChain } from './scripting/prerequest';
+export { createQuickJsRunner } from './scripting/quickjs';
 export type { GraphqlError, GraphqlOperation, GraphqlView } from './execution/graphql';
 export { graphqlOperations, interpretGraphql } from './execution/graphql';
 export type { ScriptListen, ScriptView } from '@pigeon/formats';

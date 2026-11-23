@@ -34,6 +34,8 @@ export interface LocalProjectState {
   currentValues?: Record<string, Record<string, string>>;
   /** Regression run reports, newest first (PIGN-038), at most 20; never in files. */
   runReports?: RunReport[];
+  /** Run pre-request scripts on send (PIGN-043); absent = on. */
+  scriptsEnabled?: boolean;
   /** Latest comparison per request (PIGN-034), bounded; never in files. */
   lastComparisons?: Record<string, ComparisonResult>;
   /** Keys added by later stories, preserved as they are. */

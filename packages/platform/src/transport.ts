@@ -80,6 +80,8 @@ export type TransportErrorKind =
   | 'invalid-url'
   | 'invalid-request'
   | 'file-unavailable'
+  /** A pre-request script failed or timed out (PIGN-043); nothing was sent. */
+  | 'script'
   | 'unknown';
 
 /**
