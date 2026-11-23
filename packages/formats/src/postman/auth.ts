@@ -15,6 +15,18 @@ const FIELDS = {
   basic: ['username', 'password'],
   bearer: ['token'],
   apikey: ['key', 'value', 'in'],
+  digest: [
+    'username',
+    'password',
+    'realm',
+    'nonce',
+    'algorithm',
+    'qop',
+    'nonceCount',
+    'clientNonce',
+    'opaque',
+  ],
+  awsv4: ['accessKey', 'secretKey', 'region', 'service', 'sessionToken', 'addAuthDataToQuery'],
 } as const satisfies Record<Typed['type'], readonly string[]>;
 
 function isObject(value: unknown): value is ExtraFields {
@@ -66,6 +78,32 @@ export function authFromPostman(raw: unknown): ProjectAuth {
         in: text('in') === 'query' ? 'query' : 'header',
         source: raw,
       };
+    case 'digest':
+      return {
+        type,
+        username: text('username'),
+        password: text('password'),
+        realm: text('realm'),
+        nonce: text('nonce'),
+        algorithm: text('algorithm'),
+        qop: text('qop'),
+        nonceCount: text('nonceCount'),
+        clientNonce: text('clientNonce'),
+        opaque: text('opaque'),
+        source: raw,
+      };
+    case 'awsv4':
+      return {
+        type,
+        accessKey: text('accessKey'),
+        secretKey: text('secretKey'),
+        region: text('region'),
+        service: text('service'),
+        sessionToken: text('sessionToken'),
+        addAuthDataToQuery:
+          params.get('addAuthDataToQuery') === true || text('addAuthDataToQuery') === 'true',
+        source: raw,
+      };
     default:
       return { type: 'unsupported', authType: type, source: raw };
   }
@@ -82,6 +120,27 @@ function fieldValues(auth: Typed): Record<string, string> {
       return { token: auth.token };
     case 'apikey':
       return { key: auth.key, value: auth.value, in: auth.in };
+    case 'digest':
+      return {
+        username: auth.username,
+        password: auth.password,
+        realm: auth.realm,
+        nonce: auth.nonce,
+        algorithm: auth.algorithm,
+        qop: auth.qop,
+        nonceCount: auth.nonceCount,
+        clientNonce: auth.clientNonce,
+        opaque: auth.opaque,
+      };
+    case 'awsv4':
+      return {
+        accessKey: auth.accessKey,
+        secretKey: auth.secretKey,
+        region: auth.region,
+        service: auth.service,
+        sessionToken: auth.sessionToken,
+        addAuthDataToQuery: auth.addAuthDataToQuery ? 'true' : 'false',
+      };
   }
 }
 
@@ -93,7 +152,10 @@ function sameFields(a: Typed, b: ProjectAuth): boolean {
 }
 
 /** Values a param may be left out with (Postman omits them too). */
-const DEFAULTS: Record<string, string> = { in: 'header' };
+const DEFAULTS: Record<string, string> = { in: 'header', addAuthDataToQuery: 'false' };
+
+/** Params Postman stores as booleans. */
+const BOOLEAN_PARAMS = new Set(['addAuthDataToQuery']);
 
 export function authToPostman(auth: ProjectAuth): unknown {
   if (auth.type === 'unsupported') return 'source' in auth ? auth.source : { type: auth.authType };
@@ -116,13 +178,18 @@ export function authToPostman(auth: ProjectAuth): unknown {
     const key = entry['key'];
     if (!(key in values) || written.has(key)) continue;
     written.add(key);
-    if (asText(entry['value']) !== values[key]) entries[index] = { ...entry, value: values[key] };
+    const typed = BOOLEAN_PARAMS.has(key) ? values[key] === 'true' : values[key];
+    if (asText(entry['value']) !== values[key]) entries[index] = { ...entry, value: typed };
   }
   for (const key of fields) {
     if (written.has(key)) continue;
     const value = values[key]!;
     if (value === '' || value === DEFAULTS[key]) continue;
-    entries.push({ key, value, type: 'string' });
+    entries.push(
+      BOOLEAN_PARAMS.has(key)
+        ? { key, value: value === 'true', type: 'boolean' }
+        : { key, value, type: 'string' },
+    );
   }
   return { ...source, type: auth.type, [auth.type]: entries };
 }
@@ -138,6 +205,10 @@ export function authTypeLabel(auth: ProjectAuth): string {
       return 'Bearer';
     case 'apikey':
       return 'API Key';
+    case 'digest':
+      return 'Digest';
+    case 'awsv4':
+      return 'AWS Signature';
     case 'unsupported':
       return auth.authType;
   }

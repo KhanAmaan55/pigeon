@@ -4,6 +4,7 @@ import { gzipSync } from 'node:zlib';
 import { echo } from './echo.ts';
 import { HTML_PAGE, JSON_SHAPES, PNG_1X1, UNICODE, XML_DOC } from './fixtures.ts';
 import { graphqlHandler } from './graphql.ts';
+import { awsv4Handler, digestHandler } from './signed-auth.ts';
 import type { Handler, Reply } from './reply.ts';
 import { error, intParam, json, JSON_TYPE } from './reply.ts';
 
@@ -186,6 +187,9 @@ export const routes: Route[] = [
         : json({ authenticated: false }, 401, { 'WWW-Authenticate': 'Bearer realm="pigeon-test"' });
     },
   },
+
+  { pattern: /^\/auth\/digest$/, handle: digestHandler },
+  { pattern: /^\/auth\/awsv4$/, handle: awsv4Handler },
 
   { pattern: /^\/graphql$/, handle: graphqlHandler },
 

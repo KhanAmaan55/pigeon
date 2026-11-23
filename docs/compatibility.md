@@ -48,7 +48,8 @@ The official v2.1 JSON Schema is vendored in `packages/fixtures/postman/schema/c
 | `body.mode: graphql` (`query`, `variables`) | `Body.graphql` | | Full. `variables` stays JSON text (an object from other tools becomes text). Postman has no operation name field: Pigeon keeps it in the item's `_pigeon.operationName`, or in `graphql.operationName` when the file already has it there |
 | `body.disabled`, `body.options.*` | `extra` | | Preserved |
 | `auth` noauth / basic / bearer / apikey | `Auth` typed | | Full (executed) |
-| `auth` digest / awsv4 / oauth2 | `Auth unsupported` | preserved verbatim | Preserved; executed in PIGN-046/047 |
+| `auth` digest / awsv4 | `Auth` typed (all Postman params) | unchanged auth written verbatim | Full (executed, PIGN-046). Digest: MD5, MD5-sess, SHA-256, SHA-256-sess, `qop=auth` (not `auth-int`); on the web only when the server exposes `WWW-Authenticate` via CORS. AWS SigV4: header or query signing, session token |
+| `auth` oauth2 | `Auth unsupported` | preserved verbatim | Preserved; executed in PIGN-047 |
 | `auth` oauth1 / hawk / ntlm / akamai / edgegrid / jwt / asap / others | `Auth unsupported` | preserved verbatim | Preserved only; UI shows "Not supported yet — request sent without auth" |
 | `event[]` prerequest / test | `ScriptEvent[]` | | Preserved + editable; pre-request and test scripts run (PIGN-043/044, §A.7) |
 | `variable[]` (collection) | `Collection.variables` | | Full |

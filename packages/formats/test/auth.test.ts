@@ -54,7 +54,7 @@ describe('golden fixture: projects/auth (PIGN-026)', () => {
       expect(decoder.decode(bytes), path).toBe(files.get(path));
   });
 
-  it('types basic, bearer, apikey and noauth; keeps the rest as unsupported', async () => {
+  it('types basic, bearer, apikey, noauth, digest and awsv4; keeps the rest as unsupported', async () => {
     const { result } = await fixture();
     const collection = result.model.collections[0]!;
     expect(collection.auth).toMatchObject({ type: 'bearer', token: '{{token}}' });
@@ -75,7 +75,12 @@ describe('golden fixture: projects/auth (PIGN-026)', () => {
       type: 'unsupported',
       authType: 'oauth2',
     });
-    expect(request(result, 'digest').auth).toMatchObject({ authType: 'digest' });
+    // Typed since PIGN-046.
+    expect(request(result, 'digest').auth).toMatchObject({
+      type: 'digest',
+      password: '{{password}}',
+      algorithm: 'MD5',
+    });
     // Postman v2.0 objects are read too.
     expect(request(result, 'legacy-basic').auth).toMatchObject({
       type: 'basic',

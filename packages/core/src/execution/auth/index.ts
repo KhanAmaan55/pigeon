@@ -15,6 +15,11 @@ export interface AuthOutput {
   /** Values shown masked in results (tokens, passwords, encoded credentials). */
   credentials: string[];
   warnings: string[];
+  /**
+   * Auth applied by the executor once the final request is known (PIGN-046): Digest answers the
+   * server's challenge, AWS SigV4 signs the final URL, headers and body.
+   */
+  deferred?: Extract<Auth, { type: 'digest' | 'awsv4' }>;
 }
 
 export interface AuthHandler<A extends Auth = Auth> {
@@ -83,6 +88,31 @@ registerAuthHandler<Extract<Auth, { type: 'apikey' }>>({
   },
 });
 
+registerAuthHandler<Extract<Auth, { type: 'digest' }>>({
+  type: 'digest',
+  apply: (auth) =>
+    auth.username === ''
+      ? { ...none(), warnings: ['Digest auth has no username; the request was sent without auth.'] }
+      : { ...none(), credentials: [auth.password], deferred: auth },
+});
+
+registerAuthHandler<Extract<Auth, { type: 'awsv4' }>>({
+  type: 'awsv4',
+  apply: (auth) =>
+    auth.accessKey === '' || auth.secretKey === ''
+      ? {
+          ...none(),
+          warnings: [
+            'AWS Signature needs an access key and a secret key; the request was not signed.',
+          ],
+        }
+      : {
+          ...none(),
+          credentials: [auth.secretKey, ...(auth.sessionToken ? [auth.sessionToken] : [])],
+          deferred: auth,
+        },
+});
+
 /** What `auth` adds to a request; unsupported types add nothing and a warning. */
 export function applyAuth(auth: Auth | undefined): AuthOutput {
   if (!auth) return none();
@@ -106,6 +136,28 @@ export function resolveAuth(auth: Auth, resolve: (text: string) => string): Auth
       return { ...auth, token: resolve(auth.token) };
     case 'apikey':
       return { ...auth, key: resolve(auth.key), value: resolve(auth.value) };
+    case 'digest':
+      return {
+        ...auth,
+        username: resolve(auth.username),
+        password: resolve(auth.password),
+        realm: resolve(auth.realm),
+        nonce: resolve(auth.nonce),
+        algorithm: resolve(auth.algorithm),
+        qop: resolve(auth.qop),
+        nonceCount: resolve(auth.nonceCount),
+        clientNonce: resolve(auth.clientNonce),
+        opaque: resolve(auth.opaque),
+      };
+    case 'awsv4':
+      return {
+        ...auth,
+        accessKey: resolve(auth.accessKey),
+        secretKey: resolve(auth.secretKey),
+        region: resolve(auth.region),
+        service: resolve(auth.service),
+        sessionToken: resolve(auth.sessionToken),
+      };
     default:
       return auth;
   }

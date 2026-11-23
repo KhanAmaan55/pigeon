@@ -2696,3 +2696,47 @@ describe('cookie jar (PIGN-045)', () => {
     expect(transport.requests[2]!.headers.some(([name]) => name === 'Cookie')).toBe(false);
   });
 });
+
+describe('Digest and AWS Signature auth (PIGN-046)', () => {
+  it('answers a Digest challenge and signs AWS requests from the Auth tab', async () => {
+    const transport = new MockTransport().on({ url: /./ }, (req) => {
+      const authorization = req.headers.find(([n]) => n === 'Authorization')?.[1];
+      if (!authorization) {
+        return {
+          status: 401,
+          headers: [['WWW-Authenticate', 'Digest realm="r", qop="auth", nonce="n1"']],
+          body: '',
+        };
+      }
+      return { body: 'ok' };
+    });
+    const { platform } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await user.dblClick(screen.getByText('Get invoices'));
+    await act(async () => screen.getByTestId('auth-tab').focus());
+    fireEvent.change(await screen.findByTestId('auth-type'), { target: { value: 'digest' } });
+    fireEvent.change(screen.getByTestId('auth-username'), { target: { value: 'ada' } });
+    fireEvent.change(screen.getByTestId('auth-password'), { target: { value: 'pw' } });
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(2));
+    const digest = transport.requests[1]!.headers.find(([n]) => n === 'Authorization')![1];
+    expect(digest).toMatch(/^Digest username="ada", realm="r", nonce="n1", uri="\/invoices/);
+    expect(digest).toMatch(/qop=auth, nc=00000001, cnonce="[0-9a-f]+", response="[0-9a-f]{32}"/);
+
+    fireEvent.change(screen.getByTestId('auth-type'), { target: { value: 'awsv4' } });
+    fireEvent.change(screen.getByTestId('auth-access-key'), { target: { value: 'AKID' } });
+    fireEvent.change(screen.getByTestId('auth-secret-key'), { target: { value: 'secret' } });
+    fireEvent.change(screen.getByTestId('auth-region'), { target: { value: 'eu-west-1' } });
+    fireEvent.change(screen.getByTestId('auth-service'), { target: { value: 'execute-api' } });
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(3));
+    const headers = transport.requests[2]!.headers;
+    expect(headers.find(([n]) => n === 'Authorization')![1]).toMatch(
+      /^AWS4-HMAC-SHA256 Credential=AKID\/\d{8}\/eu-west-1\/execute-api\/aws4_request, SignedHeaders=host;x-amz-date, Signature=[0-9a-f]{64}$/,
+    );
+    expect(headers.some(([n]) => n === 'X-Amz-Date')).toBe(true);
+  });
+});

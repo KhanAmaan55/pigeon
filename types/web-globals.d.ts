@@ -114,9 +114,28 @@ interface SubtleCrypto {
     data: ArrayBuffer | ArrayBufferView,
   ): Promise<ArrayBuffer>;
 }
+/** HMAC keys for AWS SigV4 (PIGN-046); opaque. */
+interface CryptoKey {
+  readonly type: string;
+}
+interface SubtleCrypto {
+  importKey(
+    format: 'raw',
+    keyData: ArrayBuffer | ArrayBufferView,
+    algorithm: { name: 'HMAC'; hash: DigestAlgorithm },
+    extractable: boolean,
+    keyUsages: ReadonlyArray<'sign' | 'verify'>,
+  ): Promise<CryptoKey>;
+  sign(
+    algorithm: 'HMAC',
+    key: CryptoKey,
+    data: ArrayBuffer | ArrayBufferView,
+  ): Promise<ArrayBuffer>;
+}
 interface Crypto {
   readonly subtle: SubtleCrypto;
   randomUUID(): `${string}-${string}-${string}-${string}-${string}`;
+  getRandomValues<T extends ArrayBufferView>(array: T): T;
 }
 declare var crypto: Crypto;
 

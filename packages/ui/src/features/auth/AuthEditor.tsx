@@ -13,7 +13,8 @@ import { LiteralSecretHint } from '../request-editor/LiteralSecretHint';
  */
 export type AuthLevel = 'request' | 'folder' | 'collection' | 'scratch';
 
-type Choice = 'inherit' | 'noauth' | 'basic' | 'bearer' | 'apikey' | 'unsupported';
+type Choice =
+  'inherit' | 'noauth' | 'basic' | 'bearer' | 'apikey' | 'digest' | 'awsv4' | 'unsupported';
 
 const CHOICES: Array<{ value: Choice; label: string }> = [
   { value: 'inherit', label: 'Inherit from parent' },
@@ -21,6 +22,8 @@ const CHOICES: Array<{ value: Choice; label: string }> = [
   { value: 'basic', label: 'Basic Auth' },
   { value: 'bearer', label: 'Bearer Token' },
   { value: 'apikey', label: 'API Key' },
+  { value: 'digest', label: 'Digest Auth' },
+  { value: 'awsv4', label: 'AWS Signature' },
 ];
 
 function emptyAuth(type: Exclude<Choice, 'inherit' | 'unsupported'>): Auth {
@@ -33,6 +36,29 @@ function emptyAuth(type: Exclude<Choice, 'inherit' | 'unsupported'>): Auth {
       return { type, token: '' };
     case 'apikey':
       return { type, key: '', value: '', in: 'header' };
+    case 'digest':
+      return {
+        type,
+        username: '',
+        password: '',
+        realm: '',
+        nonce: '',
+        algorithm: 'MD5',
+        qop: '',
+        nonceCount: '',
+        clientNonce: '',
+        opaque: '',
+      };
+    case 'awsv4':
+      return {
+        type,
+        accessKey: '',
+        secretKey: '',
+        region: '',
+        service: '',
+        sessionToken: '',
+        addAuthDataToQuery: false,
+      };
   }
 }
 
@@ -50,7 +76,7 @@ export function inheritedLabel(inherited: EffectiveAuth): string {
 /**
  * The Auth section of requests, folders and collections (PIGN-026): type selector, the fields of
  * the chosen type (with `{{variable}}` highlighting and the literal-credential hint), and where
- * inherited auth comes from. Unsupported types (OAuth 2.0, Digest, …) are shown read-only and
+ * inherited auth comes from. Unsupported types (OAuth 2.0, NTLM, Hawk, …) are shown read-only and
  * kept verbatim until another type is chosen.
  */
 export function AuthEditor({
@@ -83,6 +109,24 @@ export function AuthEditor({
     else if (next !== 'unsupported') onChange(drafts.current.get(next) ?? emptyAuth(next));
   };
 
+  const text = (
+    label: string,
+    testId: string,
+    value: string,
+    set: (value: string) => void,
+    placeholder?: string,
+  ): ReactNode => (
+    <Field disabled={readOnly} label={label} testId={testId}>
+      {(props) => (
+        <VariableInput
+          {...props}
+          value={value}
+          {...(placeholder ? { placeholder } : {})}
+          onChange={(e) => set(e.target.value)}
+        />
+      )}
+    </Field>
+  );
   const secretField = (
     label: string,
     value: string,
@@ -225,6 +269,100 @@ export function AuthEditor({
               </select>
             )}
           </Field>
+        </>
+      )}
+
+      {auth?.type === 'digest' && (
+        <>
+          {text('Username', 'auth-username', auth.username, (username) =>
+            onChange({ ...auth, username }),
+          )}
+          {text('Password', 'auth-password', auth.password, (password) =>
+            onChange({ ...auth, password }),
+          )}
+          {secretField('password', auth.password, 'password', (password) =>
+            onChange({ ...auth, password }),
+          )}
+          <Field disabled={readOnly} label="Algorithm" testId="auth-algorithm">
+            {(props) => (
+              <select
+                {...props}
+                value={auth.algorithm || 'MD5'}
+                onChange={(e) => onChange({ ...auth, algorithm: e.target.value })}
+                className="h-7 w-40 rounded border border-border bg-surface px-2 text-xs text-fg"
+              >
+                {['MD5', 'MD5-sess', 'SHA-256', 'SHA-256-sess'].map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <details className="text-xs">
+            <summary className="cursor-pointer text-fg-muted select-none">
+              Advanced (filled from the server's challenge when empty)
+            </summary>
+            <div className="mt-2 flex flex-col gap-2">
+              {text('Realm', 'auth-realm', auth.realm, (realm) => onChange({ ...auth, realm }))}
+              {text('Nonce', 'auth-nonce', auth.nonce, (nonce) => onChange({ ...auth, nonce }))}
+              {text('qop', 'auth-qop', auth.qop, (qop) => onChange({ ...auth, qop }))}
+              {text('Nonce count', 'auth-nc', auth.nonceCount, (nonceCount) =>
+                onChange({ ...auth, nonceCount }),
+              )}
+              {text('Client nonce', 'auth-cnonce', auth.clientNonce, (clientNonce) =>
+                onChange({ ...auth, clientNonce }),
+              )}
+              {text('Opaque', 'auth-opaque', auth.opaque, (opaque) =>
+                onChange({ ...auth, opaque }),
+              )}
+            </div>
+          </details>
+          <p className="text-xs text-fg-muted">
+            Pigeon sends the request, answers the server's 401 Digest challenge and sends it again.
+            With realm and nonce set, the first request is signed directly.
+          </p>
+        </>
+      )}
+
+      {auth?.type === 'awsv4' && (
+        <>
+          {text('Access key', 'auth-access-key', auth.accessKey, (accessKey) =>
+            onChange({ ...auth, accessKey }),
+          )}
+          {text('Secret key', 'auth-secret-key', auth.secretKey, (secretKey) =>
+            onChange({ ...auth, secretKey }),
+          )}
+          {secretField('secret key', auth.secretKey, 'awsSecretKey', (secretKey) =>
+            onChange({ ...auth, secretKey }),
+          )}
+          {text(
+            'Region',
+            'auth-region',
+            auth.region,
+            (region) => onChange({ ...auth, region }),
+            'us-east-1',
+          )}
+          {text(
+            'Service',
+            'auth-service',
+            auth.service,
+            (service) => onChange({ ...auth, service }),
+            'execute-api',
+          )}
+          {text('Session token', 'auth-session-token', auth.sessionToken, (sessionToken) =>
+            onChange({ ...auth, sessionToken }),
+          )}
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              data-testid="auth-aws-query"
+              disabled={readOnly}
+              checked={auth.addAuthDataToQuery}
+              onChange={(e) => onChange({ ...auth, addAuthDataToQuery: e.target.checked })}
+            />
+            Add the signature to the query string (instead of headers)
+          </label>
         </>
       )}
 

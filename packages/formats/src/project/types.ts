@@ -81,8 +81,36 @@ export type ProjectAuth =
       source?: ExtraFields;
     }
   | {
+      /** HTTP Digest (RFC 7616, PIGN-046); Postman's params, as strings. */
+      type: 'digest';
+      username: string;
+      password: string;
+      /** Empty: taken from the server's challenge. */
+      realm: string;
+      nonce: string;
+      /** `MD5` (default), `MD5-sess`, `SHA-256`, `SHA-256-sess`. */
+      algorithm: string;
+      qop: string;
+      nonceCount: string;
+      clientNonce: string;
+      opaque: string;
+      source?: ExtraFields;
+    }
+  | {
+      /** AWS Signature Version 4 (PIGN-046). */
+      type: 'awsv4';
+      accessKey: string;
+      secretKey: string;
+      region: string;
+      service: string;
+      sessionToken: string;
+      /** Sign with query parameters instead of headers. */
+      addAuthDataToQuery: boolean;
+      source?: ExtraFields;
+    }
+  | {
       type: 'unsupported';
-      /** The Postman type: `oauth2`, `digest`, `awsv4`, … */
+      /** The Postman type: `oauth2`, `ntlm`, `hawk`, … */
       authType: string;
       source?: unknown;
     };

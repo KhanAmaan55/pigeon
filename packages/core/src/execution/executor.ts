@@ -5,12 +5,14 @@ import { TransportError } from '@pigeon/platform';
 
 import type { Request } from '../model/request';
 import { runPreRequestScripts } from '../scripting/prerequest';
+import { signAwsV4 } from './auth/awsv4';
+import { digestAuthorization, parseDigestChallenge } from './auth/digest';
 import type { TestRun } from '../scripting/tests';
 import { runTestScripts } from '../scripting/tests';
 import { EMPTY_SCOPES } from '../variables/scopes';
 import { toExecutionError } from './errors';
 import { hasShortSecret, maskHeaders, maskSecrets } from './mask';
-import { prepareRequest } from './prepare';
+import { deferredAuthOf, prepareRequest } from './prepare';
 import { resolveProjectFiles } from './project-files';
 import { normalizeResponse } from './response';
 import type { ExecutionContext, ExecutionResult, NormalizedResponse } from './types';
@@ -102,6 +104,37 @@ export class RequestExecutor {
       const header = hasCookie ? undefined : jar.cookieHeader(req.url);
       if (header) req.headers.push(['Cookie', header]);
     }
+    // Digest / AWS SigV4 (PIGN-046) need the final request.
+    const deferred = deferredAuthOf(req);
+    if (deferred?.type === 'awsv4') {
+      const body =
+        req.body === undefined
+          ? new Uint8Array()
+          : req.body.kind === 'bytes'
+            ? req.body.bytes
+            : null;
+      const signed = await signAwsV4(deferred, {
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        body,
+        now: new Date(),
+      });
+      req.url = signed.url;
+      req.headers = signed.headers;
+      req.meta.secretValues = [...new Set([...req.meta.secretValues, ...signed.credentials])];
+    } else if (deferred?.type === 'digest' && deferred.realm && deferred.nonce) {
+      // Realm and nonce given: sign the first request (Postman's preemptive digest).
+      req.headers.push([
+        'Authorization',
+        await digestAuthorization(
+          deferred,
+          { realm: deferred.realm, nonce: deferred.nonce },
+          req.method,
+          requestUri(req.url),
+        ),
+      ]);
+    }
     opts.onPrepared?.(req);
     const signal = opts.signal ?? new AbortController().signal;
     const summary = {
@@ -116,7 +149,41 @@ export class RequestExecutor {
     try {
       const resolved = await resolveProjectFiles(req, ctx.projectFs, this.#pickedFiles);
       release = resolved.release;
-      const raw = await this.#transport.send(resolved.request, { signal });
+      let raw = await this.#transport.send(resolved.request, { signal });
+      const digestWarnings: string[] = [];
+      if (
+        deferred?.type === 'digest' &&
+        !(deferred.realm && deferred.nonce) &&
+        raw.status === 401
+      ) {
+        // Answer the server's challenge and send again (RFC 7616).
+        const challenge = raw.headers
+          .filter(([name]) => name.toLowerCase() === 'www-authenticate')
+          .map(([, value]) => parseDigestChallenge(value))
+          .find((c) => c !== null);
+        if (challenge) {
+          const authorization = await digestAuthorization(
+            deferred,
+            challenge,
+            req.method,
+            requestUri(raw.url || req.url),
+          );
+          raw = await this.#transport.send(
+            {
+              ...resolved.request,
+              id: crypto.randomUUID(),
+              headers: [...resolved.request.headers, ['Authorization', authorization]],
+            },
+            { signal },
+          );
+        } else {
+          digestWarnings.push(
+            raw.headersRestricted
+              ? 'Digest auth: the browser hides the WWW-Authenticate challenge unless the server exposes it with CORS (Access-Control-Expose-Headers); the desktop app can always read it.'
+              : 'Digest auth: the 401 response has no Digest challenge to answer.',
+          );
+        }
+      }
       const response = normalizeResponse(raw);
       if (jar && ctx.capabilities.canReadAllResponseHeaders) {
         const setCookies = raw.headers
@@ -139,7 +206,7 @@ export class RequestExecutor {
             location: mask(hop.location),
           })),
         },
-        warnings: [...prepareWarnings, ...(raw.warnings ?? [])],
+        warnings: [...prepareWarnings, ...(raw.warnings ?? []), ...digestWarnings],
       };
     } catch (error) {
       const failure = toExecutionError(error, signal, {
@@ -161,6 +228,13 @@ export class RequestExecutor {
       release();
     }
   }
+}
+
+/** Path and query of `url`, as Digest's `uri` parameter wants it. */
+function requestUri(url: string): string {
+  if (!URL.canParse(url)) return url;
+  const parsed = new URL(url);
+  return `${parsed.pathname}${parsed.search}`;
 }
 
 /** Runs the test scripts of `ctx.tests` on a response (PIGN-044); `undefined` when none. */

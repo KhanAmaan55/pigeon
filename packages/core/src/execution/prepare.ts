@@ -12,6 +12,7 @@ import { EMPTY_SCOPES, VariableResolver } from '../variables/index';
 import { buildRequestUrl } from '../model/url';
 import { PIGEON_VERSION } from '../version';
 import type { EncodedBody } from './body';
+import type { AuthOutput } from './auth/index';
 import { applyAuth, resolveAuth } from './auth/index';
 import { scriptsNotRunWarning } from './scripts';
 import { encodeBody, graphqlVariablesError } from './body';
@@ -187,34 +188,40 @@ export async function prepareRequest(
 
   const { preferences } = ctx;
   const { settings } = request;
-  return {
-    ok: true,
-    value: {
-      id: crypto.randomUUID(),
-      method,
-      url,
-      headers,
-      ...(encoded ? { body: encoded.body } : {}),
-      settings: {
-        timeoutMs: settings.timeoutMs ?? preferences.timeoutMs,
-        followRedirects: settings.followRedirects ?? preferences.followRedirects,
-        maxRedirects: settings.maxRedirects ?? preferences.maxRedirects,
-        strictSSL: settings.strictSSL ?? preferences.strictSSL,
-        ...(settings.includeCredentials ? { includeCredentials: true } : {}),
-      },
-      meta: {
-        requestId: request.id,
-        ...(ctx.projectId === null ? {} : { projectId: ctx.projectId }),
-        protocol: graphql ? 'graphql' : 'http',
-        unresolved: [...variables.unresolved, ...variables.cycles],
-        // Auth credentials are masked in results like secrets (PIGN-026).
-        secretValues: [
-          ...new Set([...variables.secretValues, ...auth.credentials.filter((c) => c !== '')]),
-        ],
-        ...(warnings.length > 0 ? { warnings } : {}),
-      },
+  const prepared: PreparedRequest = {
+    id: crypto.randomUUID(),
+    method,
+    url,
+    headers,
+    ...(encoded ? { body: encoded.body } : {}),
+    settings: {
+      timeoutMs: settings.timeoutMs ?? preferences.timeoutMs,
+      followRedirects: settings.followRedirects ?? preferences.followRedirects,
+      maxRedirects: settings.maxRedirects ?? preferences.maxRedirects,
+      strictSSL: settings.strictSSL ?? preferences.strictSSL,
+      ...(settings.includeCredentials ? { includeCredentials: true } : {}),
+    },
+    meta: {
+      requestId: request.id,
+      ...(ctx.projectId === null ? {} : { projectId: ctx.projectId }),
+      protocol: graphql ? 'graphql' : 'http',
+      unresolved: [...variables.unresolved, ...variables.cycles],
+      // Auth credentials are masked in results like secrets (PIGN-026).
+      secretValues: [
+        ...new Set([...variables.secretValues, ...auth.credentials.filter((c) => c !== '')]),
+      ],
+      ...(warnings.length > 0 ? { warnings } : {}),
     },
   };
+  if (auth.deferred) deferredAuth.set(prepared, auth.deferred);
+  return { ok: true, value: prepared };
+}
+
+/** Digest / AWS SigV4 auth the executor still has to apply to a prepared request (PIGN-046). */
+const deferredAuth = new WeakMap<PreparedRequest, NonNullable<AuthOutput['deferred']>>();
+
+export function deferredAuthOf(request: PreparedRequest): AuthOutput['deferred'] {
+  return deferredAuth.get(request);
 }
 
 /** `url` with `params` appended to its query (before any `#fragment`); existing names win. */
