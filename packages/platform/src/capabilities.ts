@@ -5,7 +5,8 @@ import type { SecretBackend } from './secrets';
  * never on `Platform.kind`.
  */
 export interface Capabilities {
-  transport: 'native' | 'fetch' | 'node';
+  /** `proxy`: web requests through a self-hosted CORS proxy (PIGN-052). */
+  transport: 'native' | 'fetch' | 'node' | 'proxy';
   bypassesCors: boolean;
   /** False in browsers (forbidden headers). */
   canSetAnyHeader: boolean;

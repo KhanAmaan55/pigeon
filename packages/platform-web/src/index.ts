@@ -1,4 +1,4 @@
-import type { Capabilities, OperatingSystem, Platform } from '@pigeon/platform';
+import type { Capabilities, OperatingSystem, Platform, Transport } from '@pigeon/platform';
 import { createMemoryServices, defineCapabilities, PickedFileStore } from '@pigeon/platform';
 
 import { FetchTransport } from './fetch-transport';
@@ -7,6 +7,7 @@ import { openPigeonDb } from './idb';
 import { IdbAppState } from './idb-app-state';
 import { WebProjectLocator } from './project-locator';
 import { IdbHistoryStore } from './history-store';
+import { ProxyTransport, WebCorsProxy } from './proxy-transport';
 import { IdbSecretStore } from './secrets';
 import { createWebOAuth } from './oauth';
 
@@ -18,6 +19,8 @@ export { FsAccessFs } from './fs-access-fs';
 export { DB_NAME, openPigeonDb } from './idb';
 export { IdbAppState } from './idb-app-state';
 export { IdbHistoryStore } from './history-store';
+export type { ProxyTransportOptions } from './proxy-transport';
+export { checkProxy, fromBase64, ProxyTransport, toBase64, WebCorsProxy } from './proxy-transport';
 export type { WorkspaceRecord } from './idb-fs';
 export { deleteWorkspace, IdbFs } from './idb-fs';
 export type { HandleRecord, HandleStore, WebProjectLocatorOptions } from './project-locator';
@@ -54,6 +57,24 @@ export function detectWebCapabilities(env: object = globalThis): Readonly<Capabi
   });
 }
 
+/**
+ * Capabilities while requests go through a self-hosted CORS proxy (PIGN-052): the proxy sends
+ * natively, so CORS, forbidden headers, hidden response headers, redirects and TLS settings no
+ * longer limit the browser. Timings are the proxy's total only.
+ */
+export function proxyModeCapabilities(web: Readonly<Capabilities>): Readonly<Capabilities> {
+  return defineCapabilities({
+    ...web,
+    transport: 'proxy',
+    bypassesCors: true,
+    canSetAnyHeader: true,
+    canReadAllResponseHeaders: true,
+    canControlRedirects: true,
+    canDisableTlsVerification: true,
+    canSendBodyWithGet: true,
+  });
+}
+
 /** OS for display and shortcut labels (`Cmd` vs `Ctrl`); never used to infer capabilities. */
 export function detectWebOs(nav: {
   platform?: string;
@@ -74,17 +95,32 @@ export function detectWebOs(nav: {
 export function createWebPlatform(): Platform {
   const pickedFiles = new PickedFileStore();
   const memory = createMemoryServices();
+  // Proxy mode (PIGN-052): the transport and capabilities follow the active project's setting.
+  const corsProxy = new WebCorsProxy();
+  const fetchTransport = new FetchTransport({ pickedFiles });
+  const proxyTransport = new ProxyTransport({ config: () => corsProxy.config, pickedFiles });
+  const transport: Transport = {
+    send: (req, opts) => (corsProxy.config ? proxyTransport : fetchTransport).send(req, opts),
+  };
+  const webCapabilities = detectWebCapabilities(window);
+  const proxyCapabilities = proxyModeCapabilities(webCapabilities);
   const base = {
     kind: 'web' as const,
     os: detectWebOs(navigator as Navigator & { userAgentData?: { platform?: string } }),
-    capabilities: detectWebCapabilities(window),
-    transport: new FetchTransport({ pickedFiles }),
+    capabilities: webCapabilities,
+    transport,
     pickedFiles,
     ...memory,
     files: new WebFileExchange(),
     oauth: createWebOAuth(),
+    corsProxy,
   };
-  if (!('indexedDB' in window)) return base;
+  const dynamic = (platform: Platform): Platform =>
+    Object.defineProperty(platform, 'capabilities', {
+      get: () => (corsProxy.config ? proxyCapabilities : webCapabilities),
+      enumerable: true,
+    });
+  if (!('indexedDB' in window)) return dynamic(base);
 
   let db: Promise<IDBDatabase> | undefined;
   const getDb = () => (db ??= openPigeonDb());
@@ -100,13 +136,13 @@ export function createWebPlatform(): Platform {
       : {}),
     ...(navigator.storage?.persist ? { persistStorage: () => navigator.storage.persist() } : {}),
   });
-  return {
+  return dynamic({
     ...base,
     projects,
     openProjectFs: (loc) => projects.open(loc),
     appState: new IdbAppState(getDb),
     secrets: new IdbSecretStore(getDb),
     history: new IdbHistoryStore(getDb),
-  };
+  });
 }
 export { callbackUrl, createWebOAuth } from './oauth';

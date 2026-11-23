@@ -93,7 +93,7 @@ Rule: **core, formats, compare, platform must not import React, DOM APIs, Tauri,
                                # runner, projects, settings, command-palette
       components/              # design-system primitives
     test-server/src/           # local HTTP test server
-    cors-proxy/src/            # optional self-hosted proxy for the web version (PIGN-052, later)
+    cors-proxy/src/            # optional self-hosted CORS proxy for the web version (PIGN-052)
     fixtures/                  # Postman samples, sample projects, golden files
   e2e/
     web/                       # Playwright specs
@@ -115,6 +115,7 @@ Allowed dependencies (enforced by ESLint `no-restricted-imports` + per-package `
 | platform-web / platform-desktop / platform-node | platform |
 | apps/web, apps/desktop | ui, platform-* |
 | apps/cli (later) | core, formats, compare, platform, platform-node |
+| cors-proxy (PIGN-052) | platform, platform-node |
 | test-server | — (Node-only test tooling; nothing in `src` may import it) |
 
 The rules live in `eslint.config.js` (the `packages` table at the top). Tests (`packages/*/test`) follow the same package rules but may import Node built-ins, because they run in Node under Vitest. Core's tests may also import `@pigeon/platform-node` (integration tests on real folders and Git).

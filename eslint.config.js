@@ -32,6 +32,12 @@ const workspaces = {
     testPigeon: ['test-server'],
     forbid: ['react', 'tauri'],
   },
+  // Optional self-hosted proxy for the web app (PIGN-052): a Node program.
+  'packages/cors-proxy': {
+    pigeon: ['platform', 'platform-node'],
+    testPigeon: ['test-server'],
+    forbid: ['react', 'tauri'],
+  },
   'packages/ui': { pigeon: ['core', 'formats', 'compare', 'platform'], forbid: ['tauri', 'node'] },
   'apps/web': { pigeon: ['ui', 'platform', 'platform-web'], forbid: ['tauri', 'node'] },
   'apps/desktop': { pigeon: ['ui', 'platform', 'platform-desktop'], forbid: ['node'] },

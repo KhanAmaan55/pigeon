@@ -1,8 +1,11 @@
 import type { Capabilities, Platform } from '@pigeon/platform';
 import type { ReactNode } from 'react';
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useSyncExternalStore } from 'react';
 
 const PlatformContext = createContext<Platform | null>(null);
+const CapabilitiesContext = createContext<Readonly<Capabilities> | null>(null);
+
+const noSubscription = () => () => undefined;
 
 export function PlatformProvider({
   platform,
@@ -11,7 +14,16 @@ export function PlatformProvider({
   platform: Platform;
   children: ReactNode;
 }) {
-  return <PlatformContext.Provider value={platform}>{children}</PlatformContext.Provider>;
+  // Web proxy mode (PIGN-052) changes the capabilities at runtime; views re-render with them.
+  const capabilities = useSyncExternalStore(
+    platform.corsProxy ? (listener) => platform.corsProxy!.subscribe(listener) : noSubscription,
+    () => platform.capabilities,
+  );
+  return (
+    <PlatformContext.Provider value={platform}>
+      <CapabilitiesContext.Provider value={capabilities}>{children}</CapabilitiesContext.Provider>
+    </PlatformContext.Provider>
+  );
 }
 
 export function usePlatform(): Platform {
@@ -20,7 +32,9 @@ export function usePlatform(): Platform {
   return platform;
 }
 
-/** What the platform can do. Features branch on these, never on `platform.kind`. */
+/** What the platform can do right now. Features branch on these, never on `platform.kind`. */
 export function useCapabilities(): Readonly<Capabilities> {
-  return usePlatform().capabilities;
+  const capabilities = useContext(CapabilitiesContext);
+  const platform = usePlatform();
+  return capabilities ?? platform.capabilities;
 }

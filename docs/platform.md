@@ -221,7 +221,7 @@ The web version uses `fetch()`. The browser, not Pigeon, decides what is allowed
 
 | Limitation | Effect in Pigeon | UX |
 |---|---|---|
-| **CORS** — target must return `Access-Control-Allow-Origin` (and allow methods/headers via preflight) | Request fails with an opaque `TypeError`; the real status is invisible | Error classified as `cors-suspected`; panel explains CORS, suggests the desktop app, a CORS-enabled dev server, or (later) a self-hosted proxy (PIGN-052) |
+| **CORS** — target must return `Access-Control-Allow-Origin` (and allow methods/headers via preflight) | Request fails with an opaque `TypeError`; the real status is invisible | Error classified as `cors-suspected`; panel explains CORS, suggests the desktop app, a CORS-enabled dev server, or a self-hosted proxy (§6.2.1, PIGN-052) |
 | Preflight (`OPTIONS`) for non-simple requests | Extra round trip; server must answer it | Mentioned in the CORS help |
 | **Forbidden request headers** (`Host`, `Cookie`, `Content-Length`, `Origin`, `Referer`, `Connection`, `Accept-Encoding`, `Sec-*`, `Proxy-*`, …) | Silently dropped or error | Header editor shows a warning icon on forbidden headers when `!canSetAnyHeader` (`isForbiddenHeader` in `@pigeon/platform`, the list FetchTransport drops) |
 | **Response headers** limited to CORS-safelisted + `Access-Control-Expose-Headers`; `Set-Cookie` never readable | Headers tab incomplete | Notice: "Some headers are hidden by the browser" |
@@ -231,9 +231,23 @@ The web version uses `fetch()`. The browser, not Pigeon, decides what is allowed
 | **Mixed content**: an `https://` Pigeon page cannot call `http://` APIs (except `localhost`/`127.0.0.1` in most browsers) | Blocked | Error classified `mixed-content` with explanation; suggest running web locally or desktop |
 | **Private Network Access** (Chromium): public origin → private/localhost may require preflight with `Access-Control-Allow-Private-Network` | Blocked on some setups | Included in network-error help (browser behaviour evolving) |
 | **TLS**: cannot ignore invalid/self-signed certs; no client certificate selection by Pigeon | Fails | TLS verify toggle disabled |
-| Proxy: browser/system proxy only | — | Proxy settings hidden |
+| Proxy: browser/system proxy only | — | Proxy settings hidden (the self-hosted CORS proxy of §6.2.1 is a separate opt-in) |
 | Timings: total only (Resource Timing needs `Timing-Allow-Origin`) | — | Timing tab shows total |
 | Content-Encoding decoded by browser; raw compressed size unknown | Size = decoded size | Size tooltip explains |
+
+#### 6.2.1 Optional self-hosted CORS proxy (PIGN-052)
+
+Users whose APIs lack CORS can run a small proxy themselves — never a Pigeon-hosted service:
+
+```bash
+pnpm --filter @pigeon/cors-proxy start        # prints URL (127.0.0.1:8787) and a random token
+```
+
+Options: `--port`, `--host` (default `127.0.0.1`), `--allow-origin <url>` (repeatable; defaults to the local dev/preview origins — add your deployed Pigeon origin), `--token` (default random), `--quiet`; or `PIGEON_PROXY_*` environment variables. `node packages/cors-proxy/dist/cli.js` runs the built single-file script anywhere Node 22+ is installed.
+
+- **Protocol**: `POST <proxy>/v1/forward` with header `x-pigeon-proxy-token` and a JSON envelope (method, URL, headers in order with duplicates, body as base64 bytes or multipart parts, timeout/redirect/TLS settings). The proxy sends it with `NodeTransport` (same semantics as the desktop/CLI transport: any header including `Host`/`Cookie`/`Origin`, manual redirects with hops, TLS verification toggle) and answers `{ ok, status, statusText, headers, base64, url, redirects, timings }` — every response header, `Set-Cookie` included — or `{ ok: false, error: { kind, message } }`. Forbidden headers therefore travel inside the envelope, not as real browser headers. `GET /v1/health` checks URL and token.
+- **Web app**: Settings → **CORS proxy** (per project; URL + token kept in this browser's local state, never in project files). While on, `platform.transport` sends through `ProxyTransport` and `platform.capabilities` switch to `transport: 'proxy'` with `bypassesCors`, `canSetAnyHeader`, `canReadAllResponseHeaders`, `canControlRedirects`, `canDisableTlsVerification`, `canSendBodyWithGet` true (UI re-renders through `useCapabilities()`). Results show a **Proxy** transport badge; the status bar shows "Proxy mode". The CORS error card offers "Use a local proxy".
+- **Threats and mitigations**: a proxy is an SSRF gateway — whoever can drive it sends requests from your machine's network position (intranet hosts, cloud metadata endpoints, `localhost` services). Hence: it binds to `127.0.0.1` by default (other hosts print a warning); every request needs the random token (compared in constant time); only allow-listed `Origin`s are served (a request without `Origin` is refused, so other web pages and blind cross-site requests cannot use it, and CORS responses only name allowed origins); request/response bodies and headers are never logged (one line per request: method, origin+path, status); envelopes over 64 MB are refused; only `http:`/`https:` targets. Don't expose it beyond your machine without your own access control, and stop it when not needed. An `https://` Pigeon page may call a proxy on `http://127.0.0.1` (browsers treat loopback as secure); other `http://` hosts are mixed content.
 
 ### 6.3 Local filesystem access
 - **Chromium**: `showDirectoryPicker({ mode: 'readwrite' })` gives a `FileSystemDirectoryHandle` → `FsAccessFs`. The handle is persisted in IndexedDB. On reload, `queryPermission` may return `prompt`; calling `requestPermission` requires a user gesture → the Welcome screen shows "Reconnect to <folder>" buttons. Some Chromium versions offer persistent permission ("Allow on every visit").

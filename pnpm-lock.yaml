@@ -165,6 +165,22 @@ importers:
         specifier: workspace:*
         version: link:../test-server
 
+  packages/cors-proxy:
+    dependencies:
+      '@pigeon/platform':
+        specifier: workspace:*
+        version: link:../platform
+      '@pigeon/platform-node':
+        specifier: workspace:*
+        version: link:../platform-node
+    devDependencies:
+      '@pigeon/test-server':
+        specifier: workspace:*
+        version: link:../test-server
+      vite:
+        specifier: ^8.3.4
+        version: 8.3.4(@types/node@24.13.6)(jiti@2.7.0)
+
   packages/fixtures: {}
 
   packages/formats:

@@ -4,6 +4,7 @@ import { HistoryView } from '../features/history/HistoryView';
 import { PendingChanges } from '../features/pending-changes/PendingChanges';
 import { RunnerSidebar } from '../features/runner/Runner';
 import { Welcome } from '../features/projects/Welcome';
+import { CorsProxySettings } from '../features/settings/CorsProxySettings';
 import { Diagnostics } from '../features/settings/Diagnostics';
 import { ExampleSettings } from '../features/settings/ExampleSettings';
 import { KeyboardSettings } from '../features/settings/Keyboard';
@@ -29,6 +30,7 @@ export function Sidebar({ view }: { view: SidebarView }) {
       {view === 'settings' ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <RequestDefaults />
+          <CorsProxySettings />
           <ExampleSettings />
           <ProjectComparisonSettings />
           <ScriptSettings />

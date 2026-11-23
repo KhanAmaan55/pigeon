@@ -2,7 +2,8 @@ import type { ExecutionError } from '@pigeon/core';
 import { ERROR_TITLES } from '@pigeon/core';
 import { CircleAlert } from 'lucide-react';
 
-import { useCapabilities } from '../../app/PlatformProvider';
+import { useCapabilities, usePlatform } from '../../app/PlatformProvider';
+import { PROXY_START_COMMAND } from '../settings/CorsProxySettings';
 import type { HelpSectionId } from '../help/WebLimitations';
 import { HelpLink } from '../help/WebLimitations';
 
@@ -26,6 +27,7 @@ const WEB_ERROR_SECTIONS: Partial<
  */
 export function ErrorCard({ error }: { error: ExecutionError }) {
   const { transport } = useCapabilities();
+  const canProxy = usePlatform().corsProxy !== undefined;
   const sections = transport === 'fetch' ? (WEB_ERROR_SECTIONS[error.kind] ?? []) : [];
   return (
     <div className="p-3">
@@ -58,6 +60,23 @@ export function ErrorCard({ error }: { error: ExecutionError }) {
               </span>
             ))}
           </p>
+        )}
+        {canProxy && transport === 'fetch' && error.kind === 'cors-suspected' && (
+          <div data-testid="response-error-proxy" className="text-fg-muted">
+            <span className="font-semibold text-fg">Use a local proxy:</span> run{' '}
+            <code>{PROXY_START_COMMAND}</code> on your machine, then{' '}
+            <button
+              type="button"
+              data-testid="response-error-proxy-settings"
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent('pigeon:open-view', { detail: 'settings' }))
+              }
+              className="text-accent underline hover:no-underline"
+            >
+              enter its URL and token in Settings
+            </button>
+            . Requests then bypass CORS; nothing goes through a hosted service.
+          </div>
         )}
         {error.detail && (
           <details data-testid="response-error-detail" className="text-xs text-fg-muted">

@@ -1,7 +1,7 @@
 import { useAppStore } from '../stores/AppStoreProvider';
 import { useAppConfig } from './AppConfig';
 import { OS_LABELS, PLATFORM_KIND_LABELS } from './platformLabels';
-import { usePlatform } from './PlatformProvider';
+import { useCapabilities, usePlatform } from './PlatformProvider';
 
 const DETECTION_LABELS = {
   watching: {
@@ -23,6 +23,7 @@ const DETECTION_LABELS = {
 /** Platform on the left; transport and project status arrive with later stories. */
 export function StatusBar() {
   const platform = usePlatform();
+  const { transport } = useCapabilities();
   const detection = useAppStore((s) => s.project?.changeDetection);
   const openHelp = useAppStore((s) => s.openHelp);
   const { desktopAppUrl } = useAppConfig();
@@ -35,7 +36,20 @@ export function StatusBar() {
       <span data-testid="status-platform">
         {PLATFORM_KIND_LABELS[platform.kind]} · {OS_LABELS[platform.os]}
       </span>
-      {platform.capabilities.transport === 'fetch' && (
+      {transport === 'proxy' && (
+        <button
+          type="button"
+          data-testid="status-proxy-mode"
+          title="Requests go through your self-hosted CORS proxy. Click to change it."
+          onClick={() =>
+            window.dispatchEvent(new CustomEvent('pigeon:open-view', { detail: 'settings' }))
+          }
+          className="cursor-pointer hover:text-fg"
+        >
+          Proxy mode — via your CORS proxy
+        </button>
+      )}
+      {transport === 'fetch' && (
         <button
           type="button"
           data-testid="status-browser-mode"
@@ -56,7 +70,7 @@ export function StatusBar() {
           {DETECTION_LABELS[detection].text}
         </span>
       )}
-      {desktopAppUrl && platform.capabilities.transport === 'fetch' && (
+      {desktopAppUrl && transport === 'fetch' && (
         <a
           href={desktopAppUrl}
           target="_blank"

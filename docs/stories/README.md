@@ -80,7 +80,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-049](PIGN-049-echoapi-environments.md) | Echo API environment import | 9 Later | Later | 030 | Blocked |
 | [PIGN-050](PIGN-050-curl-import-snippets.md) | cURL import & code snippets | 9 Later | Later | 042 | Done |
 | [PIGN-051](PIGN-051-request-history.md) | Local request history | 9 Later | Later | 042 | Done |
-| [PIGN-052](PIGN-052-web-cors-proxy.md) | Optional self-hosted CORS proxy (web) | 9 Later | Later | 039, 040 | Todo |
+| [PIGN-052](PIGN-052-web-cors-proxy.md) | Optional self-hosted CORS proxy (web) | 9 Later | Later | 039, 040 | Done |
 | [PIGN-053](PIGN-053-os-keychain-secrets.md) | OS keychain secret storage (desktop) | 9 Later | Later | 041 | Todo |
 | [PIGN-054](PIGN-054-cli-runner.md) | CLI regression runner | 9 Later | Later | 038, 040 | Todo |
 | [PIGN-055](PIGN-055-graphql-introspection.md) | GraphQL introspection & autocomplete | 9 Later | Later | 032 | Todo |

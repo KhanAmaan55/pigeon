@@ -1,12 +1,12 @@
 import type { Capabilities } from '@pigeon/platform';
 
 import { OS_LABELS, PLATFORM_KIND_LABELS } from '../../app/platformLabels';
-import { usePlatform } from '../../app/PlatformProvider';
+import { useCapabilities, usePlatform } from '../../app/PlatformProvider';
 
 /** Settings → About / Diagnostics: platform kind, OS and every capability value. */
 export function Diagnostics() {
   const platform = usePlatform();
-  const capabilities = Object.entries(platform.capabilities) as Array<
+  const capabilities = Object.entries(useCapabilities()) as Array<
     [keyof Capabilities, Capabilities[keyof Capabilities]]
   >;
 

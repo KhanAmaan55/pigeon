@@ -17,6 +17,11 @@ export const TRANSPORT_BADGES: Record<TransportKind, { label: string; descriptio
       'Sent by the browser: CORS applies, and some request and response headers are hidden.',
   },
   node: { label: 'Node', description: 'Sent from Node.js.' },
+  proxy: {
+    label: 'Proxy',
+    description:
+      'Sent through your self-hosted CORS proxy: no CORS, every header sent and visible.',
+  },
 };
 
 function statusColor(status: number): string {

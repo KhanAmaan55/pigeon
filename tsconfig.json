@@ -44,6 +44,12 @@
       "path": "packages/platform-node/test"
     },
     {
+      "path": "packages/cors-proxy"
+    },
+    {
+      "path": "packages/cors-proxy/test"
+    },
+    {
       "path": "packages/ui"
     },
     {

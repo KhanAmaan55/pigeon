@@ -7,6 +7,7 @@ import { ResizeHandle } from '../components/ResizeHandle';
 import { Toast } from '../components/Toast';
 import { useAppStore, useAppStoreApi } from '../stores/AppStoreProvider';
 import { newRequest } from '../features/explorer/actions';
+import { useCorsProxyActivation } from '../features/settings/CorsProxySettings';
 import type { AppCommand } from './commands';
 import { COMMAND_EVENT } from './commands';
 import type { CommandId } from '../features/command-palette/commands';
@@ -41,6 +42,8 @@ export function AppShell() {
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const appStore = useAppStoreApi();
 
+  // Web proxy mode follows the active project (PIGN-052).
+  useCorsProxyActivation();
   const registry = useCommandRegistry();
   const needsProject = () => {
     if (appStore.getState().project) return false;

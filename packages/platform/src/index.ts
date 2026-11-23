@@ -41,6 +41,14 @@ export type {
 export { TransportError } from './transport';
 export type { OAuthBrowser, OAuthRedirect } from './oauth';
 export type { HistoryRecord, HistoryStore } from './history';
+export type {
+  CorsProxyConfig,
+  CorsProxyControl,
+  ProxyBody,
+  ProxyRequestEnvelope,
+  ProxyResponseEnvelope,
+} from './cors-proxy';
+export { PROXY_FORWARD_PATH, PROXY_HEALTH_PATH, PROXY_TOKEN_HEADER } from './cors-proxy';
 export { MemoryHistoryStore } from './history';
 
 export { MemoryFs } from './memory/memory-fs';

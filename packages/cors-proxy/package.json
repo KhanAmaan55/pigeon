@@ -1,0 +1,25 @@
+{
+  "name": "@pigeon/cors-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Optional self-hosted CORS proxy for the Pigeon web app (PIGN-052). Never a hosted service.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "pigeon-cors-proxy": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "vite build",
+    "start": "vite build --logLevel warn && node dist/cli.js"
+  },
+  "dependencies": {
+    "@pigeon/platform": "workspace:*",
+    "@pigeon/platform-node": "workspace:*"
+  },
+  "devDependencies": {
+    "@pigeon/test-server": "workspace:*",
+    "vite": "^8.3.4"
+  }
+}

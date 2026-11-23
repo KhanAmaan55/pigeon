@@ -1,6 +1,7 @@
 import type { AppStateStore } from './app-state';
 import type { Capabilities } from './capabilities';
 import type { Dialogs } from './dialogs';
+import type { CorsProxyControl } from './cors-proxy';
 import type { FileExchange } from './files';
 import type { HistoryStore } from './history';
 import type { OAuthBrowser } from './oauth';
@@ -32,4 +33,9 @@ export interface Platform {
   readonly files: FileExchange;
   /** OAuth 2.0 authorization-code browser step (PIGN-047); absent where it can't run. */
   readonly oauth?: OAuthBrowser;
+  /**
+   * Web only (PIGN-052): route requests through a self-hosted CORS proxy. While it is on,
+   * `transport` sends through it and `capabilities` report proxy mode.
+   */
+  readonly corsProxy?: CorsProxyControl;
 }
