@@ -46,6 +46,18 @@ describe('check-bundle (PIGN-039)', () => {
     ]);
   });
 
+  it('fails when graphql reaches the initial JavaScript, not when it is lazy (PIGN-055)', () => {
+    const graphql = 'throw new Error(`Expected ${s} to be a GraphQL schema.`)';
+    expect(
+      checkBundle(
+        bundle({ 'assets/index.js': 'x', 'assets/vendor.js': 'y', 'assets/gql.js': graphql }),
+      ).errors,
+    ).toEqual([]);
+    expect(
+      checkBundle(bundle({ 'assets/index.js': 'x', 'assets/vendor.js': graphql })).errors,
+    ).toEqual(['assets/vendor.js: the graphql package is in the initial bundle']);
+  });
+
   it('fails when the initial JavaScript is over the budget', () => {
     const report = checkBundle(bundle({ 'assets/index.js': 'x', 'assets/vendor.js': 'y' }), 10);
     expect(report.errors).toEqual([expect.stringMatching(/over the 0\.0 KB budget/)]);

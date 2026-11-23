@@ -25,6 +25,7 @@ import type {
 } from '@pigeon/core';
 import {
   createExecutionContext,
+  introspectionRequest,
   createRequest,
   DEFAULT_PREFERENCES,
   acceptedExamplePatch,
@@ -196,6 +197,11 @@ export interface ScratchRequestState {
   send: () => Promise<void>;
   /** Cancels the in-flight request; its result becomes a quiet "Cancelled". */
   cancel: () => void;
+  /**
+   * Sends the GraphQL introspection query to this request's URL with its headers, auth and
+   * variables (PIGN-055); no scripts, comparison or history. Never rejects.
+   */
+  introspect: (query: string) => Promise<ExecutionResult>;
 }
 
 export type ScratchRequestStore = ReturnType<typeof createScratchRequestStore>;
@@ -232,6 +238,52 @@ export function createScratchRequestStore(
       binding?.commit(request);
     };
     const update = (patch: Partial<Request>) => setRequest({ ...get().request, ...patch });
+
+    /** The send context (variables, auth, cookies, tokens; scripts unless left out). */
+    const context = (withScripts: boolean) => {
+      const pageOrigin =
+        platform.capabilities.transport === 'fetch' ? env.pageOrigin?.() : undefined;
+      const inherited = get().request.auth ? undefined : binding?.inheritedAuth?.().auth;
+      const preRequest = withScripts ? binding?.preRequest?.() : undefined;
+      const tests = withScripts ? binding?.tests?.() : undefined;
+      const cookies = binding?.cookies?.();
+      return createExecutionContext({
+        capabilities: platform.capabilities,
+        preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
+        ...(pageOrigin === undefined ? {} : { pageOrigin }),
+        ...(binding ? { projectFs: binding.projectFs, projectId: binding.projectId } : {}),
+        ...(binding?.scopes ? { scopes: binding.scopes() } : {}),
+        ...(inherited === undefined ? {} : { inheritedAuth: inherited }),
+        ...(binding?.skippedScripts ? { skippedScripts: binding.skippedScripts() } : {}),
+        ...(binding?.skippedScriptsReason
+          ? { skippedScriptsReason: binding.skippedScriptsReason() }
+          : {}),
+        ...(preRequest
+          ? {
+              preRequest: {
+                runner: env.scriptRunner ?? workerScriptRunner,
+                scripts: preRequest.scripts,
+                requestName: preRequest.requestName,
+                ...(binding?.onScriptWrites ? { onWrites: binding.onScriptWrites } : {}),
+                ...(binding?.onScriptLogs ? { onLogs: binding.onScriptLogs } : {}),
+              },
+            }
+          : {}),
+        ...(cookies ? { cookies } : {}),
+        ...(binding?.oauth2 ? { oauth2: binding.oauth2() } : {}),
+        ...(tests
+          ? {
+              tests: {
+                runner: env.scriptRunner ?? workerScriptRunner,
+                scripts: tests.scripts,
+                requestName: tests.requestName,
+                ...(binding?.onScriptWrites ? { onWrites: binding.onScriptWrites } : {}),
+                ...(binding?.onScriptLogs ? { onLogs: binding.onScriptLogs } : {}),
+              },
+            }
+          : {}),
+      });
+    };
 
     return {
       request: binding ? binding.read() : createRequest({ name: 'Scratch request' }),
@@ -380,48 +432,7 @@ export function createScratchRequestStore(
         const controller = new AbortController();
         inFlight = controller;
         set({ status: 'sending' });
-        const pageOrigin =
-          platform.capabilities.transport === 'fetch' ? env.pageOrigin?.() : undefined;
-        const inherited = get().request.auth ? undefined : binding?.inheritedAuth?.().auth;
-        const preRequest = binding?.preRequest?.();
-        const tests = binding?.tests?.();
-        const cookies = binding?.cookies?.();
-        const ctx = createExecutionContext({
-          capabilities: platform.capabilities,
-          preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
-          ...(pageOrigin === undefined ? {} : { pageOrigin }),
-          ...(binding ? { projectFs: binding.projectFs, projectId: binding.projectId } : {}),
-          ...(binding?.scopes ? { scopes: binding.scopes() } : {}),
-          ...(inherited === undefined ? {} : { inheritedAuth: inherited }),
-          ...(binding?.skippedScripts ? { skippedScripts: binding.skippedScripts() } : {}),
-          ...(binding?.skippedScriptsReason
-            ? { skippedScriptsReason: binding.skippedScriptsReason() }
-            : {}),
-          ...(preRequest
-            ? {
-                preRequest: {
-                  runner: env.scriptRunner ?? workerScriptRunner,
-                  scripts: preRequest.scripts,
-                  requestName: preRequest.requestName,
-                  ...(binding?.onScriptWrites ? { onWrites: binding.onScriptWrites } : {}),
-                  ...(binding?.onScriptLogs ? { onLogs: binding.onScriptLogs } : {}),
-                },
-              }
-            : {}),
-          ...(cookies ? { cookies } : {}),
-          ...(binding?.oauth2 ? { oauth2: binding.oauth2() } : {}),
-          ...(tests
-            ? {
-                tests: {
-                  runner: env.scriptRunner ?? workerScriptRunner,
-                  scripts: tests.scripts,
-                  requestName: tests.requestName,
-                  ...(binding?.onScriptWrites ? { onWrites: binding.onScriptWrites } : {}),
-                  ...(binding?.onScriptLogs ? { onLogs: binding.onScriptLogs } : {}),
-                },
-              }
-            : {}),
-        });
+        const ctx = context(true);
         let secrets: readonly string[] = [];
         const sent = get().request;
         const result = await executor.execute(sent, ctx, {
@@ -462,6 +473,10 @@ export function createScratchRequestStore(
       cancel: () => {
         inFlight?.abort(new DOMException('The request was cancelled.', 'AbortError'));
       },
+      introspect: (query) =>
+        executor.execute(introspectionRequest(get().request, query), context(false), {
+          signal: AbortSignal.timeout(60_000),
+        }),
     };
   });
 

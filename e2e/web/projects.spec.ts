@@ -830,6 +830,68 @@ test.describe('GraphQL', () => {
   });
 });
 
+test.describe('GraphQL schema (PIGN-055)', () => {
+  test('introspection enables autocomplete, diagnostics and docs; the cache survives a reload', async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Schema API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await page.getByTestId('explorer-item').filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-graphql').click();
+    await page.getByTestId('url-input').fill(`${TEST_SERVER_URL}/graphql`);
+    await page.getByTestId('body-tab').click();
+
+    await page.getByTestId('graphql-fetch-schema').click();
+    await expect(page.getByTestId('graphql-schema-status')).toContainText('from introspection');
+
+    // Autocomplete offers the test server's root fields.
+    const query = page.getByTestId('graphql-query');
+    await query.click();
+    await page.keyboard.type('{ us');
+    const completions = page.locator('.cm-tooltip-autocomplete');
+    await expect(completions).toContainText('users');
+    await expect(completions).toContainText('user');
+    await page.keyboard.press('Escape');
+
+    // An unknown field gets a diagnostic.
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('{ users { nope } }');
+    await expect(page.locator('[data-testid="graphql-body"] .cm-lintRange-error')).toHaveCount(1);
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('{ users { name } }');
+    await expect(page.locator('[data-testid="graphql-body"] .cm-lintRange-error')).toHaveCount(0);
+
+    // Hover docs on a field.
+    await page.locator('[data-testid="graphql-query"] >> text=users').hover();
+    await expect(page.getByTestId('graphql-hover')).toContainText('[User!]!');
+
+    // The docs panel browses the schema.
+    await page.getByTestId('graphql-docs-toggle').click();
+    const docs = page.getByTestId('graphql-docs');
+    await docs.getByRole('button', { name: 'Query' }).first().click();
+    await expect(docs.getByTestId('graphql-docs-type')).toContainText('user(id: ID!): User');
+
+    // Saved, reloaded: the schema comes back from local state without fetching again.
+    await query.click();
+    await page.keyboard.press('ControlOrMeta+s');
+    await expect(page.getByTestId('explorer-unsaved')).toHaveCount(0);
+    await page.reload();
+    await page.waitForFunction(() => window.__pigeonTest !== undefined);
+    await expect(page.getByTestId('project-tab')).toContainText('Schema API');
+    await page.getByTestId('explorer-item').filter({ hasText: 'New GraphQL Request' }).dblclick();
+    await page.getByTestId('body-tab').click();
+    await expect(page.getByTestId('graphql-schema-status')).toContainText('from introspection');
+
+    await page.getByTestId('graphql-clear-schema').click();
+    await expect(page.getByTestId('graphql-schema-status')).toContainText('No schema');
+  });
+});
+
 test.describe('comparison', () => {
   test('compares responses with the saved example: pass, fail, content type', async ({ page }) => {
     await gotoApp(page);

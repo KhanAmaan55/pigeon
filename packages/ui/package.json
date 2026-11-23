@@ -12,6 +12,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-html": "^6.4.12",
     "@codemirror/lang-javascript": "^6.2.5",
@@ -29,6 +30,9 @@
     "@pigeon/formats": "workspace:*",
     "@pigeon/platform": "workspace:*",
     "@tanstack/react-virtual": "^3.14.26",
+    "cm6-graphql": "^1.0.0",
+    "graphql": "^17.0.2",
+    "graphql-language-service": "^6.0.1",
     "lucide-react": "^1.59.0",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",

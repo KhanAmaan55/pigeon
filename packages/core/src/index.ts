@@ -89,6 +89,15 @@ export type {
 } from './runner/runner';
 export { rememberRunReport, RUN_REPORTS_LIMIT, runRegression, runTargets } from './runner/runner';
 export type { ExampleJsonSchema } from './comparison/json-schema-export';
+export type { CachedSchema, IntrospectionAnswer } from './execution/graphql-schema';
+export {
+  GraphqlSchemaCache,
+  introspectionFromResponse,
+  introspectionRequest,
+  SCHEMA_CACHE_LIMIT,
+  SCHEMA_CACHE_MAX_CHARS,
+  schemaCacheKey,
+} from './execution/graphql-schema';
 export { exampleJsonSchema } from './comparison/json-schema-export';
 export type { CompareBody, ProjectExecutionOptions } from './runner/project-run';
 export {

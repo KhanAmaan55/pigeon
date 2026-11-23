@@ -26,6 +26,8 @@ import {
 import { tags } from '@lezer/highlight';
 import { useEffect, useRef } from 'react';
 
+import type { GraphQLSchema } from 'graphql';
+
 import type { CodeLanguage } from './languages';
 import { loadLanguage } from './languages';
 
@@ -52,6 +54,10 @@ export interface CodeEditorProps {
   variables?: VariableScopes;
   /** Scrolls to (and selects the start of) a 0-based line; a new `nonce` repeats it. */
   revealLine?: { line: number; nonce: number };
+  /** `language="graphql"` (PIGN-055): the schema for completion, diagnostics and hover. */
+  graphqlSchema?: GraphQLSchema | null;
+  /** Cmd/Ctrl+click on a field or type in a GraphQL query. */
+  onShowInDocs?: (type: string) => void;
 }
 
 /** Colours from the design tokens, so the editor follows the light/dark theme. */
@@ -145,6 +151,8 @@ export function CodeEditor({
   className = '',
   variables,
   revealLine,
+  graphqlSchema = null,
+  onShowInDocs,
 }: CodeEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -159,9 +167,12 @@ export function CodeEditor({
     variables: new Compartment(),
   });
 
+  const onShowInDocsRef = useRef(onShowInDocs);
+
   useEffect(() => {
     onChangeRef.current = onChange;
-  }, [onChange]);
+    onShowInDocsRef.current = onShowInDocs;
+  }, [onChange, onShowInDocs]);
 
   // Variable marks follow the scopes (environment switch, edited values).
   useEffect(() => {
@@ -264,7 +275,10 @@ export function CodeEditor({
 
   useEffect(() => {
     let current = true;
-    void loadLanguage(language, lint).then((extension) => {
+    void loadLanguage(language, lint, {
+      graphqlSchema: language === 'graphql' ? graphqlSchema : null,
+      onShowInDocs: (type) => onShowInDocsRef.current?.(type),
+    }).then((extension) => {
       if (current) {
         viewRef.current?.dispatch({
           effects: compartments.current.language.reconfigure(extension),
@@ -274,7 +288,7 @@ export function CodeEditor({
     return () => {
       current = false;
     };
-  }, [language, lint]);
+  }, [language, lint, graphqlSchema]);
 
   return (
     <div

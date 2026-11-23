@@ -22,6 +22,12 @@ const LEAKS: ReadonlyArray<{ pattern: RegExp; what: string }> = [
   },
 ];
 
+/** Libraries that must only arrive in lazily loaded chunks (never in the initial JavaScript). */
+const LAZY_ONLY: ReadonlyArray<{ pattern: RegExp; what: string }> = [
+  // graphql-js's schema assertion message (PIGN-055: the GraphQL editor loads it on first use).
+  { pattern: /to be a GraphQL schema/, what: 'the graphql package' },
+];
+
 export interface BundleReport {
   errors: string[];
   initialJsGzipBytes: number;
@@ -58,7 +64,12 @@ export function checkBundle(dist: string, budget = INITIAL_JS_BUDGET_BYTES): Bun
   const initialFiles = initialScripts(readFileSync(join(dist, 'index.html'), 'utf8'));
   let initialJsGzipBytes = 0;
   for (const file of initialFiles) {
-    initialJsGzipBytes += gzipSync(readFileSync(join(dist, file))).byteLength;
+    const bytes = readFileSync(join(dist, file));
+    initialJsGzipBytes += gzipSync(bytes).byteLength;
+    const text = bytes.toString('utf8');
+    for (const lazy of LAZY_ONLY) {
+      if (lazy.pattern.test(text)) errors.push(`${file}: ${lazy.what} is in the initial bundle`);
+    }
   }
   if (initialJsGzipBytes > budget) {
     errors.push(

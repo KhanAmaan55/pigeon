@@ -127,6 +127,8 @@ All Postman-shaped files use Postman v2.1 field names. Pigeon-only data inside a
 ```
 URL rule: project files store `raw` plus `query` and `variable` (path variables) and any preserved unknown URL keys. Derived parts (`protocol`, `host`, `path`, `port`) are **omitted** in project files and regenerated on Postman export.
 
+Pigeon-only request keys in `_pigeon`: `timeoutMs`, `includeCredentials`, `operationName` (GraphQL, PIGN-032) and `graphql.schemaFile` (PIGN-055): a project-relative SDL (`.graphql`) or introspection JSON file the GraphQL editor uses instead of introspection, committed so a team shares it. Introspection results themselves are cached in local state per request URL (§6), never in files.
+
 ### 2.5 `*.postman_environment.json`
 ```json
 {
@@ -278,6 +280,7 @@ Desktop layout:
 ```
 
 Request history (PIGN-051): every send of a project request — the request as sent and as defined, the response, environment, timing, size and comparison outcome — with secret values and auth credentials masked (`••••••`). Response bodies are kept up to 256 KB each (binary as base64); a project keeps the last 1,000 entries or 100 MB, the oldest evicted first. Writes are batched off the send path; `index.jsonl` is only appended to except when entries are evicted, removed or cleared (then rewritten atomically), and a torn last line is skipped. On the web the same data lives in the `history` (entries) and `historyIndex` (summaries with an append sequence) stores, keyed `<localKey>/<entryId>`. Results with a secret too short to mask, and cancelled sends, are never recorded. Recording can be turned off (preference `recordHistory`), and history is cleared per project from the History view.
+GraphQL schemas fetched by introspection (PIGN-055) are cached in local state per request URL (the raw URL without query string; `graphqlSchema:<url>` keys plus a `graphqlSchemas` index; the scratch request uses the app namespace): the last 20 URLs, each up to 5 MB (larger ones are used only until the editor closes). **Clear** in the GraphQL body forgets one.
 Run reports (last 20) are part of `state.json` (`runReports`, data-model.md §7.3): they hold counts, not findings, so they stay small.
 
 Limits (defaults): last-response bodies stored up to 1 MB each, 50 MB per project on desktop, 20 MB on web; older entries evicted LRU. State files have `schemaVersion` and are migrated forward; unreadable state is backed up (`state.json.bak-<ts>`) and reset — project files are unaffected.

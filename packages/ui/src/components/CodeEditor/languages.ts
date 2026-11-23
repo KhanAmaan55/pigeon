@@ -4,12 +4,23 @@
  */
 
 import type { Extension } from '@codemirror/state';
+import type { GraphQLSchema } from 'graphql';
 
 export const CODE_LANGUAGES = ['json', 'xml', 'html', 'javascript', 'graphql', 'text'] as const;
 export type CodeLanguage = (typeof CODE_LANGUAGES)[number];
 
+export interface LanguageOptions {
+  /** GraphQL (PIGN-055): schema-aware completion, diagnostics and hover docs. */
+  graphqlSchema?: GraphQLSchema | null;
+  onShowInDocs?: (type: string) => void;
+}
+
 /** The extensions for `language`; `lint` adds JSON syntax diagnostics (inline + gutter). */
-export async function loadLanguage(language: CodeLanguage, lint: boolean): Promise<Extension> {
+export async function loadLanguage(
+  language: CodeLanguage,
+  lint: boolean,
+  options: LanguageOptions = {},
+): Promise<Extension> {
   switch (language) {
     case 'json': {
       const { json, jsonParseLinter } = await import('@codemirror/lang-json');
@@ -24,11 +35,12 @@ export async function loadLanguage(language: CodeLanguage, lint: boolean): Promi
     case 'javascript':
       return (await import('@codemirror/lang-javascript')).javascript();
     case 'graphql': {
-      const [{ StreamLanguage }, { graphqlParser }] = await Promise.all([
-        import('@codemirror/language'),
-        import('./graphql-language'),
-      ]);
-      return StreamLanguage.define(graphqlParser);
+      // cm6-graphql's parser always; completion, diagnostics and hover once a schema is known.
+      const { loadGraphqlRuntime } = await import('../../features/graphql/load');
+      const runtime = await loadGraphqlRuntime();
+      return runtime.graphqlEditorExtension(options.graphqlSchema ?? null, {
+        ...(options.onShowInDocs ? { onShowInDocs: options.onShowInDocs } : {}),
+      });
     }
     case 'text':
       return [];

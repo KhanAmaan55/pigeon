@@ -40,8 +40,18 @@ export type ProjectBody =
   | ({ mode: 'urlencoded'; params: ProjectKeyValue[] } & BodyCommon)
   | ({ mode: 'formdata'; params: ProjectFormDataParam[] } & BodyCommon)
   | ({ mode: 'file'; src?: string } & BodyCommon)
-  /** Postman `graphql` mode (PIGN-032): `variables` is JSON text, as Postman stores it. */
-  | ({ mode: 'graphql'; query: string; variables: string; operationName?: string } & BodyCommon);
+  /**
+   * Postman `graphql` mode (PIGN-032): `variables` is JSON text, as Postman stores it.
+   * `schemaFile` (PIGN-055): a project-relative SDL or introspection JSON file, kept in
+   * `_pigeon.graphql.schemaFile` (committed, so a team shares it).
+   */
+  | ({
+      mode: 'graphql';
+      query: string;
+      variables: string;
+      operationName?: string;
+      schemaFile?: string;
+    } & BodyCommon);
 
 export interface ProjectUrl {
   raw: string;

@@ -281,6 +281,35 @@ describe('Postman item mapping', () => {
     expect(roundTrip(item)).toEqual(item);
   });
 
+  it('keeps the GraphQL schema file in _pigeon.graphql.schemaFile (PIGN-055)', () => {
+    const item = {
+      id: 'g',
+      name: 'G',
+      request: {
+        method: 'POST',
+        url: { raw: '/graphql' },
+        body: { mode: 'graphql', graphql: { query: '{ me { id } }', variables: '' } },
+      },
+      _pigeon: { graphql: { schemaFile: 'schemas/api.graphql', 'x-keep': true } },
+    };
+    const request = requestFromPostmanItem(item, 'g');
+    expect(request.body).toMatchObject({ mode: 'graphql', schemaFile: 'schemas/api.graphql' });
+    expect(roundTrip(item)).toEqual(item);
+    // Cleared: the key goes, unknown keys stay.
+    expect(
+      requestToPostmanItem({
+        ...request,
+        body: { ...request.body, schemaFile: undefined } as never,
+      })['_pigeon'],
+    ).toEqual({ graphql: { 'x-keep': true } });
+    const plain = requestFromPostmanItem(
+      { ...item, _pigeon: { graphql: { schemaFile: 's.json' } } },
+      'g',
+    );
+    expect(plain.extra['_pigeon']).toBeUndefined();
+    expect(requestToPostmanItem(plain)['_pigeon']).toEqual({ graphql: { schemaFile: 's.json' } });
+  });
+
   it('maps GraphQL bodies; the operation name lives in _pigeon unless the file has it (PIGN-032)', () => {
     const body = { mode: 'graphql', graphql: { query: '{ me { id } }', variables: '{"a": 1}' } };
     const item = {

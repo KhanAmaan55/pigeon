@@ -64,6 +64,8 @@ export const BodySchema = z.discriminatedUnion('mode', [
     query: z.string(),
     variables: z.string(),
     operationName: z.string().optional(),
+    /** Project-relative SDL or introspection JSON for the editor (PIGN-055). */
+    schemaFile: z.string().optional(),
     ...common,
   }),
 ]);

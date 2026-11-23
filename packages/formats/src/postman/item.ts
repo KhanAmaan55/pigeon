@@ -78,6 +78,15 @@ export function requestFromPostmanItem(item: JsonObject, fileKey: string): Proje
   if (body.mode === 'graphql' && typeof pigeon['operationName'] === 'string') {
     body = { ...body, operationName: take(pigeon, 'operationName') as string };
   }
+  // GraphQL schema file (PIGN-055): `_pigeon.graphql.schemaFile`; other keys there are kept.
+  if (body.mode === 'graphql') {
+    const graphql = { ...asObject(pigeon['graphql']) };
+    if (typeof graphql['schemaFile'] === 'string') {
+      body = { ...body, schemaFile: take(graphql, 'schemaFile') as string };
+      if (nonEmpty(graphql)) pigeon['graphql'] = graphql;
+      else delete pigeon['graphql'];
+    }
+  }
   if (nonEmpty(requestRest)) extra['request'] = requestRest;
   if (nonEmpty(profile)) extra['protocolProfileBehavior'] = profile;
   if (nonEmpty(pigeon)) extra['_pigeon'] = pigeon;
@@ -228,11 +237,21 @@ export function requestToPostmanItem(request: ProjectRequest): JsonObject {
     !('operationName' in asObject(asObject(request.body.extra)['graphql']))
       ? request.body.operationName
       : undefined;
+  const pigeonRest = asObject(pigeonExtra);
+  const schemaFile =
+    request.body.mode === 'graphql' && request.body.schemaFile
+      ? request.body.schemaFile
+      : undefined;
+  const graphqlPigeon = {
+    ...asObject(pigeonRest['graphql']),
+    ...(schemaFile === undefined ? {} : { schemaFile }),
+  };
   const pigeon = {
-    ...asObject(pigeonExtra),
+    ...pigeonRest,
     ...(timeoutMs === undefined ? {} : { timeoutMs }),
     ...(includeCredentials === undefined ? {} : { includeCredentials }),
     ...(graphqlName === undefined ? {} : { operationName: graphqlName }),
+    ...(nonEmpty(graphqlPigeon) ? { graphql: graphqlPigeon } : {}),
   };
   const body = bodyToPostman(request.body);
 
