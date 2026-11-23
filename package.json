@@ -20,6 +20,7 @@
     "version:sync": "node scripts/sync-version.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
     "@pigeon/platform": "workspace:*",
     "@pigeon/platform-web": "workspace:*",

@@ -149,9 +149,9 @@ function Pane({
 
   return (
     <div className="flex min-h-0 flex-col bg-bg">
-      <h3 className="shrink-0 border-b border-border px-2 py-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+      <h2 className="shrink-0 border-b border-border px-2 py-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
         {title}
-      </h3>
+      </h2>
       <div
         ref={scrollRef}
         data-testid={testId}

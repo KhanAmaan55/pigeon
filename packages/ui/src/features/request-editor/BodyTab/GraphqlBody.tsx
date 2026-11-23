@@ -61,9 +61,9 @@ export function GraphqlBody({ body }: { body: BodyOf<'graphql'> }) {
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-2">
         <section aria-label="Query" className="flex min-h-0 flex-col">
-          <h3 className="pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+          <h2 className="pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
             Query
-          </h3>
+          </h2>
           <CodeEditor
             variables={variables}
             value={body.query}
@@ -76,9 +76,9 @@ export function GraphqlBody({ body }: { body: BodyOf<'graphql'> }) {
           />
         </section>
         <section aria-label="Variables" className="flex min-h-0 flex-col">
-          <h3 className="pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+          <h2 className="pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
             Variables
-          </h3>
+          </h2>
           <CodeEditor
             variables={variables}
             value={body.variables}

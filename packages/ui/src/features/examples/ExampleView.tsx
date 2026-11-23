@@ -259,9 +259,9 @@ function Section({
   const id = useId();
   return (
     <section aria-labelledby={id} data-testid={testId} className="border-t border-border px-3 py-2">
-      <h3 id={id} className="pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+      <h2 id={id} className="pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
         {title}
-      </h3>
+      </h2>
       {children}
     </section>
   );

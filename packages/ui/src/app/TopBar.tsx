@@ -14,7 +14,7 @@ export function TopBar() {
       data-testid="top-bar"
       className="flex h-topbar shrink-0 items-center gap-2 border-b border-border bg-surface-raised pr-2 pl-3"
     >
-      <span className="font-semibold tracking-tight">Pigeon</span>
+      <h1 className="text-base font-semibold tracking-tight">Pigeon</h1>
       <ProjectTabs />
       <EnvironmentSelector />
       <IconButton

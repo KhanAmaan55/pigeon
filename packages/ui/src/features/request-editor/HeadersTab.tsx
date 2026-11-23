@@ -69,7 +69,7 @@ export function HeadersTab() {
         />
       )}
       <section aria-label="Auto-generated headers" className="text-sm text-fg-muted">
-        <h3 className="pb-1 text-xs font-semibold tracking-wide uppercase">Auto-generated</h3>
+        <h2 className="pb-1 text-xs font-semibold tracking-wide uppercase">Auto-generated</h2>
         {automatic.length > 0 && (
           <table aria-label="Auto-generated headers" className="w-full table-fixed">
             <tbody>

@@ -30,7 +30,7 @@ As a power user, I want to do everything from the keyboard and have Pigeon stay 
 - [ ] Every action in ui-ux.md §4 works on macOS, Windows/Linux, and web (with documented web alternatives). — web in Chromium/Firefox/WebKit and unit tests; the desktop apps on Windows/Linux not run
 - [x] Palette lists all registered commands; Quick open finds a request among 5,000 in < 100 ms.
 - [ ] Budgets in ui-ux.md §7 met in CI perf job (thresholds with 20 % tolerance) and recorded. — met locally within tolerance and recorded in ui-ux.md §7 (opening the 5,000-request project is 2.05–2.24 s: over 2 s, under 2.4 s); the CI job hasn't run yet
-- [ ] axe-core scan on main screens reports no critical violations. — not done: needs the axe-core package (a new download, waiting for approval); a manual pass was done instead
+- [x] axe-core scan on main screens reports no critical violations.
 
 ## Technical notes
 - Perf tests run in a separate CI job (`pnpm test:perf`) to avoid flakiness in PR gating; failures block release, not PRs (decide and document).
@@ -56,5 +56,11 @@ Standard DoD. Milestone **M6 — MVP release** reached.
   - Result: 2.05–2.24 s, within the 20 % tolerance but still over the 2 s budget on this loaded machine. The read itself is 0.4–0.5 s in Node.
   - An earlier 10-minute perf run was the machine under load, not the code (the same test runs in under 2 s).
 - **Measured** (MacBook, Apple silicon, load average ~6, 2026-11-23): open 2.05–2.24 s; explorer scroll no long task; tab switch 15–16 ms median; keystroke handling 6–11 ms; 5 MB raw 0.86–0.93 s, pretty 0.1–0.17 s; desktop cold start 0.56–0.64 s on repeat launches, 1.3 s for the first launch after a build (earlier first launches up to 40 s while macOS scanned the new binary). Recorded in ui-ux.md §7.
-- **Accessibility**: focus rings (`:focus-visible`) and `prefers-reduced-motion` were already global. Added: the explorer tree points `aria-activedescendant` at the current row (rows have ids); request tabs are focusable (roving `tabIndex`), Enter/Space activate, ←/→ move. The palette is a combobox with a listbox and `aria-activedescendant`. **No axe-core scan**: it needs a new dev dependency (download not approved yet).
-- **Tests**: registry unit tests (every ui-ux §4 shortcut, labels, fuzzy, Quick open over 5,000), UI tests (palette, Quick open, Keyboard settings, menu commands, accessibility), Playwright in 3 browsers (Alt+N, palette, Quick open, Alt+W), perf suite.
+- **Accessibility**: focus rings (`:focus-visible`) and `prefers-reduced-motion` were already global. Added: the explorer tree points `aria-activedescendant` at the current row (rows have ids); request tabs are focusable (roving `tabIndex`), Enter/Space activate, ←/→ move. The palette is a combobox with a listbox and `aria-activedescendant`.
+- **Tests**: registry unit tests (every ui-ux §4 shortcut, labels, fuzzy, Quick open over 5,000), UI tests (palette, Quick open, Keyboard settings, menu commands, accessibility), Playwright in 3 browsers (Alt+N, palette, Quick open, Alt+W), perf suite, axe scan.
+- **axe-core scan** (`e2e/web/a11y.spec.ts`, `@axe-core/playwright` added as a root dev dependency with your approval; Chromium): Welcome, a response, an open project, Settings, the command palette and the Web limitations help. It fails on critical violations and prints the rest. It found and we fixed:
+  - Critical `aria-required-children`: tab lists with no tabs, or with other controls inside. The empty project and request tab strips are no longer tab lists, and the "+" button moved out of the project tab list.
+  - Serious `nested-interactive`: a button inside each project tab. The project close "×" is now a mouse-only control; the keyboard closes a project with File → Close Project or the palette.
+  - Palette contrast: grey text on the highlighted row now uses the normal text colour.
+  - Moderate: a `<main>` landmark, an `<h1>` (Pigeon) and panel headings promoted from `<h3>` to `<h2>`.
+  - **Still reported (serious)**: colour contrast of the small method labels (GET, POST, …) in the explorer. Fixing it means changing the method colour palette, so it is left for a design decision.

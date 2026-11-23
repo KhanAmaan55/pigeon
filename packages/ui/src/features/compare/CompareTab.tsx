@@ -253,9 +253,9 @@ export function CompareTab({
           <div data-testid="compare-findings" className="min-h-0 flex-1 overflow-auto">
             {groups.map((group) => (
               <section key={group.id} aria-label={group.title}>
-                <h3 className="sticky top-0 bg-surface px-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+                <h2 className="sticky top-0 bg-surface px-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
                   {group.title}
-                </h3>
+                </h2>
                 <ul>
                   {group.findings.map((finding, index) => {
                     const line = lineOf(actualIndex, finding.path, finding.schemaPath);

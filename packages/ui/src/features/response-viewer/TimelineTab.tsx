@@ -120,7 +120,7 @@ export function TimelineTab({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="mb-4 last:mb-0">
-      <h3 className="mb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">{title}</h3>
+      <h2 className="mb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">{title}</h2>
       {children}
     </section>
   );

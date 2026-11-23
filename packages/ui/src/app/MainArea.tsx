@@ -48,7 +48,7 @@ export function MainArea() {
 
   const split = <EditorSplit dock={dock} onToggleDock={toggleDock} />;
   return (
-    <section className="flex h-full min-w-0 flex-col bg-bg">
+    <main aria-label="Request" className="flex h-full min-w-0 flex-col bg-bg">
       {project ? (
         <ProjectTabs key={project.key} project={project} split={split} />
       ) : (
@@ -66,7 +66,7 @@ export function MainArea() {
           {split}
         </ScratchRequestProvider>
       )}
-    </section>
+    </main>
   );
 }
 

@@ -11,9 +11,9 @@ export function ParamsTab() {
   return (
     <div className="flex flex-col gap-4 p-2">
       <section aria-label="Query parameters">
-        <h3 className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
+        <h2 className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
           Query parameters
-        </h3>
+        </h2>
         <KeyValueTable
           label="Query parameters"
           testId="query-table"
@@ -25,9 +25,9 @@ export function ParamsTab() {
       </section>
       {pathVariables.length > 0 && (
         <section aria-label="Path variables">
-          <h3 className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
+          <h2 className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
             Path variables
-          </h3>
+          </h2>
           <KeyValueTable
             label="Path variables"
             testId="path-variables-table"

@@ -530,7 +530,7 @@ export function RunnerSidebar() {
       >
         <Play size={14} aria-hidden /> New run…
       </button>
-      <h3 className="px-1 pt-2 text-xs font-semibold text-fg-muted uppercase">Recent runs</h3>
+      <h2 className="px-1 pt-2 text-xs font-semibold text-fg-muted uppercase">Recent runs</h2>
       {reports.length === 0 && <p className="px-1 text-fg-muted">No runs yet.</p>}
       <ul className="min-h-0 flex-1 overflow-y-auto" aria-label="Recent runs">
         {reports.map((report) => (

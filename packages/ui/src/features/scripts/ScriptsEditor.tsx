@@ -43,9 +43,9 @@ export function ScriptsEditor({
         return (
           <section key={listen} aria-label={`${label} script`} data-testid={`script-${listen}`}>
             <div className="flex items-center gap-2 pb-1">
-              <h3 className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
+              <h2 className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
                 {label}
-              </h3>
+              </h2>
               <span data-testid={`script-${listen}-lines`} className="text-xs text-fg-muted">
                 {lines} line{lines === 1 ? '' : 's'}
               </span>

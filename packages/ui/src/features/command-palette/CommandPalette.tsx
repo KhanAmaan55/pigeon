@@ -251,7 +251,7 @@ function FilterList<T>({
             data-testid={testId}
             onMouseMove={() => setActive(index)}
             onClick={() => onSelect(item)}
-            className="flex cursor-default items-center gap-2 rounded px-2 py-1.5 aria-selected:bg-hover"
+            className="group flex cursor-default items-center gap-2 rounded px-2 py-1.5 aria-selected:bg-hover [&[aria-selected=true]_.text-fg-muted]:text-fg"
           >
             {render(item)}
           </li>

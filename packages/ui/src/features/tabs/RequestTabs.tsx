@@ -99,7 +99,7 @@ export function RequestTabs({ project }: { project: OpenProject }) {
     <>
       <div className="flex h-tabbar shrink-0 items-stretch border-b border-border bg-surface">
         <div
-          role="tablist"
+          role={tabs.length > 0 ? 'tablist' : 'group'}
           aria-label="Open requests"
           data-testid="request-tabs"
           className="flex min-w-0 flex-1 items-stretch overflow-x-auto"
