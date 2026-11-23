@@ -115,6 +115,23 @@ Subset of JSONPath, implemented in `compare/src/path.ts`:
 
 Concrete finding paths use indices (`$.items[3].id`); `schemaPath` replaces indices with `[*]` (`$.items[*].id`). "Mark as …" actions from the UI write rules using `schemaPath`.
 
+### 4.7 JSON Schema export (PIGN-056)
+**Copy / Export JSON Schema** (example view toolbar; Compare tab header, for the baseline) turns the schema snapshot of a JSON example into JSON Schema draft 2020-12 (`compare/src/json-schema.ts` `toJsonSchema`, core `exampleJsonSchema`), with the request's effective rules and settings applied. The schema rejects what schema-mode comparison **fails** and accepts what only warns, so it validates the baseline and every body that passes or warns:
+
+| Snapshot / setting | JSON Schema |
+|---|---|
+| `types` | `type` (a string, or a sorted array for unions); `integer` becomes `number` (integer → number only warns) |
+| baseline only `null` | `{}` (any: the type is unknown, so any value is a warning at most) |
+| `nullable` rule | adds `"null"` |
+| `type` rule | adds its types; `any` → `{}` |
+| `ignore` rule | `{}` at the path and below, and not `required` |
+| object keys | `properties` (sorted) |
+| keys in every baseline object, not `optional`/`ignore` by rule | `required` (sorted); keys only some array elements had are not required |
+| `additionalFields: 'fail'` | `additionalProperties: false`; otherwise omitted (open), since added fields warn |
+| arrays | `items` from the merged elements; no item schema when every baseline array was empty; no `minItems` (an empty array is `info`) |
+
+Output is deterministic (fixed key order: `$schema`, `title`, `description`, `type`, `properties`, `required`, `additionalProperties`, `items`), so exported files diff cleanly. Rule paths with concrete indices (`$.items[0].id`) don't match the snapshot's `[*]` paths and are not reflected. Value-level settings (`dynamic`, values mode) have no schema equivalent. Tests cross-check the export against comparison with ajv: on every comparison case and on random baseline/actual pairs, a body the comparison doesn't fail validates.
+
 ## 5. Dynamic value hints
 
 To help users, the comparator flags likely-dynamic fields in **values** mode (UUIDs, ISO timestamps, unix timestamps, JWTs, long hex tokens) with a suggestion "Mark as dynamic?" in the UI. Suggestions never change severity by themselves. In the default schema mode dynamic values don't matter.

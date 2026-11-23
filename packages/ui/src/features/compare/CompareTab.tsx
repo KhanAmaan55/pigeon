@@ -58,6 +58,7 @@ export function CompareTab({
   baselineMode,
   onAccept,
   onSaveExample,
+  schemaActions,
 }: {
   comparison: ComparisonState;
   /** The example the comparison used (for the side-by-side view). */
@@ -84,6 +85,8 @@ export function CompareTab({
   /** "Accept as new baseline" (after confirmation) and "Save as new example". */
   onAccept?: () => void;
   onSaveExample?: () => void;
+  /** "Copy / Export JSON Schema" of the baseline (PIGN-056). */
+  schemaActions?: ReactNode;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [view, setView] = useState<'findings' | 'side-by-side'>('findings');
@@ -217,6 +220,7 @@ export function CompareTab({
             <option value="none">Disable comparison</option>
           </select>
         )}
+        {schemaActions}
         <div role="radiogroup" aria-label="Comparison view" className="ml-auto flex gap-1">
           {(['findings', 'side-by-side'] as const).map((candidate) => (
             <button

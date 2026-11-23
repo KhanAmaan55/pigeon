@@ -4,6 +4,8 @@ export const PACKAGE_NAME = '@pigeon/compare';
 
 export { compareJson } from './diff';
 export { inferSchema } from './infer';
+export type { JsonSchema, JsonSchemaOptions } from './json-schema';
+export { JSON_SCHEMA_DIALECT, toJsonSchema } from './json-schema';
 export { describeTypes, jsonTypeOf } from './json-type';
 export type { PathSegment } from './path';
 export { formatPath, keySegment, matchPath, parsePath, toSchemaPath } from './path';

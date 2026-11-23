@@ -18,6 +18,7 @@ import { usePlatform } from '../../app/PlatformProvider';
 import { useVolatileHeaders } from '../../app/preferences';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { CompareTab } from '../compare/CompareTab';
+import { JsonSchemaActions } from '../compare/JsonSchemaActions';
 import { ComparisonBadge } from '../compare/outcome';
 import { ExamplesTab, useRequestExamples } from '../examples/ExamplesTab';
 import { useScratchRequest } from '../request-editor/ScratchRequestProvider';
@@ -458,6 +459,17 @@ function ResponseTabs({
               : {})}
             {...(saveAsExample
               ? { onSaveExample: () => void saveAsExample({ volatileHeaders }) }
+              : {})}
+            {...(project && baselineExample && project.session.findExample(baselineExample.id)
+              ? {
+                  schemaActions: (
+                    <JsonSchemaActions
+                      session={project.session}
+                      exampleId={baselineExample.id}
+                      testIdPrefix="compare"
+                    />
+                  ),
+                }
               : {})}
             onEditProjectRules={() =>
               window.dispatchEvent(new CustomEvent('pigeon:open-view', { detail: 'settings' }))

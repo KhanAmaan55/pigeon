@@ -313,7 +313,7 @@ interface SchemaNode {
   someEmpty?: boolean;                 // some baseline arrays here were empty, others not
 }
 ```
-Snapshots are **derived** from the baseline example body; they are cached in local state and never committed. Export as JSON Schema is PIGN-056.
+Snapshots are **derived** from the baseline example body; they are cached in local state and never committed. They can be exported as JSON Schema (PIGN-056, [response-comparison.md §4.7](response-comparison.md#47-json-schema-export-pign-056)).
 
 ### 7.2 Results (local)
 

@@ -88,6 +88,8 @@ export type {
   RunTarget,
 } from './runner/runner';
 export { rememberRunReport, RUN_REPORTS_LIMIT, runRegression, runTargets } from './runner/runner';
+export type { ExampleJsonSchema } from './comparison/json-schema-export';
+export { exampleJsonSchema } from './comparison/json-schema-export';
 export type { CompareBody, ProjectExecutionOptions } from './runner/project-run';
 export {
   applyScriptWrites,

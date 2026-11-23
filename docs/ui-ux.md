@@ -78,9 +78,10 @@ Activity bar (left icons): Collections, Environments, History, Pending Changes, 
 - Examples appear nested under their request in the explorer (collapsible) and in the response **Examples** tab.
 - Example view: read-only by default with **Edit** toggle; editable name, status code/text, headers, body (CodeMirror); `originalRequest` shown collapsed.
 - `★` marks the current baseline (auto or pinned). "Set as baseline" / "Use auto baseline".
+- JSON examples: **Copy JSON Schema** / **Export JSON Schema** (`<request>-<example>.schema.json`, draft 2020-12, rules applied — PIGN-056, response-comparison.md §4.7).
 
 ### 3.7 Comparison / diff view
-- Header: outcome, counts per severity, baseline name (switchable), config summary (mode, additional fields policy) with "Edit rules".
+- Header: outcome, counts per severity, baseline name (switchable), config summary (mode, additional fields policy) with "Edit rules"; **Copy / Export JSON Schema** of the baseline (JSON baselines).
 - **Findings list** (default): grouped by section (Status, Headers, Body), sorted by severity; each row: icon, path (`schemaPath` with count), message, baseline → actual types/values; row actions: **Mark optional**, **Allow null**, **Ignore**, **Mark dynamic**, **Show in body**.
 - **Side-by-side view**: baseline JSON vs actual JSON with gutter markers (+ added, − removed, ~ type changed) and synchronized scrolling; clicking a finding scrolls both sides.
 - Footer actions: **Accept as new baseline**, **Save as new example**, filter (show ignored).

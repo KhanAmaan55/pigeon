@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { useId, useState } from 'react';
 
 import { CodeEditor } from '../../components/CodeEditor';
+import { JsonSchemaActions } from '../compare/JsonSchemaActions';
 import { KeyValueTable } from '../../components/KeyValueTable';
 import { formatBytes } from '../../lib/format';
 import { useProjectState } from '../../stores/AppStoreProvider';
@@ -70,6 +71,7 @@ export function ExampleView({
         )}
         <span className="text-xs text-fg-muted">of {request.name}</span>
         <div className="ml-auto flex items-center gap-1">
+          <JsonSchemaActions session={session} exampleId={example.id} testIdPrefix="example" />
           <ToolbarButton
             testId="example-edit-toggle"
             pressed={editing}

@@ -571,6 +571,48 @@ test.describe('examples', () => {
     await view.getByTestId('example-edit-toggle').click();
     await expect(view.getByTestId('example-status-line')).toHaveText('200 All good');
   });
+
+  test('exports the JSON Schema of an example (PIGN-056)', async ({ page, browserName }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Schema API');
+    await page.getByTestId('create-project-submit').click();
+    await page.getByTestId('explorer-empty-new-collection').click();
+    await page.getByTestId('explorer-rename-input').fill('Users');
+    await page.getByTestId('explorer-rename-input').press('Enter');
+    await page.getByTestId('explorer-item').filter({ hasText: 'Users' }).click({ button: 'right' });
+    await page.getByTestId('menu-new-request').click();
+    await page.getByTestId('url-input').fill(`${TEST_SERVER_URL}/json/user`);
+    await page.getByTestId('send-button').click();
+    await page.getByTestId('save-as-example').click();
+    await expect(page.getByTestId('example-saved')).toContainText('200 OK');
+
+    // The Compare tab offers it for the baseline after the next send.
+    await page.getByTestId('send-button').click();
+    await page.getByTestId('response-compare-tab').click();
+    await expect(page.getByTestId('compare-schema-export')).toBeVisible();
+
+    await page.getByTestId('explorer-examples-toggle').click();
+    await page.getByTestId('explorer-item').filter({ hasText: '200 OK' }).click();
+    const view = page.getByTestId('example-view');
+    await expect(view.getByTestId('example-schema-copy')).toBeVisible();
+    // Chromium saves through the native save picker, which can't be automated.
+    if (browserName === 'chromium') return;
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      view.getByTestId('example-schema-export').click(),
+    ]);
+    expect(download.suggestedFilename()).toBe('new-request-200-ok.schema.json');
+    const schema = JSON.parse(readFileSync((await download.path())!, 'utf8')) as Record<
+      string,
+      unknown
+    >;
+    expect(schema).toMatchObject({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      required: expect.arrayContaining(['id', 'name', 'email']),
+    });
+  });
 });
 
 test.describe('Postman import', () => {
