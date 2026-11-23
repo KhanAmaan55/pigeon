@@ -1,7 +1,7 @@
 import { Bookmark, AlertTriangle, ChevronDown, Play, Save, Variable, X } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { Dialog } from 'radix-ui';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import type { OpenProject } from '../../stores/app-store';
 import { findContainer, GLOBALS_ENTITY_ID } from '@pigeon/core';
@@ -11,29 +11,9 @@ import { methodLabel } from '../explorer/tree';
 import { methodColorClass } from '../request-editor/methods';
 import { disposeTabEditor } from './editor-registry';
 import { RUNNER_TAB_ID } from '../runner/tab';
+import { useCommand } from '../command-palette/CommandsProvider';
 
 const NO_TABS: never[] = [];
-
-/** Cmd/Ctrl+S: Save (docs/ui-ux.md §4); Shift is Save for Commit (PIGN-019). */
-export function isSaveShortcut(event: KeyboardEvent): boolean {
-  return (
-    event.code === 'KeyS' && (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey
-  );
-}
-
-/** Cmd/Ctrl+Shift+S: Save for Commit (docs/ui-ux.md §4). */
-export function isSaveForCommitShortcut(event: KeyboardEvent): boolean {
-  return (
-    event.code === 'KeyS' && (event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey
-  );
-}
-
-/** Cmd/Ctrl+W, or Alt+W where the browser keeps Cmd/Ctrl+W (docs/ui-ux.md §4). */
-export function isCloseTabShortcut(event: KeyboardEvent): boolean {
-  return (
-    event.code === 'KeyW' && !event.shiftKey && (event.metaKey || event.ctrlKey || event.altKey)
-  );
-}
 
 /**
  * Request tabs of the open project (docs/ui-ux.md §3.2): method + name, ● for unsaved edits,
@@ -87,31 +67,27 @@ export function RequestTabs({ project }: { project: OpenProject }) {
     disposeTabEditor(session, id);
   };
 
-  useEffect(() => {
-    // An example tab saves its request, which holds the example (PIGN-027).
-    const entityOf = (id: string) => session.findExample(id)?.request.id ?? id;
-    const onKeyDown = (event: KeyboardEvent) => {
-      const state = store.getState();
-      const active = state.activeTabId ? entityOf(state.activeTabId) : null;
-      if (isSaveForCommitShortcut(event)) {
-        event.preventDefault();
-        if (active) void saveForCommit([active]);
-      } else if (isSaveShortcut(event)) {
-        event.preventDefault();
-        if (active && session.isUnsaved(active)) void save([active]);
-      } else if (isCloseTabShortcut(event) && state.activeTabId) {
-        event.preventDefault();
-        close(state.activeTabId);
-      } else if (event.key === 'Tab' && event.ctrlKey && !event.metaKey && !event.altKey) {
-        event.preventDefault();
-        state.cycleTab(event.shiftKey ? -1 : 1);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-    // `close` reads the latest state through the store; re-binding per render is unnecessary.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store, session]);
+  // An example tab saves its request, which holds the example (PIGN-027).
+  const activeEntity = () => {
+    const id = store.getState().activeTabId;
+    return id ? (session.findExample(id)?.request.id ?? id) : null;
+  };
+  // Cmd/Ctrl+S, Cmd/Ctrl+Shift+S (PIGN-019), Cmd/Ctrl+W (Alt+W on web), Ctrl+(Shift+)Tab.
+  useCommand('file.saveForCommit', () => {
+    const active = activeEntity();
+    if (active) void saveForCommit([active]);
+  });
+  useCommand('file.save', () => {
+    const active = activeEntity();
+    if (active && session.isUnsaved(active)) void save([active]);
+  });
+  useCommand('tab.close', () => {
+    const id = store.getState().activeTabId;
+    if (!id) return false;
+    close(id);
+  });
+  useCommand('tab.next', () => store.getState().cycleTab(1));
+  useCommand('tab.previous', () => store.getState().cycleTab(-1));
 
   const pending = confirming
     ? (session.findRequest(confirming) ??
@@ -160,6 +136,29 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                 role="tab"
                 aria-selected={active}
                 data-testid="request-tab"
+                tabIndex={active ? 0 : -1}
+                onKeyDown={(event) => {
+                  // Keyboard access (PIGN-042): Enter/Space activate, ←/→ move between tabs.
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    store.getState().activateTab(tab.id);
+                  } else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+                    event.preventDefault();
+                    const tabs = [
+                      ...event.currentTarget.parentElement!.querySelectorAll<HTMLElement>(
+                        '[role="tab"]',
+                      ),
+                    ];
+                    const index = tabs.indexOf(event.currentTarget);
+                    const next =
+                      tabs[
+                        (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length
+                      ];
+                    next?.focus();
+                    next?.click();
+                  }
+                }}
                 data-pinned={tab.pinned}
                 data-unsaved={dirty || undefined}
                 title={label}

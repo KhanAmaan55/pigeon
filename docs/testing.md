@@ -20,6 +20,8 @@ Every story leaves the repo green: `pnpm verify` passes and the apps build. Test
 | `pnpm verify` | lint + typecheck + unit/integration tests + web build (required after every story) |
 | `pnpm test` | Vitest across packages |
 | `pnpm test:e2e` | Builds `apps/web` in `e2e` mode (`build:e2e`: adds the `window.__pigeonTest` hooks, never in production builds), then runs Playwright web E2E against `vite preview`; Playwright also starts `@pigeon/test-server` on port 4010. First run locally: `pnpm exec playwright install chromium firefox webkit` |
+| `pnpm test:perf` | Performance budgets (PIGN-042): Vitest `*.perf.test.ts` (5,000-request project read, commit planner), then Playwright `e2e/perf` in Chromium (open project, explorer scroll, tab switch, keystrokes, 5 MB response). Budgets from ui-ux.md §7 with 20 % tolerance; each measurement is printed |
+| `pigeon --smoke --timing` | Desktop cold start: prints `cold-start-ms: N` (process start → app shell painted) |
 | `pnpm --filter @pigeon/test-server start` | Test server on `http://127.0.0.1:4010` (`PIGEON_TEST_SERVER_PORT` overrides) for E2E and Rust tests; endpoints in `packages/test-server/README.md` |
 | `pnpm test:e2e:desktop` | WebdriverIO desktop specs (Linux/Windows) |
 | `pnpm --filter @pigeon/desktop build` | Tauri build for current OS (requires Rust) |
@@ -84,7 +86,8 @@ Fixtures in `packages/fixtures/postman/`:
 1. `verify` (matrix macOS/Windows/Linux): install, then `pnpm verify` (lint, typecheck, unit/integration, build). Later stories add NodeFs conformance and `cargo test` to this matrix.
 2. `e2e-web` (ubuntu): Playwright 3 browsers.
 3. `desktop-build` (matrix macOS/Windows/Ubuntu 22.04): `cargo test`, `tauri build` (unsigned), `--smoke` launch (under `xvfb-run` on Linux), upload bundles; desktop E2E on Linux/Windows (later).
-4. `release` (tags only, PIGN-041).
+4. `perf` (ubuntu, pushes to main only, `continue-on-error`): `pnpm test:perf`. Budgets don't gate pull requests (timings are noisy on shared runners); the release workflow runs the same job and the draft release needs it (PIGN-042).
+5. `release` (tags only, PIGN-041).
 
 ## 6. Definition of "tested" for a story
 - New logic has unit tests; new cross-layer flows have an integration test; new user-visible workflow has at least one E2E path (web; desktop too when it touches desktop adapters).

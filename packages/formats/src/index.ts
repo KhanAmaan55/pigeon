@@ -63,6 +63,7 @@ export {
 export { createEmptyProject } from './project/create';
 export { isManagedPath, isProjectFile } from './project/managed';
 export { CURRENT_FORMAT_VERSION, GLOBALS_PATH, readProject } from './project/reader';
+export { READ_CONCURRENCY, readFilesConcurrently, snapshotProject } from './project/snapshot';
 export { COLLECTION_SCHEMA } from './project/schemas';
 export { encodeFile, exampleDirectory, serializeProject } from './project/writer';
 export {

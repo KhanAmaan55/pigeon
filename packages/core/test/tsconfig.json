@@ -13,6 +13,9 @@
     },
     {
       "path": "../../platform-node"
+    },
+    {
+      "path": "../../fixtures"
     }
   ]
 }

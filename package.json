@@ -16,7 +16,7 @@
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "clean": "tsc -b --clean",
     "test:e2e": "pnpm --filter @pigeon/web build:e2e && playwright test",
-    "test:perf": "vitest run --config vitest.perf.config.ts",
+    "test:perf": "vitest run --config vitest.perf.config.ts && pnpm --filter @pigeon/web build:e2e && playwright test --config playwright.perf.config.ts",
     "version:sync": "node scripts/sync-version.mjs"
   },
   "devDependencies": {

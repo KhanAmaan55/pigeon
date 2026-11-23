@@ -1,15 +1,9 @@
 import { Check, ChevronDown } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
-
-/** Cmd/Ctrl+E opens the quick switcher (docs/ui-ux.md §4). */
-export function isEnvironmentShortcut(event: KeyboardEvent): boolean {
-  return (
-    event.code === 'KeyE' && (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey
-  );
-}
+import { useCommand } from '../command-palette/CommandsProvider';
 
 /** Environment selector in the top bar, per project (persisted in its local state). */
 export function EnvironmentSelector() {
@@ -18,16 +12,8 @@ export function EnvironmentSelector() {
   const selected = useProjectState((s) => s.selectedEnvironmentId, null);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (!project) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!isEnvironmentShortcut(event)) return;
-      event.preventDefault();
-      setOpen(true);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [project]);
+  // Cmd/Ctrl+E opens the quick switcher (docs/ui-ux.md §4).
+  useCommand('environment.switch', project ? () => setOpen(true) : undefined);
 
   const environments = model?.environments.filter((e) => !e.broken) ?? [];
   const current = environments.find((e) => e.id === selected);

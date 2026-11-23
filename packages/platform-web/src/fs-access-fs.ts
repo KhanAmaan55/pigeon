@@ -39,6 +39,12 @@ function fsError(code: FsErrorCode, path: ProjectPath, cause?: unknown): FsError
 export class FsAccessFs implements ProjectFileSystem {
   readonly root: ProjectLocation;
   readonly #handle: FileSystemDirectoryHandle;
+  /**
+   * Directory handles by path (PIGN-042): every read used to walk from the root, one
+   * `getDirectoryHandle` per segment. Cleared below a path that is removed; a lookup that fails
+   * through a cached handle is retried from the root.
+   */
+  readonly #dirs = new Map<ProjectPath, FileSystemDirectoryHandle>();
 
   constructor(handle: FileSystemDirectoryHandle, root: ProjectLocation) {
     this.#handle = handle;
@@ -48,8 +54,27 @@ export class FsAccessFs implements ProjectFileSystem {
   async readFile(path: ProjectPath): Promise<Uint8Array> {
     assertProjectPath(path);
     if (path === '') throw fsError('is-a-directory', path);
-    const file = await (await this.#fileHandle(path)).getFile();
+    const file = await this.#retryUncached(async () => (await this.#fileHandle(path)).getFile());
     return new Uint8Array(await file.arrayBuffer());
+  }
+
+  /** Runs `read`; on a not-found it runs once more with an empty handle cache. */
+  async #retryUncached<T>(read: () => Promise<T>): Promise<T> {
+    try {
+      return await read();
+    } catch (error) {
+      if (this.#dirs.size === 0 || !(error instanceof FsError) || error.code !== 'not-found') {
+        throw error;
+      }
+      this.#dirs.clear();
+      return read();
+    }
+  }
+
+  #forget(path: ProjectPath): void {
+    for (const key of [...this.#dirs.keys()]) {
+      if (key === path || key.startsWith(`${path}/`)) this.#dirs.delete(key);
+    }
   }
 
   async readText(path: ProjectPath): Promise<string> {
@@ -81,6 +106,14 @@ export class FsAccessFs implements ProjectFileSystem {
   async stat(path: ProjectPath): Promise<FsStat | null> {
     assertProjectPath(path);
     if (path === '') return { kind: 'dir', size: 0 };
+    const found = await this.#stat(path);
+    if (found !== null || this.#dirs.size === 0) return found;
+    // A cached handle may be stale (the folder was replaced outside Pigeon): check again.
+    this.#dirs.clear();
+    return this.#stat(path);
+  }
+
+  async #stat(path: ProjectPath): Promise<FsStat | null> {
     let parent: FileSystemDirectoryHandle;
     try {
       parent = await this.#dir(parentPath(path), false);
@@ -116,6 +149,7 @@ export class FsAccessFs implements ProjectFileSystem {
     if (path === '') throw new FsError('invalid-path', path, 'The project root cannot be removed');
     if ((await this.stat(path)) === null) throw fsError('not-found', path);
     const parent = await this.#dir(parentPath(path), false);
+    this.#forget(path);
     try {
       await parent.removeEntry(baseName(path), { recursive: opts.recursive ?? false });
     } catch (error) {
@@ -164,11 +198,19 @@ export class FsAccessFs implements ProjectFileSystem {
   ): Promise<FileSystemDirectoryHandle> {
     let handle = this.#handle;
     if (dir === '') return handle;
+    const cached = this.#dirs.get(dir);
+    if (cached) return cached;
     let current = '';
     for (const segment of dir.split('/')) {
       current = current === '' ? segment : `${current}/${segment}`;
+      const known = this.#dirs.get(current);
+      if (known) {
+        handle = known;
+        continue;
+      }
       try {
         handle = await handle.getDirectoryHandle(segment, { create });
+        this.#dirs.set(current, handle);
       } catch (error) {
         if (domName(error) === 'TypeMismatchError')
           throw fsError('not-a-directory', strict ? dir : current, error);
@@ -212,15 +254,21 @@ export class FsAccessFs implements ProjectFileSystem {
     recursive: boolean,
     out: FsEntry[],
   ): Promise<void> {
+    const subdirectories: Array<Promise<void>> = [];
     for await (const [name, entry] of (handle as IterableDirectory).entries()) {
       if (name.endsWith(SWAP_SUFFIX)) continue;
       const path = dir === '' ? name : `${dir}/${name}`;
       if (entry.kind === 'directory') {
         out.push({ path, kind: 'dir' });
-        if (recursive) await this.#collect(entry as FileSystemDirectoryHandle, path, true, out);
+        this.#dirs.set(path, entry as FileSystemDirectoryHandle);
+        // Siblings are listed in parallel (the caller sorts).
+        if (recursive) {
+          subdirectories.push(this.#collect(entry as FileSystemDirectoryHandle, path, true, out));
+        }
       } else {
         out.push({ path, kind: 'file' });
       }
     }
+    await Promise.all(subdirectories);
   }
 }

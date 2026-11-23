@@ -5,6 +5,7 @@ import { RunnerSidebar } from '../features/runner/Runner';
 import { Welcome } from '../features/projects/Welcome';
 import { Diagnostics } from '../features/settings/Diagnostics';
 import { ExampleSettings } from '../features/settings/ExampleSettings';
+import { KeyboardSettings } from '../features/settings/Keyboard';
 import { ProjectComparisonSettings } from '../features/settings/ProjectComparisonSettings';
 import { RequestDefaults } from '../features/settings/RequestDefaults';
 import { useAppStore } from '../stores/AppStoreProvider';
@@ -28,6 +29,7 @@ export function Sidebar({ view }: { view: SidebarView }) {
           <RequestDefaults />
           <ExampleSettings />
           <ProjectComparisonSettings />
+          <KeyboardSettings />
           <Diagnostics />
         </div>
       ) : view === 'environments' ? (

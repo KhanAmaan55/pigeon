@@ -118,8 +118,11 @@ Activity bar (left icons): Collections, Environments, Pending Changes, Runner, S
 | Focus URL | `Cmd+L` | `Ctrl+L` |
 | Import | `Cmd+O` | `Ctrl+O` |
 | Toggle response layout | `Cmd+Alt+L` | `Ctrl+Alt+L` |
+| Next/prev project | `Cmd+Alt+→` / `Cmd+Alt+←` | `Ctrl+Alt+→` / `Ctrl+Alt+←` |
 
-On web, shortcuts the browser reserves (`Cmd/Ctrl+W`, `Cmd/Ctrl+N`, `Ctrl+Tab`) cannot be overridden; the palette and alternative bindings (`Alt+W`, `Alt+N`) cover them. Shortcut registry lives in `ui/src/features/command-palette/commands.ts` with per-platform bindings.
+On web, shortcuts the browser reserves (`Cmd/Ctrl+W`, `Cmd/Ctrl+N`, `Ctrl+Tab`) cannot be overridden; the palette and alternative bindings cover them: `Alt+W` (close tab), `Alt+N` (new request), `Alt+]` / `Alt+[` (next/previous tab). The alternatives work on desktop too.
+
+The registry (`ui/src/features/command-palette/commands.ts`, PIGN-042) lists every command with its title, category and bindings; components provide handlers (`useCommand`) and one key dispatcher (`CommandsProvider`) runs them. The **command palette** lists every command available right now (fuzzy search); **Quick open** searches the active project's requests, examples and environments. Settings → **Keyboard** shows the bindings for the current platform (read-only). Desktop menu items run the same commands.
 
 ## 5. States and feedback
 
@@ -145,3 +148,5 @@ On web, shortcuts the browser reserves (`Cmd/Ctrl+W`, `Cmd/Ctrl+N`, `Ctrl+Tab`) 
 | Keystroke to render in editors | < 16 ms |
 | Render 5 MB JSON response (raw) | < 1 s; pretty < 2 s |
 | Tab switch | < 50 ms |
+
+Checked by `pnpm test:perf` (testing.md §2) with 20 % tolerance. Measured on the development MacBook (Apple silicon, heavily loaded machine), 2026-11-23: open 5,000-request project 2.2 s in Chromium through a project folder (0.5 s for the read itself in Node), explorer scroll no task over 50 ms, tab switch 16 ms (median), keystroke handling 6 ms (slowest), 5 MB response raw 0.9 s / pretty 0.1 s, desktop cold start 0.56–0.64 s on repeat launches (the first launches after a fresh build took 3–40 s while macOS scanned the new binary). Quick open filters 5,000 requests in well under 100 ms.

@@ -8,6 +8,7 @@
 import type { ProjectFileSystem, ProjectPath } from '@pigeon/platform';
 
 import { contentHash } from '../hash';
+import { snapshotProject } from './snapshot';
 import { environmentFromPostman, globalsFromPostman } from '../postman/environment';
 import { EXAMPLE_SUFFIX, exampleBodyFromFile, exampleFromPostman } from '../postman/example';
 import { COMPARE_FILE, comparisonFromFile } from './comparison';
@@ -53,7 +54,9 @@ interface ReadContext {
   readonly problems: Problem[];
 }
 
-export async function readProject(fs: ProjectFileSystem): Promise<ProjectReadResult> {
+export async function readProject(source: ProjectFileSystem): Promise<ProjectReadResult> {
+  // One listing and parallel reads up front (PIGN-042); the reader then works from memory.
+  const fs = await snapshotProject(source);
   const context: ReadContext = { fs, files: new Map(), problems: [] };
   const result = (model: ProjectModel, readOnly: boolean): ProjectReadResult => ({
     model,

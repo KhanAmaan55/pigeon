@@ -10,6 +10,11 @@ use std::{process, thread};
 use tauri::{plugin, Builder, Wry};
 
 const FLAG: &str = "--smoke";
+/// With `--smoke`: also print `cold-start-ms: N`, process start → app shell rendered (PIGN-042).
+const TIMING_FLAG: &str = "--timing";
+
+/// When this process started, for `--timing` (set first thing in `install`).
+static STARTED: std::sync::OnceLock<(std::time::SystemTime, bool)> = std::sync::OnceLock::new();
 const OK: &str = "smoke-ok";
 const TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -28,6 +33,10 @@ pub fn requested(args: impl IntoIterator<Item = String>) -> bool {
 
 /// Adds the probe and the timeout. `main` registers [`smoke_report`] with the other commands.
 pub fn install(builder: Builder<Wry>) -> Builder<Wry> {
+    let _ = STARTED.set((
+        std::time::SystemTime::now(),
+        std::env::args().any(|arg| arg == TIMING_FLAG),
+    ));
     // Never the user's app data: a fresh directory, removed when the run ends.
     let data = std::env::temp_dir().join(format!("pigeon-smoke-{}", process::id()));
     let _ = std::fs::remove_dir_all(&data);
@@ -134,9 +143,24 @@ fn answer(mut stream: TcpStream) -> io::Result<()> {
     )
 }
 
+/// `shell_at_ms`: wall-clock time (ms since the epoch) when the app shell had rendered.
 #[tauri::command]
-pub fn smoke_report(error: Option<String>) {
+pub fn smoke_report(error: Option<String>, shell_at_ms: Option<f64>) {
+    if let (Some(&(started, true)), Some(shell_at)) = (STARTED.get(), shell_at_ms) {
+        if let Some(ms) = cold_start_ms(started, shell_at) {
+            println!("cold-start-ms: {ms}");
+        }
+    }
     finish(error.map_or(Ok(()), Err));
+}
+
+/// Milliseconds from `started` to `shell_at_ms` (epoch ms), if that is after `started`.
+pub fn cold_start_ms(started: std::time::SystemTime, shell_at_ms: f64) -> Option<u64> {
+    let started_ms = started
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_millis() as f64;
+    (shell_at_ms >= started_ms).then(|| (shell_at_ms - started_ms).round() as u64)
 }
 
 fn finish(result: Result<(), String>) -> ! {
@@ -162,6 +186,13 @@ mod tests {
 
     fn args(list: &[&str]) -> Vec<String> {
         list.iter().map(|arg| arg.to_string()).collect()
+    }
+
+    #[test]
+    fn cold_start_is_measured_from_process_start() {
+        let started = std::time::UNIX_EPOCH + std::time::Duration::from_millis(1_000);
+        assert_eq!(cold_start_ms(started, 2_234.4), Some(1_234));
+        assert_eq!(cold_start_ms(started, 900.0), None);
     }
 
     #[test]

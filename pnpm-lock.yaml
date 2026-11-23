@@ -146,6 +146,9 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
+      '@pigeon/fixtures':
+        specifier: workspace:*
+        version: link:../fixtures
       '@pigeon/platform-node':
         specifier: workspace:*
         version: link:../platform-node

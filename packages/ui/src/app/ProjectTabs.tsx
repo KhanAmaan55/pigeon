@@ -1,17 +1,12 @@
 import { Plus, X } from 'lucide-react';
 import { Dialog } from 'radix-ui';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { IconButton } from '../components/IconButton';
 import type { OpenProject } from '../stores/app-store';
 import { useAppStore, useAppStoreApi } from '../stores/AppStoreProvider';
 import { locationLabel } from '../stores/locations';
-
-/** Cmd/Ctrl+Alt+←/→ (docs/ui-ux.md §3.1). `code`, since Alt changes `key` on macOS. */
-export function projectCycleDelta(event: KeyboardEvent): 1 | -1 | 0 {
-  if (!event.altKey || !(event.metaKey || event.ctrlKey) || event.shiftKey) return 0;
-  return event.code === 'ArrowRight' ? 1 : event.code === 'ArrowLeft' ? -1 : 0;
-}
+import { useCommand } from '../features/command-palette/CommandsProvider';
 
 /** One tab per open project; each is a fully isolated session and store (PIGN-021). */
 export function ProjectTabs() {
@@ -20,16 +15,9 @@ export function ProjectTabs() {
   const active = useAppStore((s) => s.project);
   const [closing, setClosing] = useState<OpenProject | null>(null);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const delta = projectCycleDelta(event);
-      if (delta === 0) return;
-      event.preventDefault();
-      api.getState().cycleProject(delta);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [api]);
+  // Cmd/Ctrl+Alt+←/→ (docs/ui-ux.md §3.1).
+  useCommand('project.next', () => api.getState().cycleProject(1));
+  useCommand('project.previous', () => api.getState().cycleProject(-1));
 
   const close = (project: OpenProject) => {
     if (project.session.unsavedIds().length > 0) setClosing(project);

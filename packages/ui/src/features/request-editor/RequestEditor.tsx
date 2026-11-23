@@ -17,6 +17,7 @@ import { methodColorClass } from './methods';
 import { ParamsTab } from './ParamsTab';
 import { useScratchRequest } from './ScratchRequestProvider';
 import { SettingsTab } from './SettingsTab';
+import { useCommand } from '../command-palette/CommandsProvider';
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 
@@ -53,6 +54,15 @@ export function RequestEditor() {
     // Not cancelled on cleanup: StrictMode's second effect run would no longer see the request.
     if (takeUrlFocus(requestId)) setTimeout(() => urlRef.current?.focus(), 0);
   }, [requestId]);
+
+  // Palette entries; the keys themselves are handled here (Cmd/Ctrl+Enter in the editor, Esc).
+  useCommand('request.send', () => void send());
+  useCommand('request.cancel', sending ? cancel : undefined);
+  // Cmd/Ctrl+L (docs/ui-ux.md §4).
+  useCommand('url.focus', () => {
+    urlRef.current?.focus();
+    urlRef.current?.select();
+  });
 
   // Esc cancels the in-flight request, unless something else (a menu, a dialog) handled it.
   useEffect(() => {

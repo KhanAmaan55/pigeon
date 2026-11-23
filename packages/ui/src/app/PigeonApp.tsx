@@ -5,6 +5,8 @@ import { ImportDialog } from '../features/import-export/ImportDialog';
 import { InitProjectDialog } from '../features/projects/InitProjectDialog';
 import type { AppStore } from '../stores/app-store';
 import { AppStoreProvider } from '../stores/AppStoreProvider';
+import { CommandPalette } from '../features/command-palette/CommandPalette';
+import { CommandsProvider } from '../features/command-palette/CommandsProvider';
 import { WebLimitationsDialog } from '../features/help/WebLimitations';
 import type { AppConfig } from './AppConfig';
 import { AppConfigProvider } from './AppConfig';
@@ -32,10 +34,13 @@ export function PigeonApp({
             <ThemeProvider>
               <TooltipProvider delayDuration={400}>
                 <SettingsPersistence />
-                <AppShell />
-                <InitProjectDialog />
-                <ImportDialog />
-                <WebLimitationsDialog />
+                <CommandsProvider>
+                  <AppShell />
+                  <CommandPalette />
+                  <InitProjectDialog />
+                  <ImportDialog />
+                  <WebLimitationsDialog />
+                </CommandsProvider>
               </TooltipProvider>
             </ThemeProvider>
           </PreferencesProvider>

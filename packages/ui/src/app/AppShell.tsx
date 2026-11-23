@@ -6,13 +6,28 @@ import { ResizeHandle } from '../components/ResizeHandle';
 import { Toast } from '../components/Toast';
 import { useAppStore, useAppStoreApi } from '../stores/AppStoreProvider';
 import { newRequest } from '../features/explorer/actions';
-import { COMMAND_EVENT, TOGGLE_DOCK_EVENT } from './commands';
+import type { AppCommand } from './commands';
+import { COMMAND_EVENT } from './commands';
+import type { CommandId } from '../features/command-palette/commands';
+import { useCommand, useCommandRegistry } from '../features/command-palette/CommandsProvider';
 import { ActivityBar } from './ActivityBar';
 import { MainArea } from './MainArea';
 import { Sidebar } from './Sidebar';
 import { StatusBar } from './StatusBar';
 import { TopBar } from './TopBar';
 import type { SidebarView } from './views';
+
+/** Desktop menu commands → registry commands. */
+const MENU_COMMANDS: Record<AppCommand, CommandId> = {
+  'new-request': 'request.new',
+  'open-project': 'project.open',
+  import: 'file.import',
+  'export-project': 'project.export',
+  'close-project': 'project.close',
+  'toggle-sidebar': 'view.toggleSidebar',
+  'toggle-response-layout': 'view.toggleResponseLayout',
+  'web-limitations': 'help.webLimitations',
+};
 
 /** Top-level layout from docs/ui-ux.md §2. */
 export function AppShell() {
@@ -25,38 +40,52 @@ export function AppShell() {
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const appStore = useAppStoreApi();
 
+  const registry = useCommandRegistry();
+  const needsProject = () => {
+    if (appStore.getState().project) return false;
+    appStore.getState().notify('Open or create a project first.');
+    return true;
+  };
+  // Commands (PIGN-042): shortcuts, the palette and the desktop menus run these.
+  useCommand('request.new', () => {
+    if (needsProject()) return;
+    const { project } = appStore.getState();
+    if (!project) return;
+    if (project.session.readOnly) return notify('This project is read-only.');
+    setView('collections');
+    setSidebarHidden(false);
+    newRequest(project.session, project.store);
+  });
+  // Cmd/Ctrl+O: import a file into the open project (docs/ui-ux.md §3.9).
+  useCommand('file.import', hasProject ? () => void pickImportFile() : undefined);
+  useCommand('project.open', () => void appStore.getState().openFolder());
+  useCommand('project.close', hasProject ? () => appStore.getState().closeProject() : undefined);
+  useCommand(
+    'project.export',
+    hasProject ? () => void appStore.getState().exportProjectZip() : undefined,
+  );
+  useCommand('view.toggleSidebar', () => setSidebarHidden((hidden) => !hidden));
+  useCommand('help.webLimitations', () => appStore.getState().openHelp());
+  useCommand('settings.keyboard', () => {
+    setView('settings');
+    setSidebarHidden(false);
+    setTimeout(() => document.getElementById('settings-keyboard')?.scrollIntoView?.(), 0);
+  });
+
   // App commands from the desktop menus (PIGN-041; `pigeon:command` DOM events, see
-  // apps/desktop/src/main.tsx). Each also has a shortcut or a control in the window.
+  // apps/desktop/src/main.tsx).
   useEffect(() => {
     const onCommand = (event: Event) => {
-      const state = appStore.getState();
-      switch ((event as CustomEvent<string>).detail) {
-        case 'new-request':
-          if (!state.project) return state.notify('Open or create a project first.');
-          setView('collections');
-          newRequest(state.project.session, state.project.store);
-          return;
-        case 'open-project':
-          return void state.openFolder();
-        case 'import':
-          if (!state.project) return state.notify('Open or create a project first.');
-          return void state.pickImportFile();
-        case 'export-project':
-          if (!state.project) return state.notify('Open or create a project first.');
-          return void state.exportProjectZip();
-        case 'close-project':
-          return state.project ? state.closeProject() : undefined;
-        case 'toggle-sidebar':
-          return setSidebarHidden((hidden) => !hidden);
-        case 'toggle-response-layout':
-          return void window.dispatchEvent(new Event(TOGGLE_DOCK_EVENT));
-        case 'web-limitations':
-          return state.openHelp();
+      const command = MENU_COMMANDS[(event as CustomEvent<AppCommand>).detail];
+      if (command === 'file.import' || command === 'project.export') {
+        if (needsProject()) return;
       }
+      if (command) registry?.run(command);
     };
     window.addEventListener(COMMAND_EVENT, onCommand);
     return () => window.removeEventListener(COMMAND_EVENT, onCommand);
-  }, [appStore]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registry]);
 
   // Other features ask for a sidebar view (e.g. "Edit in project settings").
   useEffect(() => {
@@ -67,18 +96,6 @@ export function AppShell() {
     window.addEventListener('pigeon:open-view', onOpenView);
     return () => window.removeEventListener('pigeon:open-view', onOpenView);
   }, []);
-
-  // Cmd/Ctrl+O: import a file into the open project (docs/ui-ux.md §3.9).
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== 'KeyO' || event.shiftKey || event.altKey) return;
-      if (!(event.metaKey || event.ctrlKey) || !hasProject) return;
-      event.preventDefault();
-      void pickImportFile();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [hasProject, pickImportFile]);
 
   /** Files dropped anywhere in the window open the import dialog. */
   // Explorer item drags carry no files; `types` may be missing on synthetic events.

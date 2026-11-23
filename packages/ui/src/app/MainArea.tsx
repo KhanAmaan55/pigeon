@@ -1,5 +1,5 @@
 import { FileText } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Group, Panel } from 'react-resizable-panels';
 
 import { ResizeHandle } from '../components/ResizeHandle';
@@ -23,15 +23,8 @@ import { RunDialog, RunnerView } from '../features/runner/Runner';
 import { RUNNER_TAB_ID } from '../features/runner/tab';
 import type { OpenProject } from '../stores/app-store';
 import { useAppStore, useProjectState } from '../stores/AppStoreProvider';
-import { TOGGLE_DOCK_EVENT } from './commands';
+import { useCommand } from '../features/command-palette/CommandsProvider';
 import { usePlatform } from './PlatformProvider';
-
-/** Cmd/Ctrl+Alt+L (docs/ui-ux.md §4). `code`, since Alt changes `key` on macOS (`¬`). */
-export function isToggleDockShortcut(event: KeyboardEvent): boolean {
-  return (
-    event.code === 'KeyL' && event.altKey && (event.metaKey || event.ctrlKey) && !event.shiftKey
-  );
-}
 
 /**
  * Request tabs and the request editor / response split (docs/ui-ux.md §2). Without a project
@@ -50,19 +43,8 @@ export function MainArea() {
     else setScratchDock(next);
   };
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!isToggleDockShortcut(event)) return;
-      event.preventDefault();
-      toggleDock();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener(TOGGLE_DOCK_EVENT, toggleDock);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener(TOGGLE_DOCK_EVENT, toggleDock);
-    };
-  });
+  // Cmd/Ctrl+Alt+L (docs/ui-ux.md §4).
+  useCommand('view.toggleResponseLayout', toggleDock);
 
   const split = <EditorSplit dock={dock} onToggleDock={toggleDock} />;
   return (

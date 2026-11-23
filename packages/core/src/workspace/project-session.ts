@@ -19,6 +19,7 @@ import {
   readProject,
   serializeProject,
   contentHash,
+  readFilesConcurrently,
 } from '@pigeon/formats';
 import type {
   AppStateStore,
@@ -584,18 +585,21 @@ export class ProjectSession {
   /** Managed project files on disk (path → sha-256) and other files below `collections/` (`null`). */
   async scanDisk(): Promise<DiskState> {
     const disk = new Map<ProjectPath, string | null>();
-    const add = async (path: ProjectPath) =>
-      disk.set(
-        path,
-        isManagedPath(path) ? await contentHash(path, await this.fs.readFile(path)) : null,
-      );
-    if ((await this.fs.stat('pigeon.json'))?.kind === 'file') await add('pigeon.json');
+    const managed: ProjectPath[] = [];
+    const add = (path: ProjectPath) => {
+      if (isManagedPath(path)) managed.push(path);
+      else disk.set(path, null);
+    };
+    if ((await this.fs.stat('pigeon.json'))?.kind === 'file') add('pigeon.json');
     for (const dir of ['collections', 'environments', 'examples']) {
       if ((await this.fs.stat(dir))?.kind !== 'dir') continue;
       for (const entry of await this.fs.list(dir, { recursive: true })) {
-        if (entry.kind === 'file') await add(entry.path);
+        if (entry.kind === 'file') add(entry.path);
       }
     }
+    // In parallel (PIGN-042): sequential reads are slow through browser folder handles.
+    const bytes = await readFilesConcurrently(this.fs, managed);
+    for (const [i, path] of managed.entries()) disk.set(path, await contentHash(path, bytes[i]!));
     return disk;
   }
 

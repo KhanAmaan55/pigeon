@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { ContextMenu, Dialog } from 'radix-ui';
 import type { DragEvent, KeyboardEvent, ReactNode } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
 import { IconButton } from '../../components/IconButton';
@@ -123,22 +123,6 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
   };
-
-  // Cmd/Ctrl+N (and Alt+N, which browsers leave to pages): a new request (docs/ui-ux.md §4).
-  useEffect(() => {
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (
-        event.code !== 'KeyN' ||
-        event.shiftKey ||
-        !(event.metaKey || event.ctrlKey || event.altKey)
-      )
-        return;
-      event.preventDefault();
-      edit(() => newRequest(session, store));
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [session, store]);
 
   /** Single click: requests open in the preview tab; containers expand/collapse. */
   const activate = (row: TreeRow, pin = false) => {
@@ -393,6 +377,12 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
           ref={scrollRef}
           role="tree"
           aria-label="Collections"
+          // The focused row for screen readers (rows are virtualized: only when rendered).
+          aria-activedescendant={
+            selectedId && rows.some((row) => row.id === selectedId)
+              ? treeItemId(selectedId)
+              : undefined
+          }
           tabIndex={0}
           onKeyDown={onKeyDown}
           className="min-h-0 flex-1 overflow-y-auto outline-none focus-visible:ring-1 focus-visible:ring-focus"
@@ -717,6 +707,7 @@ function ExplorerRow({
       {...triggerProps}
       {...drag}
       role="treeitem"
+      id={treeItemId(row.id)}
       aria-level={row.depth + 1}
       aria-selected={selected}
       aria-expanded={
@@ -933,4 +924,9 @@ function WorkspaceBadge({ persisted }: { persisted: boolean | undefined }) {
       <Database size={14} aria-hidden />
     </button>
   );
+}
+
+/** DOM id of a tree row (ids may contain characters an id selector would need escaped). */
+function treeItemId(id: string): string {
+  return `explorer-row-${id.replace(/[^A-Za-z0-9_-]/g, '_')}`;
 }

@@ -27,12 +27,16 @@
   };
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  let shellAtMs = null;
 
   async function probe() {
     for (let attempt = 0; !document.querySelector('[data-testid="app-shell"]'); attempt++) {
-      if (attempt >= 300) throw new Error('app shell did not render within 30s');
-      await delay(100);
+      if (attempt >= 3000) throw new Error('app shell did not render within 30s');
+      await delay(10);
     }
+    // For `--smoke --timing` (cold start, PIGN-042): after the shell's first paint.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    shellAtMs = Date.now();
     const faces = await document.fonts.load('12px "JetBrains Mono"');
     if (faces.length === 0) throw new Error('bundled monospace font did not load');
     const text = (testId) => document.querySelector(`[data-testid="${testId}"]`)?.textContent;
@@ -168,7 +172,7 @@
     if (errors.length > 0) throw new Error(errors.join('\n'));
   }
 
-  const report = (error) => window.__TAURI_INTERNALS__.invoke('smoke_report', { error });
+  const report = (error) => window.__TAURI_INTERNALS__.invoke('smoke_report', { error, shellAtMs });
   window.addEventListener('DOMContentLoaded', () =>
     probe().then(
       () => report(null),

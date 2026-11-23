@@ -19,7 +19,7 @@ const workspaces = {
   // Core's integration tests run on real folders (NodeFs, Git) in Node.
   'packages/core': {
     pigeon: ['platform', 'formats', 'compare'],
-    testPigeon: ['platform-node'],
+    testPigeon: ['platform-node', 'fixtures'],
     pure: true,
   },
   'packages/fixtures': { pigeon: [], pure: true },
@@ -143,6 +143,7 @@ export default defineConfig(
         navigator: 'readonly',
         TextDecoder: 'readonly',
         TextEncoder: 'readonly',
+        requestAnimationFrame: 'readonly',
       },
     },
   },

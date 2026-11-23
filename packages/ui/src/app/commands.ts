@@ -15,9 +15,6 @@ export type AppCommand =
   | 'toggle-response-layout'
   | 'web-limitations';
 
-/** Asks the main area to switch the response between the bottom and the right. */
-export const TOGGLE_DOCK_EVENT = 'pigeon:toggle-dock';
-
 export function runAppCommand(command: AppCommand): void {
   window.dispatchEvent(new CustomEvent(COMMAND_EVENT, { detail: command }));
 }

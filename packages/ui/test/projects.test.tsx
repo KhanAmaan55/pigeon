@@ -2496,3 +2496,66 @@ describe('app commands from the desktop menus (PIGN-041)', () => {
     expect(await screen.findByTestId('welcome')).toBeTruthy();
   });
 });
+
+describe('command palette and quick open (PIGN-042)', () => {
+  it('lists available commands, runs one, and quick-opens a request', async () => {
+    const { platform } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+
+    await user.keyboard('{Meta>}k{/Meta}');
+    const palette = await screen.findByTestId('command-palette');
+    expect(palette.getAttribute('data-mode')).toBe('commands');
+    const titles = () =>
+      within(palette)
+        .getAllByTestId('palette-command')
+        .map((row) => row.textContent);
+    expect(titles().some((t) => t?.includes('Save for Commit'))).toBe(true);
+    expect(titles().some((t) => t?.includes('Command palette'))).toBe(false);
+    await user.type(within(palette).getByTestId('palette-input'), 'togglelayout');
+    expect(titles()[0]).toContain('Toggle response layout');
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByTestId('command-palette')).toBeNull());
+
+    await user.keyboard('{Meta>}p{/Meta}');
+    const quick = await screen.findByTestId('command-palette');
+    expect(quick.getAttribute('data-mode')).toBe('files');
+    await user.type(within(quick).getByTestId('palette-input'), 'audit');
+    const first = within(quick).getAllByTestId('quick-open-item')[0]!;
+    expect(first.textContent).toContain('Get audit log');
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(tabNames()).toContain('Get audit log'));
+    expect(screen.getByTestId('request-response-split').getAttribute('data-dock')).toBe('right');
+
+    // Settings → Keyboard lists the bindings for this platform (macOS here).
+    await user.click(screen.getByTestId('activity-settings'));
+    const rows = await screen.findAllByTestId('keyboard-binding');
+    const save = rows.find((row) => row.getAttribute('data-command') === 'file.saveForCommit');
+    expect(save?.textContent).toContain('⇧⌘S');
+  });
+});
+
+describe('accessibility (PIGN-042)', () => {
+  it('the tree announces the current row and request tabs work from the keyboard', async () => {
+    const { platform } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await user.dblClick(screen.getByText('List users'));
+    await user.dblClick(screen.getByText('Pay invoice'));
+
+    const tree = screen.getByRole('tree', { name: 'Collections' });
+    const current = tree.getAttribute('aria-activedescendant');
+    expect(current && document.getElementById(current)?.textContent).toContain('Pay invoice');
+
+    const tabs = screen.getAllByTestId('request-tab');
+    expect(tabs.map((tab) => tab.tabIndex)).toEqual([-1, 0]);
+    act(() => tabs[1]!.focus());
+    await user.keyboard('{ArrowLeft}');
+    await waitFor(() => expect(tabs[0]!.getAttribute('aria-selected')).toBe('true'));
+    expect(document.activeElement).toBe(tabs[0]);
+  });
+});

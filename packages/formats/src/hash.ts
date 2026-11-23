@@ -4,9 +4,16 @@
  * so a CRLF checkout (Git `core.autocrlf`, Windows editors) equals the LF files Pigeon writes and
  * is never rewritten just for its line endings. Binary example bodies (`*.bin`) hash as they are.
  */
-export async function contentHash(path: string, bytes: Uint8Array): Promise<string> {
-  return sha256Hex(path.endsWith('.bin') ? bytes : withoutCarriageReturns(bytes));
+export function contentHash(path: string, bytes: Uint8Array): Promise<string> {
+  const binary = path.endsWith('.bin');
+  // The same bytes are often hashed twice (snapshot prefetch, then the reader): reuse.
+  let cached = hashes.get(bytes);
+  if (!cached) hashes.set(bytes, (cached = {}));
+  const key = binary ? 'binary' : 'text';
+  return (cached[key] ??= sha256Hex(binary ? bytes : withoutCarriageReturns(bytes)));
 }
+
+const hashes = new WeakMap<Uint8Array, { binary?: Promise<string>; text?: Promise<string> }>();
 
 /** `bytes` with every CR that precedes an LF removed. */
 function withoutCarriageReturns(bytes: Uint8Array): Uint8Array {
