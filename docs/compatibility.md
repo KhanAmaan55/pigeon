@@ -57,7 +57,7 @@ The official v2.1 JSON Schema is vendored in `packages/fixtures/postman/schema/c
 | `response.originalRequest` | `RequestExample` | | Full |
 | `response.code/status/header/cookie/body/_postman_previewlanguage` | `ResponseExample` | | Full |
 | `response.responseTime` | preserved | | Preserved |
-| `protocolProfileBehavior` | `RequestSettings` (known keys) + `extra` | | Partial: `followRedirects`, `maxRedirects`, `strictSSL`, `disableBodyPruning` used; others preserved |
+| `protocolProfileBehavior` | `RequestSettings` (known keys) + `extra` | | Partial: `followRedirects`, `maxRedirects`, `strictSSL`, `disableBodyPruning`, `disableCookies` (no cookie jar, PIGN-045) used; others preserved |
 | `request.proxy`, `request.certificate` | `extra` | | Preserved, not used |
 | `description` object `{content,type}` | `Description` | | Full |
 | Any unknown key at any level | `extra` | written back | Preserved |

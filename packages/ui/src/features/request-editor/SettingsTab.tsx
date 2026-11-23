@@ -47,7 +47,12 @@ function ReasonOrDescription({
 export function SettingsTab() {
   const settings = useScratchRequest((s) => s.request.settings);
   const setSettings = useScratchRequest((s) => s.setSettings);
-  const { canSendBodyWithGet, canControlRedirects, canDisableTlsVerification } = useCapabilities();
+  const {
+    canSendBodyWithGet,
+    canControlRedirects,
+    canDisableTlsVerification,
+    canReadAllResponseHeaders,
+  } = useCapabilities();
   const defaults = useExecutionDefaults();
 
   const followRedirects = canControlRedirects
@@ -110,6 +115,26 @@ export function SettingsTab() {
         unsupported={canSendBodyWithGet ? undefined : UNSUPPORTED_SETTING_REASONS.bodyWithGet}
         onChange={(checked) => setSettings({ disableBodyPruning: checked ? true : undefined })}
       />
+
+      {canReadAllResponseHeaders ? (
+        <CheckboxSetting
+          testId="setting-use-cookie-jar"
+          label="Use the project's cookie jar"
+          description="Send the project's cookies for this URL and keep the cookies the response sets (Postman's “Disable cookie jar” off)."
+          checked={settings.disableCookies !== true}
+          unsupported={undefined}
+          onChange={(checked) => setSettings({ disableCookies: checked ? undefined : true })}
+        />
+      ) : (
+        <CheckboxSetting
+          testId="setting-include-credentials"
+          label="Send browser cookies"
+          description="Let the browser send and store its own cookies for this URL (credentials: 'include'). The server must allow it with CORS (Access-Control-Allow-Credentials)."
+          checked={settings.includeCredentials === true}
+          unsupported={undefined}
+          onChange={(checked) => setSettings({ includeCredentials: checked ? true : undefined })}
+        />
+      )}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import type { AppStateNamespace, AppStateStore } from '@pigeon/platform';
 
 import { z } from '../model/zod';
 import type { Draft } from './drafts';
+import type { StoredCookie } from '../cookies/jar';
 
 export const LOCAL_STATE_KEY = 'state';
 export const UI_STATE_DEBOUNCE_MS = 500;
@@ -34,6 +35,8 @@ export interface LocalProjectState {
   currentValues?: Record<string, Record<string, string>>;
   /** Regression run reports, newest first (PIGN-038), at most 20; never in files. */
   runReports?: RunReport[];
+  /** The project's cookie jar (PIGN-045); never in project files. */
+  cookies?: StoredCookie[];
   /** Run pre-request scripts on send (PIGN-043); absent = on. */
   scriptsEnabled?: boolean;
   /** Latest comparison per request (PIGN-034), bounded; never in files. */

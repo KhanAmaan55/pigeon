@@ -200,6 +200,7 @@ export async function prepareRequest(
         followRedirects: settings.followRedirects ?? preferences.followRedirects,
         maxRedirects: settings.maxRedirects ?? preferences.maxRedirects,
         strictSSL: settings.strictSSL ?? preferences.strictSSL,
+        ...(settings.includeCredentials ? { includeCredentials: true } : {}),
       },
       meta: {
         requestId: request.id,

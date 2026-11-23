@@ -6,6 +6,7 @@ import { InitProjectDialog } from '../features/projects/InitProjectDialog';
 import type { AppStore } from '../stores/app-store';
 import { AppStoreProvider } from '../stores/AppStoreProvider';
 import { CommandPalette } from '../features/command-palette/CommandPalette';
+import { CookieManager } from '../features/cookies/CookieManager';
 import { CommandsProvider } from '../features/command-palette/CommandsProvider';
 import { WebLimitationsDialog } from '../features/help/WebLimitations';
 import type { AppConfig } from './AppConfig';
@@ -37,6 +38,7 @@ export function PigeonApp({
                 <CommandsProvider>
                   <AppShell />
                   <CommandPalette />
+                  <CookieManager />
                   <InitProjectDialog />
                   <ImportDialog />
                   <WebLimitationsDialog />

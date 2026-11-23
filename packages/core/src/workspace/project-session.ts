@@ -55,6 +55,7 @@ import type {
   ProjectModel,
   ProjectRequest,
 } from '../model/project';
+import { CookieJar } from '../cookies/jar';
 
 export type Unsubscribe = () => void;
 
@@ -258,6 +259,20 @@ export class ProjectSession {
   /** Local UI state of this project (tabs, layout, …); `undefined` without local state. */
   get localState(): Readonly<LocalProjectState> | undefined {
     return this.#local?.state;
+  }
+
+  #cookieJar: CookieJar | undefined;
+
+  /** This project's cookie jar (PIGN-045), loaded from local state; never in project files. */
+  get cookieJar(): CookieJar {
+    this.#cookieJar ??= new CookieJar(this.#local?.state.cookies ?? []);
+    return this.#cookieJar;
+  }
+
+  /** Saves the cookie jar to local state (after a response stored cookies, or an edit). */
+  saveCookies(): void {
+    void this.#local?.update({ cookies: this.cookieJar.toJSON() });
+    this.#emit();
   }
 
   /** Stores UI state (debounced). */

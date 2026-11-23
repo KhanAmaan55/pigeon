@@ -27,7 +27,8 @@ export type CommandId =
   | 'project.close'
   | 'project.export'
   | 'help.webLimitations'
-  | 'settings.keyboard';
+  | 'settings.keyboard'
+  | 'cookies.manage';
 
 export type CommandCategory = 'Request' | 'File' | 'Tabs' | 'View' | 'Project' | 'Help';
 
@@ -158,6 +159,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: 'project.export', title: 'Export project…', category: 'Project', bindings: [] },
   { id: 'help.webLimitations', title: 'Web limitations', category: 'Help', bindings: [] },
   { id: 'settings.keyboard', title: 'Keyboard shortcuts', category: 'Help', bindings: [] },
+  { id: 'cookies.manage', title: 'Manage cookies…', category: 'Project', bindings: [] },
 ];
 
 export const COMMANDS_BY_ID: ReadonlyMap<CommandId, CommandDefinition> = new Map(

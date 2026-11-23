@@ -112,7 +112,8 @@ export class FetchTransport implements Transport {
         signal: controller.signal,
         redirect: 'follow',
         cache: 'no-store',
-        credentials: 'omit',
+        // The browser's cookies only when the request asks for them (PIGN-045).
+        credentials: req.settings.includeCredentials ? 'include' : 'omit',
       });
       bytes = new Uint8Array(await response.arrayBuffer());
     } catch (error) {

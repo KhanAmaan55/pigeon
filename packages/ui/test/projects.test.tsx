@@ -2652,3 +2652,47 @@ describe('test scripts (PIGN-044)', () => {
     expect(within(row).getByTestId('run-row-tests').getAttribute('title')).toContain('is 201');
   }, 30_000);
 });
+
+describe('cookie jar (PIGN-045)', () => {
+  it('stores Set-Cookie, sends it next time, lists it, and the manager deletes it', async () => {
+    const transport = new MockTransport().on({ url: /./ }, (req) =>
+      req.url.includes('/login')
+        ? { headers: [['Set-Cookie', 'session=abc; Path=/']], body: 'ok' }
+        : { body: 'ok' },
+    );
+    const { platform } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await user.dblClick(screen.getByText('Get invoices'));
+    const url = await screen.findByTestId('url-input');
+    fireEvent.change(url, { target: { value: 'https://billing.example.test/login' } });
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(1));
+    fireEvent.mouseDown(await screen.findByTestId('response-cookies-tab'));
+    await act(async () => screen.getByTestId('response-cookies-tab').focus());
+    expect((await screen.findByTestId('response-cookie')).textContent).toContain('session');
+
+    fireEvent.change(url, { target: { value: 'https://billing.example.test/invoices' } });
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(2));
+    expect(transport.requests[1]!.headers).toContainEqual(['Cookie', 'session=abc']);
+
+    await act(async () => screen.getByTestId('response-cookies-tab').focus());
+    fireEvent.click(await screen.findByTestId('cookies-manage'));
+    const manager = await screen.findByTestId('cookie-manager');
+    const row = within(manager).getByTestId('cookie-row');
+    expect(row.textContent).toContain('session');
+    expect(within(manager).getByTestId('cookie-domain').textContent).toContain(
+      'billing.example.test',
+    );
+    fireEvent.click(within(row).getByTestId('cookie-delete'));
+    expect(within(manager).queryByTestId('cookie-row')).toBeNull();
+    fireEvent.keyDown(manager, { key: 'Escape' });
+
+    await user.click(screen.getByTestId('send-button'));
+    await waitFor(() => expect(transport.requests).toHaveLength(3));
+    expect(transport.requests[2]!.headers.some(([name]) => name === 'Cookie')).toBe(false);
+  });
+});

@@ -95,6 +95,13 @@ export class RequestExecutor {
     }
 
     const req = prepared.value;
+    // The project's cookies (PIGN-045), unless the request sets its own Cookie header.
+    const jar = ctx.cookies && !request.settings.disableCookies ? ctx.cookies.jar : undefined;
+    if (jar && ctx.capabilities.canSetAnyHeader) {
+      const hasCookie = req.headers.some(([name]) => name.toLowerCase() === 'cookie');
+      const header = hasCookie ? undefined : jar.cookieHeader(req.url);
+      if (header) req.headers.push(['Cookie', header]);
+    }
     opts.onPrepared?.(req);
     const signal = opts.signal ?? new AbortController().signal;
     const summary = {
@@ -111,6 +118,12 @@ export class RequestExecutor {
       release = resolved.release;
       const raw = await this.#transport.send(resolved.request, { signal });
       const response = normalizeResponse(raw);
+      if (jar && ctx.capabilities.canReadAllResponseHeaders) {
+        const setCookies = raw.headers
+          .filter(([name]) => name.toLowerCase() === 'set-cookie')
+          .map(([, value]) => value);
+        if (jar.storeResponse(raw.url || req.url, setCookies) > 0) ctx.cookies?.onChange?.();
+      }
       const mask = (text: string) => maskSecrets(text, req.meta.secretValues);
       const tests = await runTests(request, response, ctx, req.meta.secretValues);
       return {

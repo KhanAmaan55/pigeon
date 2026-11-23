@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@pigeon/fixtures": "workspace:*",
-    "@pigeon/platform-node": "workspace:*"
+    "@pigeon/platform-node": "workspace:*",
+    "@pigeon/test-server": "workspace:*"
   }
 }

@@ -55,8 +55,12 @@ export interface ProjectRequestSettings {
   maxRedirects?: number;
   strictSSL?: boolean;
   disableBodyPruning?: boolean;
+  /** Postman `protocolProfileBehavior.disableCookies`: no cookie jar for this request. */
+  disableCookies?: boolean;
   /** Pigeon-only; stored as `_pigeon.timeoutMs`. */
   timeoutMs?: number;
+  /** Web: send the browser's cookies (`credentials: 'include'`); `_pigeon.includeCredentials`. */
+  includeCredentials?: boolean;
 }
 
 /**

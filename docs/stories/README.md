@@ -73,7 +73,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-042](PIGN-042-shortcuts-palette-performance.md) | Shortcuts, command palette & performance budget | 8 Hardening | MVP | 038 | Done |
 | [PIGN-043](PIGN-043-script-sandbox-prerequest.md) | Script sandbox & pre-request scripts | 9 Later | Later | 042 | Done |
 | [PIGN-044](PIGN-044-test-scripts.md) | Test scripts & results | 9 Later | Later | 043 | Done |
-| [PIGN-045](PIGN-045-cookie-jar.md) | Cookie jar & cookie manager | 9 Later | Later | 042 | Todo |
+| [PIGN-045](PIGN-045-cookie-jar.md) | Cookie jar & cookie manager | 9 Later | Later | 042 | Done |
 | [PIGN-046](PIGN-046-digest-awsv4-auth.md) | Digest & AWS SigV4 auth | 9 Later | Later | 042 | Todo |
 | [PIGN-047](PIGN-047-oauth2.md) | OAuth 2.0 auth | 9 Later | Later | 046 | Todo |
 | [PIGN-048](PIGN-048-apidog-environments.md) | Apidog environment import | 9 Later | Later | 030 | Todo |

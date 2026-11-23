@@ -4,6 +4,7 @@ import type {
   BodyMode,
   ComparisonOutcome,
   ConsoleEntry,
+  CookieJar,
   CurrentValueWrite,
   EffectiveAuth,
   ExecutionPreferences,
@@ -73,6 +74,8 @@ export interface RequestBinding {
    * go to `onScriptWrites` (current values) and console output to `onScriptLogs`.
    */
   preRequest?: () => { scripts: ScriptSource[]; requestName: string } | null;
+  /** The project's cookie jar (PIGN-045) and how to save it after a response changed it. */
+  cookies?: () => { jar: CookieJar; onChange: () => void };
   /** Test scripts to run after the response (PIGN-044), `null` when none run. */
   tests?: () => { scripts: ScriptSource[]; requestName: string } | null;
   onScriptWrites?: (writes: CurrentValueWrite[]) => void;
@@ -343,6 +346,7 @@ export function createScratchRequestStore(
         const inherited = get().request.auth ? undefined : binding?.inheritedAuth?.().auth;
         const preRequest = binding?.preRequest?.();
         const tests = binding?.tests?.();
+        const cookies = binding?.cookies?.();
         const ctx = createExecutionContext({
           capabilities: platform.capabilities,
           preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
@@ -365,6 +369,7 @@ export function createScratchRequestStore(
                 },
               }
             : {}),
+          ...(cookies ? { cookies } : {}),
           ...(tests
             ? {
                 tests: {

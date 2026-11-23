@@ -19,7 +19,7 @@ const workspaces = {
   // Core's integration tests run on real folders (NodeFs, Git) in Node.
   'packages/core': {
     pigeon: ['platform', 'formats', 'compare'],
-    testPigeon: ['platform-node', 'fixtures'],
+    testPigeon: ['platform-node', 'fixtures', 'test-server'],
     pure: true,
   },
   'packages/fixtures': { pigeon: [], pure: true },

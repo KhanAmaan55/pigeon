@@ -30,6 +30,7 @@ import { StatusLine } from './StatusLine';
 import { TimelineTab } from './TimelineTab';
 import { ConsolePanel, useConsoleEntries } from '../console/ConsolePanel';
 import { TestsBadge, TestsTab } from './TestsTab';
+import { CookiesTab, setCookieHeaders } from '../cookies/CookiesTab';
 
 export type ResponseDock = 'bottom' | 'right';
 
@@ -215,6 +216,9 @@ function ResponseTabs({
   useProjectState((s) => s.model, null);
   const [reveal, setReveal] = useState<{ line: number; nonce: number } | undefined>(undefined);
   const hasProject = useAppStore((s) => s.project !== null);
+  // Desktop only: browsers hide Set-Cookie (PIGN-045).
+  const showCookies = hasProject && !response.headersRestricted;
+  const setCookieCount = setCookieHeaders(response).length;
   const consoleCount = useConsoleEntries().length;
   const { files } = usePlatform();
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
@@ -283,6 +287,16 @@ function ResponseTabs({
           {canCompare && (
             <ResponseTab value="compare" testId="response-compare-tab">
               Compare
+            </ResponseTab>
+          )}
+          {showCookies && (
+            <ResponseTab value="cookies" testId="response-cookies-tab">
+              Cookies
+              {setCookieCount > 0 && (
+                <span className="rounded-full bg-hover px-1.5 text-xs leading-4 text-fg">
+                  {setCookieCount}
+                </span>
+              )}
             </ResponseTab>
           )}
           {result.tests && (
@@ -453,6 +467,14 @@ function ResponseTabs({
               onTab('body');
             }}
           />
+        </Tabs.Content>
+      )}
+      {showCookies && (
+        <Tabs.Content
+          value="cookies"
+          className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+        >
+          <CookiesTab response={response} url={result.request.url} />
         </Tabs.Content>
       )}
       {result.tests && (

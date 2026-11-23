@@ -146,6 +146,15 @@ export { SCRIPT_MEMORY_BYTES, SCRIPT_TIMEOUT_MS } from './scripting/types';
 export type { CurrentValueWrite, PreRequestOutcome, ScriptSource } from './scripting/prerequest';
 export { runPreRequestScripts, scriptChain } from './scripting/prerequest';
 export { createQuickJsRunner } from './scripting/quickjs';
+export type { StoredCookie } from './cookies/jar';
+export {
+  COOKIES_PER_DOMAIN,
+  COOKIES_PER_JAR,
+  CookieJar,
+  domainMatches,
+  parseSetCookie,
+  pathMatches,
+} from './cookies/jar';
 export type { TestCounts, TestRun } from './scripting/tests';
 export { countTests, runTestScripts, testsOutcome } from './scripting/tests';
 export type { GraphqlError, GraphqlOperation, GraphqlView } from './execution/graphql';

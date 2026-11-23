@@ -213,7 +213,7 @@ The web version uses `fetch()`. The browser, not Pigeon, decides what is allowed
 | Preflight (`OPTIONS`) for non-simple requests | Extra round trip; server must answer it | Mentioned in the CORS help |
 | **Forbidden request headers** (`Host`, `Cookie`, `Content-Length`, `Origin`, `Referer`, `Connection`, `Accept-Encoding`, `Sec-*`, `Proxy-*`, …) | Silently dropped or error | Header editor shows a warning icon on forbidden headers when `!canSetAnyHeader` (`isForbiddenHeader` in `@pigeon/platform`, the list FetchTransport drops) |
 | **Response headers** limited to CORS-safelisted + `Access-Control-Expose-Headers`; `Set-Cookie` never readable | Headers tab incomplete | Notice: "Some headers are hidden by the browser" |
-| Cookies managed by the browser (`credentials: 'include'` optional per request) | No cookie jar control | Cookie UI hidden/limited |
+| Cookies managed by the browser (`credentials: 'include'` optional per request) | No cookie jar control | Cookie manager explains; per-request "Send browser cookies" (`_pigeon.includeCredentials`) sends and stores the browser's own cookies (PIGN-045) |
 | **Redirects** followed transparently; `redirect: 'manual'` yields an opaque response | No redirect chain; "follow redirects: off" unsupported | Setting disabled with tooltip |
 | **GET/HEAD with body** throws | Cannot send | Validation error before send |
 | **Mixed content**: an `https://` Pigeon page cannot call `http://` APIs (except `localhost`/`127.0.0.1` in most browsers) | Blocked | Error classified `mixed-content` with explanation; suggest running web locally or desktop |

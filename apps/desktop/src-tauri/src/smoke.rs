@@ -140,10 +140,16 @@ fn answer(mut stream: TcpStream) -> io::Result<()> {
         body.push('\n');
         line.clear();
     }
+    // `/smoke/cookie-set` sets a cookie for the project's cookie jar (PIGN-045).
+    let cookie = if body.contains("/cookie-set ") {
+        "Set-Cookie: smoke=jar; Path=/\r\n"
+    } else {
+        ""
+    };
     write!(
         stream,
         "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\n\
-         Connection: close\r\n\r\n{body}",
+         {cookie}Connection: close\r\n\r\n{body}",
         body.len()
     )
 }

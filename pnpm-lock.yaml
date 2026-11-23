@@ -161,6 +161,9 @@ importers:
       '@pigeon/platform-node':
         specifier: workspace:*
         version: link:../platform-node
+      '@pigeon/test-server':
+        specifier: workspace:*
+        version: link:../test-server
 
   packages/fixtures: {}
 

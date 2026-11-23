@@ -94,7 +94,11 @@ interface NormalizedResponse extends RawResponse {
   bodyText?: string;                 // when textual (utf-8 / charset from header)
   json?: unknown;                    // parsed when media type is JSON (+json suffix) and parse succeeds
   sizeBytes: number;
-  cookies: ParsedSetCookie[];        // desktop only (web can't see Set-Cookie); added with PIGN-045
+  // Cookies (PIGN-045): the project's `CookieJar` (core/cookies, RFC 6265: domain, host-only, path,
+  // Max-Age/Expires, Secure; no public-suffix list, so a dotless Domain is refused) adds `Cookie`
+  // after preparing (unless the request sets one or `disableCookies`) and stores the final
+  // response's `Set-Cookie` (desktop/Node: `canReadAllResponseHeaders`). Set-Cookie on redirect hops
+  // the transport followed is not seen (known limitation). reqwest has no cookie store of its own.
 }
 
 interface ExecutionError {

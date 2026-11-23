@@ -11,6 +11,7 @@ import type {
   TransportErrorKind,
 } from '@pigeon/platform';
 import type { CurrentValueWrite, ScriptSource } from '../scripting/prerequest';
+import type { CookieJar } from '../cookies/jar';
 import type { TestRun } from '../scripting/tests';
 import type { ConsoleEntry, ScriptRunner } from '../scripting/types';
 import type { SkippedScriptsReason } from './scripts';
@@ -62,6 +63,12 @@ export interface ExecutionContext {
     onWrites?: (writes: CurrentValueWrite[]) => void;
     onLogs?: (entries: ConsoleEntry[]) => void;
   };
+  /**
+   * The project's cookie jar (PIGN-045): a `Cookie` header is added from it (unless the request
+   * sets one or has `disableCookies`) and `Set-Cookie` is stored where the platform can read it
+   * (`canReadAllResponseHeaders`). `onChange` runs when the jar changed.
+   */
+  cookies?: { jar: CookieJar; onChange?: () => void };
   /** Test scripts to run after a response (PIGN-044); same callbacks as `preRequest`. */
   tests?: {
     runner: ScriptRunner;
@@ -91,6 +98,7 @@ export function createExecutionContext(
       : { skippedScriptsReason: init.skippedScriptsReason }),
     ...(init.preRequest === undefined ? {} : { preRequest: init.preRequest }),
     ...(init.tests === undefined ? {} : { tests: init.tests }),
+    ...(init.cookies === undefined ? {} : { cookies: init.cookies }),
   };
 }
 
@@ -105,7 +113,6 @@ export interface ExecutionError {
   hint?: string;
 }
 
-/** Cookies (`cookies: ParsedSetCookie[]`) join with the cookie jar in PIGN-045. */
 export interface NormalizedResponse extends RawResponse {
   /** Media type, lowercased, without parameters. */
   contentType?: string;

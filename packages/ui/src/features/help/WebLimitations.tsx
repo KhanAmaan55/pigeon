@@ -88,8 +88,11 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
     title: 'Cookies',
     body: (
       <p>
-        The browser manages cookies for the web app: Pigeon cannot read, set or clear them, and
-        cross-site cookies follow the browser's rules. {DESKTOP}
+        The browser manages cookies for the web app: Pigeon cannot read, set or clear them, so there
+        is no cookie jar or cookie manager on the web. A request's Settings tab has “Send browser
+        cookies”: the browser then sends and stores its own cookies for that URL, if the server
+        allows credentials with CORS; cross-site cookies follow the browser's rules. The desktop app
+        keeps a cookie jar per project.
       </p>
     ),
   },

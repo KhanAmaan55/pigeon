@@ -10,6 +10,8 @@ export interface RequestSettings {
   followRedirects: boolean;
   maxRedirects: number;
   strictSSL: boolean;
+  /** Web only: send and store the browser's cookies for the target (`credentials: 'include'`). */
+  includeCredentials?: boolean;
 }
 
 export interface PreparedRequest {

@@ -396,6 +396,7 @@ interface LocalProjectState {
   lastResults: Record<Id /* requestId */, StoredExecutionResult>; // bounded, see file-format.md
   lastComparisons: Record<Id, ComparisonResult>;
   runReports: RunReport[];           // newest first, bounded (last 20), see §7.3
+  cookies?: StoredCookie[];          // the project's cookie jar (PIGN-045; ≤ 50 per domain, 3,000 in all)
   conflicts: Conflict[];
 }
 

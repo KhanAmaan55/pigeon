@@ -35,6 +35,8 @@ const PROFILE_SETTINGS = {
   maxRedirects: 'number',
   strictSSL: 'boolean',
   disableBodyPruning: 'boolean',
+  /** Postman's "Disable cookie jar" (PIGN-045). */
+  disableCookies: 'boolean',
 } as const;
 /** A body Pigeon cannot edit yet (e.g. GraphQL before PIGN-032), kept verbatim. */
 const UNSUPPORTED_BODY = 'unsupportedBody';
@@ -57,6 +59,8 @@ export function requestFromPostmanItem(item: JsonObject, fileKey: string): Proje
   }
   if (typeof pigeon['timeoutMs'] === 'number')
     settings.timeoutMs = take(pigeon, 'timeoutMs') as number;
+  if (typeof pigeon['includeCredentials'] === 'boolean')
+    settings.includeCredentials = take(pigeon, 'includeCredentials') as boolean;
 
   const id = asString(take(rest, 'id'));
   const name = asString(take(rest, 'name'));
@@ -216,7 +220,7 @@ export function requestToPostmanItem(request: ProjectRequest): JsonObject {
     _pigeon: pigeonExtra,
     ...itemExtra
   } = request.extra;
-  const { timeoutMs, ...profileSettings } = request.settings;
+  const { timeoutMs, includeCredentials, ...profileSettings } = request.settings;
   const profile = { ...asObject(profileExtra), ...profileSettings };
   const graphqlName =
     request.body.mode === 'graphql' &&
@@ -227,6 +231,7 @@ export function requestToPostmanItem(request: ProjectRequest): JsonObject {
   const pigeon = {
     ...asObject(pigeonExtra),
     ...(timeoutMs === undefined ? {} : { timeoutMs }),
+    ...(includeCredentials === undefined ? {} : { includeCredentials }),
     ...(graphqlName === undefined ? {} : { operationName: graphqlName }),
   };
   const body = bodyToPostman(request.body);

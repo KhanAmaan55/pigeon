@@ -33,7 +33,11 @@ export const RequestSettingsSchema = z.object({
   maxRedirects: z.number().int().nonnegative().optional(),
   strictSSL: z.boolean().optional(),
   disableBodyPruning: z.boolean().optional(),
+  /** No cookie jar for this request (PIGN-045). */
+  disableCookies: z.boolean().optional(),
   timeoutMs: z.number().int().nonnegative().optional(),
+  /** Web: send browser cookies (PIGN-045). */
+  includeCredentials: z.boolean().optional(),
 });
 export type RequestSettings = z.infer<typeof RequestSettingsSchema>;
 

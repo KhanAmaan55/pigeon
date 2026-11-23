@@ -151,6 +151,26 @@
     if (!scripted.includes('x-script: desktop')) {
       throw new Error(`pre-request script header missing: ${scripted.join(' | ')}`);
     }
+    // The project's cookie jar (PIGN-045): a cookie set by one response is sent with the next.
+    const echoedFor = (path) =>
+      waitFor(`response for ${path}`, () => {
+        if (text('response-error')) throw new Error(`send failed: ${text('response-error')}`);
+        const lines = [...(find('response-body')?.querySelectorAll('.cm-line') ?? [])].map((line) =>
+          line.textContent.toLowerCase(),
+        );
+        return lines.includes(`get /smoke${path} http/1.1`) ? lines : null;
+      });
+    setValue(url, `${PROBE_URL}/cookie-set`);
+    find('send-button').click();
+    await echoedFor('/cookie-set');
+    setValue(url, `${PROBE_URL}/cookie-check`);
+    find('send-button').click();
+    const withCookie = await echoedFor('/cookie-check');
+    if (!withCookie.includes('cookie: smoke=jar')) {
+      throw new Error(`cookie jar not used: ${withCookie.join(' | ')}`);
+    }
+    setValue(url, `${PROBE_URL}/edited`);
+    await delay(100);
     const mac = navigator.userAgent.includes('Mac');
     window.dispatchEvent(
       new window.KeyboardEvent('keydown', {
