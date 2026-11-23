@@ -4,14 +4,16 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
 
 import { hasBody, hasScripts } from '@pigeon/core';
+import { isCurlCommand } from '@pigeon/formats';
 
 import { usePlatform } from '../../app/PlatformProvider';
 import { VariableInput } from '../../components/VariableInput';
-import { useProjectState } from '../../stores/AppStoreProvider';
+import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { takeUrlFocus } from '../explorer/actions';
 import { AuthTab } from './AuthTab';
 import { ScriptsTab } from './ScriptsTab';
 import { BodyTab } from './BodyTab';
+import { CodePanel } from './CodePanel';
 import { HeadersTab } from './HeadersTab';
 import { methodColorClass } from './methods';
 import { ParamsTab } from './ParamsTab';
@@ -35,6 +37,8 @@ export function RequestEditor() {
   const sending = useScratchRequest((s) => s.status === 'sending');
   const setMethod = useScratchRequest((s) => s.setMethod);
   const setUrl = useScratchRequest((s) => s.setUrl);
+  const applyCurl = useScratchRequest((s) => s.applyCurl);
+  const notify = useAppStore((s) => s.notify);
   const paramCount = useScratchRequest(
     (s) =>
       s.request.url.query.filter((p) => !p.disabled && (p.key !== '' || p.value !== '')).length,
@@ -116,7 +120,20 @@ export function RequestEditor() {
           data-testid="url-input"
           value={url}
           onChange={(event) => setUrl(event.target.value)}
-          placeholder="Enter a URL, e.g. https://api.example.com/users"
+          onPaste={(event) => {
+            // A pasted cURL command fills the whole request (PIGN-050).
+            const text = event.clipboardData.getData('text/plain');
+            if (!isCurlCommand(text)) return;
+            event.preventDefault();
+            const warnings = applyCurl(text);
+            if (warnings === null) return notify('This cURL command has no URL.');
+            notify(
+              warnings.length === 0
+                ? 'Request filled from the cURL command.'
+                : `Request filled from the cURL command. ${warnings.join(' ')}`,
+            );
+          }}
+          placeholder="Enter a URL or paste a cURL command"
           spellCheck={false}
           autoComplete="off"
           autoCapitalize="off"
@@ -197,6 +214,9 @@ export function RequestEditor() {
           <TabTrigger value="settings" testId="settings-tab">
             Settings
           </TabTrigger>
+          <TabTrigger value="code" testId="code-tab">
+            Code
+          </TabTrigger>
         </Tabs.List>
         <Tabs.Content value="params" className="min-h-0 flex-1 overflow-auto">
           <ParamsTab />
@@ -217,6 +237,9 @@ export function RequestEditor() {
         )}
         <Tabs.Content value="settings" className="min-h-0 flex-1 overflow-auto">
           <SettingsTab />
+        </Tabs.Content>
+        <Tabs.Content value="code" className="flex min-h-0 flex-1 flex-col">
+          <CodePanel />
         </Tabs.Content>
       </Tabs.Root>
     </div>

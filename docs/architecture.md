@@ -74,7 +74,8 @@ Rule: **core, formats, compare, platform must not import React, DOM APIs, Tauri,
       slug.ts
       project/                 # read/write Pigeon project folder
       postman/                 # collection v2.0/v2.1, environment, globals, detect
-      apidog/ echoapi/ curl/   # later
+      curl/ snippets/          # cURL parser, code snippet generators (PIGN-050)
+      apidog/ echoapi/         # later
     compare/src/
       infer.ts diff.ts rules.ts path.ts status.ts headers.ts result.ts
     platform/src/

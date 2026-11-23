@@ -1,0 +1,8 @@
+curl 'https://api.example.com/users?page=2&q=a%20b' \
+  -H 'accept: application/json' \
+  -H 'accept-language: en-US,en;q=0.9' \
+  -H 'content-type: application/json' \
+  -b 'session=abc123; theme=dark' \
+  -H 'origin: https://example.com' \
+  -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36' \
+  --data-raw '{"name":"Ada","note":"it'\''s \"quoted\""}'

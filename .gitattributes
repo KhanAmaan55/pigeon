@@ -5,3 +5,7 @@
 *.ico binary
 *.icns binary
 *.woff2 binary
+
+# Windows "Copy as cURL" fixtures keep their CRLF line endings (PIGN-050).
+packages/fixtures/curl/chrome-cmd-*.txt -text
+packages/fixtures/curl/powershell-*.txt -text

@@ -111,3 +111,15 @@ export type {
 } from './project/types';
 export { allocateSlug, slugify } from './slug';
 export type { SlugOptions } from './slug';
+export type { CurlParseResult, CurlRequest, Shell } from './curl/parse';
+export { detectShell, isCurlCommand, parseCurl, tokenize as tokenizeShell } from './curl/parse';
+export type { SnippetBody, SnippetGenerator, SnippetPart, SnippetRequest } from './snippets/index';
+export {
+  curlSnippet,
+  fetchSnippet,
+  goSnippet,
+  pythonSnippet,
+  shellQuote,
+  SNIPPET_GENERATORS,
+  snippetGenerator,
+} from './snippets/index';

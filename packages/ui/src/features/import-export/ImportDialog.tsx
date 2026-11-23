@@ -1,11 +1,12 @@
 import type { ImportItem } from '@pigeon/core';
-import { applyImport, importContext } from '@pigeon/core';
+import { applyImport, importContext, placementOf } from '@pigeon/core';
 import type { PickedFile } from '@pigeon/platform';
 import { FileJson, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { Dialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 import { useEffect, useId, useState } from 'react';
 
+import { targetContainerId } from '../explorer/actions';
 import { useAppStore } from '../../stores/AppStoreProvider';
 import type { OpenProject } from '../../stores/app-store';
 import { runImportPreview } from './run-import';
@@ -72,7 +73,11 @@ function ImportPreviewPanel({
         setNames(
           Object.fromEntries(
             result.flatMap((item, index) =>
-              item.kind === 'collection' ? [[index, item.collection.name]] : [],
+              item.kind === 'collection'
+                ? [[index, item.collection.name]]
+                : item.kind === 'request'
+                  ? [[index, item.name]]
+                  : [],
             ),
           ),
         );
@@ -84,7 +89,9 @@ function ImportPreviewPanel({
   }, [files, project]);
 
   const importable = items?.filter((item) => item.kind !== 'rejected') ?? [];
-  const hasVariables = importable.some((item) => item.kind !== 'collection');
+  const hasVariables = importable.some(
+    (item) => item.kind === 'environment' || item.kind === 'globals',
+  );
   const collisions = importable.filter((item) => item.kind === 'environment' && item.collidesWith);
   const namesValid = Object.values(names).every((name) => name.trim() !== '');
 
@@ -94,7 +101,14 @@ function ImportPreviewPanel({
     setWorking(true);
     setError(null);
     try {
-      const ids = applyImport(session, items, { names, useAsCurrentValues, onCollision });
+      // Requests from cURL go into the selected collection or folder (PIGN-050).
+      const targetId = targetContainerId(session, store.getState().selectedId) ?? undefined;
+      const ids = applyImport(session, items, {
+        names,
+        useAsCurrentValues,
+        onCollision,
+        ...(targetId ? { targetId } : {}),
+      });
       const summary = summarize(importable);
       if (write) {
         const { result } = await session.saveForCommit(ids);
@@ -107,6 +121,12 @@ function ImportPreviewPanel({
       for (const item of importable) {
         if (item.kind === 'collection') store.getState().setExpanded(item.collection.id, true);
       }
+      const requests = importable.filter((item) => item.kind === 'request');
+      for (const item of requests) {
+        const parent = placementOf(session.getWorkingModel(), item.id)?.parentId;
+        if (parent) store.getState().setExpanded(parent, true);
+      }
+      if (requests.length === 1) store.getState().openTab(requests[0]!.id, { pin: true });
       onDone();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -239,13 +259,15 @@ function ImportPreviewPanel({
 /** "1 request", "2 environments", … for the toast. */
 function summarize(items: readonly ImportItem[]): string {
   const requests = items.reduce(
-    (total, item) => total + (item.kind === 'collection' ? item.report.counts.requests : 0),
+    (total, item) =>
+      total +
+      (item.kind === 'collection' ? item.report.counts.requests : item.kind === 'request' ? 1 : 0),
     0,
   );
   const environments = items.filter((item) => item.kind === 'environment').length;
   const globals = items.some((item) => item.kind === 'globals');
   const parts = [
-    ...(items.some((item) => item.kind === 'collection')
+    ...(items.some((item) => item.kind === 'collection' || item.kind === 'request')
       ? [`${requests} request${requests === 1 ? '' : 's'}`]
       : []),
     ...(environments > 0 ? [`${environments} environment${environments === 1 ? '' : 's'}`] : []),
@@ -266,7 +288,9 @@ function ItemPreview({
   const warnings =
     item.kind === 'collection' || item.kind === 'environment' || item.kind === 'globals'
       ? item.report.warnings
-      : [];
+      : item.kind === 'request'
+        ? item.warnings
+        : [];
   return (
     <section
       data-testid="import-item"
@@ -297,6 +321,25 @@ function ItemPreview({
           </dl>
           <label className="flex flex-col gap-1">
             <span className="text-xs text-fg-muted">New collection</span>
+            <input
+              data-testid="import-name"
+              value={name ?? ''}
+              onChange={(event) => onName(event.target.value)}
+              className="h-8 rounded border border-border bg-bg px-2 text-fg"
+            />
+          </label>
+        </>
+      )}
+      {item.kind === 'request' && (
+        <>
+          <p data-testid="import-request" className="flex min-w-0 gap-2 font-mono text-xs">
+            <span className="font-semibold">{item.request.method}</span>
+            <span className="min-w-0 truncate">{item.request.url.raw}</span>
+          </p>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-fg-muted">
+              New request (in the selected collection or folder)
+            </span>
             <input
               data-testid="import-name"
               value={name ?? ''}

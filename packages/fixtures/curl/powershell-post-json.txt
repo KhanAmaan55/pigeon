@@ -1,0 +1,5 @@
+curl.exe 'https://api.example.com/users?page=2&q=a%20b' `
+  -H 'accept: application/json' `
+  -H 'content-type: application/json' `
+  -b 'session=abc123; theme=dark' `
+  --data-raw '{"name":"Ada","note":"it''s \"quoted\""}'

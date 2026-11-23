@@ -111,7 +111,7 @@ export interface AppState {
 export type AppStore = ReturnType<typeof createAppStore>;
 
 /** What the import file picker offers. */
-const IMPORT_ACCEPT = ['.json', 'application/json'];
+const IMPORT_ACCEPT = ['.json', 'application/json', '.txt', '.sh', '.curl', 'text/plain'];
 
 type AppPlatform = Pick<Platform, 'projects' | 'openProjectFs' | 'appState'> &
   Partial<Pick<Platform, 'files' | 'capabilities' | 'secrets'>>;

@@ -1,0 +1,4 @@
+curl 'https://example.com/login' \
+  -H 'content-type: application/x-www-form-urlencoded' \
+  --data-raw 'user=ada%40example.com&password=p%26ss+word&remember=on' \
+  --compressed

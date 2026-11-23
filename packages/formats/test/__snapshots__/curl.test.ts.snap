@@ -1,0 +1,511 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snippets (PIGN-050) > Go (net/http) snapshots 1`] = `
+{
+  "file": "package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+)
+
+func main() {
+	payload, err := os.Open("files/data.bin")
+	if err != nil {
+		panic(err)
+	}
+	defer payload.Close()
+
+	req, err := http.NewRequest("PUT", "https://x.test/blob", payload)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Add("Content-Type", "application/octet-stream")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res.Status)
+	fmt.Println(string(data))
+}
+",
+  "form": "package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+)
+
+func main() {
+	payload := strings.NewReader("user=ada%40example.com&password=p%26ss")
+
+	req, err := http.NewRequest("POST", "https://x.test/login", payload)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res.Status)
+	fmt.Println(string(data))
+}
+",
+  "get": "package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+)
+
+func main() {
+	req, err := http.NewRequest("GET", "https://api.example.com/users?page=2", nil)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Authorization", "Bearer ••••••")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res.Status)
+	fmt.Println(string(data))
+}
+",
+  "getWithBody": "package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+)
+
+func main() {
+	payload := strings.NewReader("{\\"q\\":1}")
+
+	req, err := http.NewRequest("GET", "https://x.test/search", payload)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res.Status)
+	fmt.Println(string(data))
+}
+",
+  "head": "package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+)
+
+func main() {
+	req, err := http.NewRequest("HEAD", "https://x.test", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res.Status)
+	fmt.Println(string(data))
+}
+",
+  "multipart": "package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"os"
+)
+
+func main() {
+	payload := &bytes.Buffer{}
+	writer := multipart.NewWriter(payload)
+	_ = writer.WriteField("title", "@not-a-file")
+	{
+		file, err := os.Open("files/a b.pdf")
+		if err != nil {
+			panic(err)
+		}
+		part, err := writer.CreateFormFile("doc", "a b.pdf")
+		if err != nil {
+			panic(err)
+		}
+		if _, err := io.Copy(part, file); err != nil {
+			panic(err)
+		}
+		file.Close()
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
+
+	req, err := http.NewRequest("POST", "https://x.test/upload", payload)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res.Status)
+	fmt.Println(string(data))
+}
+",
+  "postJson": "package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+)
+
+func main() {
+	payload := strings.NewReader("{\\"name\\":\\"Ada\\",\\"note\\":\\"it's \\\\\\"quoted\\\\\\"\\"}")
+
+	req, err := http.NewRequest("POST", "https://api.example.com/users", payload)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res.Status)
+	fmt.Println(string(data))
+}
+",
+  "putText": "package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+)
+
+func main() {
+	payload := strings.NewReader("line one\\nline 'two'")
+
+	req, err := http.NewRequest("PUT", "http://localhost:4010/echo", payload)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Add("Content-Type", "text/plain")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res.Status)
+	fmt.Println(string(data))
+}
+",
+}
+`;
+
+exports[`snippets (PIGN-050) > JavaScript (fetch) snapshots 1`] = `
+{
+  "file": "const response = await fetch("https://x.test/blob", {
+  method: "PUT",
+  headers: {
+    "Content-Type": "application/octet-stream",
+  },
+  body: fileInput.files[0], // files/data.bin
+});
+
+console.log(response.status);
+console.log(await response.text());
+",
+  "form": "const response = await fetch("https://x.test/login", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/x-www-form-urlencoded",
+  },
+  body: "user=ada%40example.com&password=p%26ss",
+});
+
+console.log(response.status);
+console.log(await response.text());
+",
+  "get": "const response = await fetch("https://api.example.com/users?page=2", {
+  method: "GET",
+  headers: {
+    "Accept": "application/json",
+    "Authorization": "Bearer ••••••",
+  },
+});
+
+console.log(response.status);
+console.log(await response.text());
+",
+  "getWithBody": "const response = await fetch("https://x.test/search", {
+  method: "GET",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: "{\\"q\\":1}",
+});
+
+console.log(response.status);
+console.log(await response.text());
+",
+  "head": "const response = await fetch("https://x.test", {
+  method: "HEAD",
+});
+
+console.log(response.status);
+console.log(await response.text());
+",
+  "multipart": "const form = new FormData();
+form.append("title", "@not-a-file");
+form.append("doc", fileInput.files[0], "a b.pdf"); // files/a b.pdf
+
+const response = await fetch("https://x.test/upload", {
+  method: "POST",
+  body: form,
+});
+
+console.log(response.status);
+console.log(await response.text());
+",
+  "postJson": "const response = await fetch("https://api.example.com/users", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: "{\\"name\\":\\"Ada\\",\\"note\\":\\"it's \\\\\\"quoted\\\\\\"\\"}",
+});
+
+console.log(response.status);
+console.log(await response.text());
+",
+  "putText": "const response = await fetch("http://localhost:4010/echo", {
+  method: "PUT",
+  headers: {
+    "Content-Type": "text/plain",
+  },
+  body: "line one\\nline 'two'",
+});
+
+console.log(response.status);
+console.log(await response.text());
+",
+}
+`;
+
+exports[`snippets (PIGN-050) > Python (requests) snapshots 1`] = `
+{
+  "file": "import requests
+
+url = "https://x.test/blob"
+headers = {
+    "Content-Type": "application/octet-stream",
+}
+data = open("files/data.bin", "rb")
+
+response = requests.request("PUT", url, headers=headers, data=data)
+
+print(response.status_code)
+print(response.text)
+",
+  "form": "import requests
+
+url = "https://x.test/login"
+headers = {
+    "Content-Type": "application/x-www-form-urlencoded",
+}
+data = "user=ada%40example.com&password=p%26ss"
+
+response = requests.request("POST", url, headers=headers, data=data.encode("utf-8"))
+
+print(response.status_code)
+print(response.text)
+",
+  "get": "import requests
+
+url = "https://api.example.com/users?page=2"
+headers = {
+    "Accept": "application/json",
+    "Authorization": "Bearer ••••••",
+}
+
+response = requests.request("GET", url, headers=headers)
+
+print(response.status_code)
+print(response.text)
+",
+  "getWithBody": "import requests
+
+url = "https://x.test/search"
+headers = {
+    "Content-Type": "application/json",
+}
+data = "{\\"q\\":1}"
+
+response = requests.request("GET", url, headers=headers, data=data.encode("utf-8"))
+
+print(response.status_code)
+print(response.text)
+",
+  "head": "import requests
+
+url = "https://x.test"
+
+response = requests.request("HEAD", url)
+
+print(response.status_code)
+print(response.text)
+",
+  "multipart": "import requests
+
+url = "https://x.test/upload"
+files = [
+    ("title", (None, "@not-a-file")),
+    ("doc", ("a b.pdf", open("files/a b.pdf", "rb"), "application/pdf")),
+]
+
+response = requests.request("POST", url, files=files)
+
+print(response.status_code)
+print(response.text)
+",
+  "postJson": "import requests
+
+url = "https://api.example.com/users"
+headers = {
+    "Content-Type": "application/json",
+}
+data = "{\\"name\\":\\"Ada\\",\\"note\\":\\"it's \\\\\\"quoted\\\\\\"\\"}"
+
+response = requests.request("POST", url, headers=headers, data=data.encode("utf-8"))
+
+print(response.status_code)
+print(response.text)
+",
+  "putText": "import requests
+
+url = "http://localhost:4010/echo"
+headers = {
+    "Content-Type": "text/plain",
+}
+data = "line one\\nline 'two'"
+
+response = requests.request("PUT", url, headers=headers, data=data.encode("utf-8"))
+
+print(response.status_code)
+print(response.text)
+",
+}
+`;
+
+exports[`snippets (PIGN-050) > cURL snapshots 1`] = `
+{
+  "file": "curl --request PUT https://x.test/blob \\
+  --header 'Content-Type: application/octet-stream' \\
+  --data-binary @files/data.bin
+",
+  "form": "curl https://x.test/login \\
+  --header 'Content-Type: application/x-www-form-urlencoded' \\
+  --data-raw 'user=ada%40example.com&password=p%26ss'
+",
+  "get": "curl 'https://api.example.com/users?page=2' \\
+  --header 'Accept: application/json' \\
+  --header 'Authorization: Bearer ••••••'
+",
+  "getWithBody": "curl --request GET https://x.test/search \\
+  --header 'Content-Type: application/json' \\
+  --data-raw '{"q":1}'
+",
+  "head": "curl --head https://x.test
+",
+  "multipart": "curl https://x.test/upload \\
+  --form-string title=@not-a-file \\
+  --form 'doc=@files/a b.pdf;type=application/pdf'
+",
+  "postJson": "curl https://api.example.com/users \\
+  --header 'Content-Type: application/json' \\
+  --data-raw '{"name":"Ada","note":"it'\\''s \\"quoted\\""}'
+",
+  "putText": "curl --request PUT http://localhost:4010/echo \\
+  --header 'Content-Type: text/plain' \\
+  --data-raw $'line one\\nline \\'two\\''
+",
+}
+`;

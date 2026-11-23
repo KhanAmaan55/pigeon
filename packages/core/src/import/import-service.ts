@@ -18,6 +18,7 @@ import {
   importPostmanGlobals,
 } from '@pigeon/formats';
 
+import { requestFromCurl } from '../execution/snippet';
 import { GLOBALS_ENTITY_ID } from '../workspace/commands';
 import type { ProjectSession } from '../workspace/project-session';
 
@@ -83,11 +84,25 @@ export function previewImportFile(
         format: detected.kind === 'postman-environment' ? 'Postman environment' : 'Postman globals',
         message: 'Importing environments arrives with environment import (not yet available).',
       };
+    case 'curl':
+      return {
+        ok: false,
+        format: 'cURL command',
+        message: 'A cURL command creates a single request: paste it into the URL bar.',
+      };
     case 'rejected':
       return { ok: false, format: detected.format, message: detected.message };
     case 'unknown':
       return { ok: false, message: detected.message };
   }
+}
+
+/** A short request name for a URL: `GET example.com/users`. */
+export function requestNameFor(method: string, url: string): string {
+  const withoutScheme = url.replace(/^[a-z][a-z\d+.-]*:\/\//i, '').split(/[?#]/)[0] ?? '';
+  const trimmed = withoutScheme.replace(/\/$/, '');
+  const short = trimmed.length > 60 ? `${trimmed.slice(0, 59)}…` : trimmed;
+  return `${method} ${short || 'request'}`;
 }
 
 /** A collection plan with another name (the dialog's editable target name). */
@@ -133,6 +148,17 @@ export type ImportItem =
       globals: ProjectGlobals;
       currentValues: Record<string, string>;
       report: VariablesImportReport;
+    }
+  | {
+      /** One request from a cURL command (PIGN-050). */
+      kind: 'request';
+      fileName: string;
+      format: string;
+      id: string;
+      name: string;
+      request: ReturnType<typeof requestFromCurl>;
+      /** cURL options that were ignored or only partly mapped. */
+      warnings: string[];
     }
   | { kind: 'rejected'; fileName: string; format?: string; message: string };
 
@@ -214,6 +240,21 @@ export function previewImportFiles(
         });
         break;
       }
+      case 'curl': {
+        let id = options.newId?.() ?? crypto.randomUUID();
+        while (taken.has(id)) id = crypto.randomUUID();
+        taken.add(id);
+        items.push({
+          kind: 'request',
+          fileName: file.name,
+          format: 'cURL command',
+          id,
+          name: requestNameFor(detected.request.method, detected.request.url),
+          request: requestFromCurl(detected.request),
+          warnings: detected.request.warnings,
+        });
+        break;
+      }
       case 'rejected':
         items.push({
           kind: 'rejected',
@@ -237,6 +278,17 @@ export interface ApplyImportOptions {
   useAsCurrentValues?: boolean;
   /** An environment named like an existing one: add it as "Name (2)" or replace its variables. */
   onCollision?: 'keep-both' | 'replace';
+  /**
+   * Collection or folder that receives requests from cURL commands (the explorer selection);
+   * otherwise the first collection, or a new "Imported" collection.
+   */
+  targetId?: string;
+}
+
+function containerExists(model: ProjectModel, id: string): boolean {
+  const walk = (items: readonly ProjectItem[]): boolean =>
+    items.some((item) => item.kind === 'folder' && (item.id === id || walk(item.children)));
+  return model.collections.some((c) => c.id === id || walk(c.children));
 }
 
 /** `name`, or `name (2)`, `name (3)`, … when taken. */
@@ -312,9 +364,30 @@ export function applyImport(
         ids.push(GLOBALS_ENTITY_ID);
         break;
       }
+      case 'request': {
+        const model = session.getWorkingModel();
+        let parentId =
+          options.targetId && containerExists(model, options.targetId)
+            ? options.targetId
+            : model.collections[0]?.id;
+        if (!parentId) {
+          parentId = `${item.id}-collection`;
+          session.apply({ type: 'createCollection', id: parentId, name: 'Imported' });
+          ids.push(parentId);
+        }
+        session.apply({
+          type: 'createRequest',
+          id: item.id,
+          parentId,
+          name: options.names?.[index]?.trim() || item.name,
+          request: item.request,
+        });
+        ids.push(item.id, parentId);
+        break;
+      }
       case 'rejected':
         break;
     }
   });
-  return ids;
+  return [...new Set(ids)];
 }

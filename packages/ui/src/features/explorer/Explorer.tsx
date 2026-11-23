@@ -19,13 +19,13 @@ import { useMemo, useRef, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
 import { IconButton } from '../../components/IconButton';
-import { PROJECT_ENTITY_ID, withBaseline } from '@pigeon/core';
+import { inheritedAuth, PROJECT_ENTITY_ID, snippetRequest, withBaseline } from '@pigeon/core';
 
 import type { OpenProject } from '../../stores/app-store';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { locationLabel } from '../../stores/locations';
 import { methodColorClass } from '../request-editor/methods';
-import { isEmptyComparison } from '@pigeon/formats';
+import { curlSnippet, isEmptyComparison } from '@pigeon/formats';
 import { statusClass } from '../examples/ExamplesTab';
 import { useRunner } from '../runner/Runner';
 import { ExportDialog } from '../import-export/ExportDialog';
@@ -58,7 +58,23 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
   const { session, store } = project;
   const exportZip = useAppStore((s) => s.exportProjectZip);
   const pickImportFile = useAppStore((s) => s.pickImportFile);
+  const notify = useAppStore((s) => s.notify);
   const platform = usePlatform();
+  /** The request as cURL, `{{variables}}` kept and literal credentials masked (PIGN-050). */
+  const copyAsCurl = (id: string) => {
+    const request = session.findRequest(id);
+    if (!request) return;
+    const inherited = request.auth ? undefined : inheritedAuth(session.getWorkingModel(), id).auth;
+    const { request: snippet } = snippetRequest(
+      request,
+      inherited ? { inheritedAuth: inherited } : {},
+      { resolve: false },
+    );
+    navigator.clipboard.writeText(curlSnippet.generate(snippet)).then(
+      () => notify('Copied as cURL.'),
+      () => notify('Copy failed: the clipboard is not available.'),
+    );
+  };
   const model = useProjectState((s) => s.model, null);
   const problems = useProjectState((s) => s.problems, null);
   const expanded = useProjectState((s) => s.expanded, null);
@@ -420,6 +436,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
                   onDelete={() => askDelete(row)}
                   onVariables={() => store.getState().openTab(row.id, { pin: true })}
                   onExport={() => setExporting(row.id)}
+                  onCopyCurl={() => copyAsCurl(row.id)}
                   onRun={() => runner?.getState().openDialog(row.id)}
                   onBaseline={(pin) =>
                     edit(() => {
@@ -504,6 +521,7 @@ function RowMenu({
   onExport,
   onBaseline,
   onRun,
+  onCopyCurl,
 }: {
   row: TreeRow;
   readOnly: boolean;
@@ -521,6 +539,8 @@ function RowMenu({
   onBaseline: (pin: boolean) => void;
   /** Collections and folders: the run dialog for it (PIGN-038). */
   onRun: () => void;
+  /** Requests: copy as a cURL command (PIGN-050). */
+  onCopyCurl: () => void;
 }) {
   const item = (label: string, onSelect: () => void, testId: string, shortcut?: string) => (
     <ContextMenu.Item
@@ -566,6 +586,15 @@ function RowMenu({
                   className="flex cursor-default items-center rounded px-2 py-1 outline-none select-none data-[highlighted]:bg-hover"
                 >
                   Run {row.kind === 'folder' ? 'folder' : 'collection'}…
+                </ContextMenu.Item>
+              )}
+              {row.kind === 'request' && !row.broken && (
+                <ContextMenu.Item
+                  data-testid="menu-copy-curl"
+                  onSelect={onCopyCurl}
+                  className="flex cursor-default items-center rounded px-2 py-1 outline-none select-none data-[highlighted]:bg-hover"
+                >
+                  Copy as cURL
                 </ContextMenu.Item>
               )}
               {row.kind !== 'request' && item('Variables', onVariables, 'menu-variables')}

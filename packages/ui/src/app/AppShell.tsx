@@ -1,3 +1,4 @@
+import { isCurlCommand } from '@pigeon/formats';
 import type { DragEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { Group, Panel } from 'react-resizable-panels';
@@ -86,6 +87,28 @@ export function AppShell() {
     return () => window.removeEventListener(COMMAND_EVENT, onCommand);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registry]);
+
+  // A cURL command pasted outside a text field opens the import preview (PIGN-050); the URL bar
+  // handles its own paste.
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest?.('input, textarea, select, [contenteditable="true"], .cm-editor'))
+        return;
+      const text = event.clipboardData?.getData('text/plain') ?? '';
+      if (!isCurlCommand(text)) return;
+      event.preventDefault();
+      if (!appStore.getState().project) {
+        notify('Open or create a project first, then paste the cURL command.');
+        return;
+      }
+      setPendingImport([
+        { name: 'Pasted cURL command', bytes: new TextEncoder().encode(text), mime: 'text/plain' },
+      ]);
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [appStore, notify, setPendingImport]);
 
   // Other features ask for a sidebar view (e.g. "Edit in project settings").
   useEffect(() => {

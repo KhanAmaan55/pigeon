@@ -204,3 +204,22 @@ Plan: PIGN-049 starts by collecting real export samples. If they are Postman-com
 | Postman v2.0 | import | — | — | MVP |
 | Apidog | via Postman/OpenAPI export (not Pigeon's concern) | import (planned) | import (planned) | Later, Assumption |
 | Echo API | via Postman export | via Postman export or native (planned) | ? | Later, Assumption |
+| cURL command | one request (import); snippet out | — | — | Later (PIGN-050), Observed |
+
+### B.6 cURL commands (PIGN-050)
+
+`formats/src/curl/parse.ts` splits the text into words with the quoting of the shell it was written for, detected from its line continuations and escapes: **bash** (`'…'`, `"…"`, `$'…'`, `\` + newline — Chromium "Copy as cURL" on macOS/Linux and "Copy as cURL (bash)" on Windows), **cmd** (`^` escapes, `^"…^"` quoting, `\"` inside arguments, `^` + newline — "Copy as cURL (cmd)") and **PowerShell** (`curl.exe`, `'…'` with `''`, backtick continuations). Nothing is executed. Fixtures: `packages/fixtures/curl/`.
+
+| cURL | Pigeon |
+|---|---|
+| URL, `--url` (no scheme → `http://`) | URL (query rows from it) |
+| `-X/--request`, `-I/--head`, `-G/--get` | method (default GET, POST with data); `-G` moves data into the query |
+| `-H/--header`, `-A`, `-e`, `-b/--cookie` (name=value) | headers (`User-Agent`, `Referer`, `Cookie`) |
+| `-d/--data*`, `--data-raw`, `--data-binary`, `--data-urlencode`, `--json` | raw JSON/text/XML (by `Content-Type` or shape) or urlencoded rows (`key=value&…` with a form or no content type); `@file` → file body |
+| `-F/--form`, `--form-string` | form-data rows; `@file`/`<file` → file rows (pick the file after import), `;type=` kept |
+| `-u/--user`, `--oauth2-bearer` | Basic / Bearer auth on the request |
+| `-k`, `-L`, `--max-redirs`, `-m/--max-time` | TLS verification off, follow redirects, max redirects, timeout |
+| `--compressed`, `-s`, `-S`, `-v`, `-i`, `-o`, `-w`, `--http2`, … | ignored silently (no effect on the request) |
+| `--proxy`, `--cert`, `-T`, `-c`, … and unknown options | ignored with a warning in the preview / toast |
+
+Snippets (`formats/src/snippets/`): cURL (bash; `--form-string` for text parts so values starting with `@` stay text, `$'…'` for control characters), JavaScript `fetch`, Python `requests`, Go `net/http`. Generated cURL parses back to an equivalent request (tested).

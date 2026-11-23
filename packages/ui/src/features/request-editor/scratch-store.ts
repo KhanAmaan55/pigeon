@@ -29,11 +29,13 @@ import {
   acceptedExamplePatch,
   emptyBody,
   exampleFromResponse,
+  requestFromCurl,
   RequestExecutor,
   syncQueryIntoRaw,
   syncUrlFromRaw,
 } from '@pigeon/core';
 import type { Platform, ProjectFileSystem } from '@pigeon/platform';
+import { parseCurl } from '@pigeon/formats';
 import { createStore } from 'zustand';
 
 import { workerScriptRunner } from '../scripts/run-script';
@@ -128,6 +130,11 @@ export interface ScratchRequestState {
   /** Latest finished execution. */
   result: ExecutionResult | null;
   setMethod: (method: string) => void;
+  /**
+   * Replaces method, URL, headers, body and settings (and auth, when it has `-u`) with a cURL
+   * command's (PIGN-050). Returns the parser's warnings, or `null` when it is not cURL.
+   */
+  applyCurl: (text: string) => string[] | null;
   /** Typed URL; query and path variable rows follow it. */
   setUrl: (raw: string) => void;
   /** Query table edit; the URL follows (disabled rows stay out of it). */
@@ -306,6 +313,25 @@ export function createScratchRequestStore(
           }
         : null,
       setMethod: (method) => update({ method: method.toUpperCase() }),
+      applyCurl: (text) => {
+        const parsed = parseCurl(text);
+        if (!parsed.ok) return null;
+        const fields = requestFromCurl(parsed.request);
+        const { auth: _previous, ...rest } = get().request;
+        setRequest(
+          {
+            ...rest,
+            method: fields.method,
+            url: fields.url,
+            headers: fields.headers,
+            body: fields.body,
+            settings: fields.settings,
+            ...(fields.auth ? { auth: fields.auth } : _previous ? { auth: _previous } : {}),
+          },
+          { bodyDrafts: {} },
+        );
+        return parsed.request.warnings;
+      },
       setUrl: (raw) => update({ url: syncUrlFromRaw(get().request.url, raw) }),
       setQuery: (query) => {
         const { url } = get().request;

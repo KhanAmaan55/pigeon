@@ -73,6 +73,7 @@ export {
   previewImport,
   previewImportFile,
   renamePlan,
+  requestNameFor,
   usedIds,
 } from './import/import-service';
 export type { ImportReport } from '@pigeon/formats';
@@ -290,6 +291,8 @@ export {
   RAW_CONTENT_TYPES,
   toMultipartParts,
 } from './execution/body';
+export type { SnippetOptions, SnippetSource } from './execution/snippet';
+export { requestFromCurl, snippetRequest } from './execution/snippet';
 export type { AutoHeader } from './execution/prepare';
 export {
   autoHeaders,

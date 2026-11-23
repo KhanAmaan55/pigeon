@@ -128,7 +128,10 @@ describe('importing environments and globals (PIGN-030)', () => {
     });
     expect(items).toEqual([
       expect.objectContaining({ kind: 'rejected', format: 'Postman Collection v1' }),
-      expect.objectContaining({ kind: 'rejected', message: 'The file is not valid JSON.' }),
+      expect.objectContaining({
+        kind: 'rejected',
+        message: 'The file is not valid JSON or a cURL command.',
+      }),
     ]);
   });
 });

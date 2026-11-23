@@ -1,14 +1,18 @@
 /**
  * What an imported file is (compatibility.md §A.1, §B.4), from its structure: Postman
- * collections (v2.1, v2.0; v1 rejected), environments and globals.
+ * collections (v2.1, v2.0; v1 rejected), environments, globals and cURL commands.
  */
 
+import type { CurlRequest } from './curl/parse';
+import { isCurlCommand, parseCurl } from './curl/parse';
 import { isObject } from './postman/json';
 
 export type DetectedFormat =
   | { kind: 'postman-collection'; version: '2.1' | '2.0'; data: Record<string, unknown> }
   | { kind: 'postman-environment'; data: Record<string, unknown> }
   | { kind: 'postman-globals'; data: Record<string, unknown> }
+  /** A cURL command (PIGN-050), parsed. */
+  | { kind: 'curl'; request: CurlRequest }
   | { kind: 'rejected'; format: string; message: string }
   | { kind: 'unknown'; message: string };
 
@@ -26,7 +30,13 @@ export function detectFormat(input: string | Uint8Array | unknown): DetectedForm
     try {
       data = JSON.parse(text.replace(/^\uFEFF/, ''));
     } catch {
-      return { kind: 'unknown', message: 'The file is not valid JSON.' };
+      if (isCurlCommand(text)) {
+        const parsed = parseCurl(text);
+        return parsed.ok
+          ? { kind: 'curl', request: parsed.request }
+          : { kind: 'unknown', message: parsed.message };
+      }
+      return { kind: 'unknown', message: 'The file is not valid JSON or a cURL command.' };
     }
   }
   if (!isObject(data)) return { kind: 'unknown', message: 'Expected a JSON object.' };
