@@ -27,12 +27,20 @@ const ROOT_PLACEHOLDER: &str = "__SMOKE_PROJECT_ROOT__";
 /// First line of every probe target answer; the request head it received follows.
 const PROBE_MARKER: &str = "native-ok";
 
+static ACTIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether this process is a `--smoke` run (OAuth follows authorize pages instead of opening a browser).
+pub fn active() -> bool {
+    ACTIVE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 pub fn requested(args: impl IntoIterator<Item = String>) -> bool {
     args.into_iter().skip(1).any(|arg| arg == FLAG)
 }
 
 /// Adds the probe and the timeout. `main` registers [`smoke_report`] with the other commands.
 pub fn install(builder: Builder<Wry>) -> Builder<Wry> {
+    ACTIVE.store(true, std::sync::atomic::Ordering::Relaxed);
     let _ = STARTED.set((
         std::time::SystemTime::now(),
         std::env::args().any(|arg| arg == TIMING_FLAG),
@@ -83,7 +91,21 @@ fn seed_project(data: &std::path::Path, url: &str) -> io::Result<String> {
             serde_json::json!({
                 "id": "smoke-ping",
                 "name": "Ping",
-                "request": { "method": "GET", "header": [], "url": { "raw": format!("{url}/ping") } },
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": { "raw": format!("{url}/ping") },
+                    // OAuth 2.0 authorization code + PKCE against the probe server (PIGN-047).
+                    "auth": {
+                        "type": "oauth2",
+                        "oauth2": [
+                            { "key": "grant_type", "value": "authorization_code_with_pkce", "type": "string" },
+                            { "key": "authUrl", "value": format!("{url}/oauth/authorize"), "type": "string" },
+                            { "key": "accessTokenUrl", "value": format!("{url}/oauth/token"), "type": "string" },
+                            { "key": "clientId", "value": "smoke", "type": "string" }
+                        ]
+                    }
+                },
                 // Runs in the QuickJS sandbox in a Worker (PIGN-043).
                 "event": [{
                     "listen": "prerequest",
@@ -139,6 +161,40 @@ fn answer(mut stream: TcpStream) -> io::Result<()> {
         body.push_str(line.trim_end());
         body.push('\n');
         line.clear();
+    }
+    // OAuth 2.0 (PIGN-047): an authorize page that approves at once, and a token endpoint.
+    let request_line = body.lines().nth(1).unwrap_or_default().to_owned();
+    let target = request_line.split_whitespace().nth(1).unwrap_or_default();
+    if target.starts_with("/smoke/oauth/authorize") {
+        let query = url::Url::parse(&format!("http://probe{target}")).ok();
+        let param = |name: &str| {
+            query
+                .as_ref()
+                .and_then(|u| {
+                    u.query_pairs()
+                        .find(|(k, _)| k == name)
+                        .map(|(_, v)| v.into_owned())
+                })
+                .unwrap_or_default()
+        };
+        let mut location =
+            url::Url::parse(&param("redirect_uri")).map_err(|e| io::Error::other(e.to_string()))?;
+        location
+            .query_pairs_mut()
+            .append_pair("code", "smoke-code")
+            .append_pair("state", &param("state"));
+        return write!(
+            stream,
+            "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        );
+    }
+    if target.starts_with("/smoke/oauth/token") {
+        let token = r#"{"access_token":"smoke-token","token_type":"Bearer","expires_in":3600}"#;
+        return write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{token}",
+            token.len()
+        );
     }
     // `/smoke/cookie-set` sets a cookie for the project's cookie jar (PIGN-045).
     let cookie = if body.contains("/cookie-set ") {

@@ -39,6 +39,7 @@ export type {
   TransportErrorKind,
 } from './transport';
 export { TransportError } from './transport';
+export type { OAuthBrowser, OAuthRedirect } from './oauth';
 
 export { MemoryFs } from './memory/memory-fs';
 export type { MemoryPlatform, MemoryServices } from './memory/memory-platform';

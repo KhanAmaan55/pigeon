@@ -230,6 +230,7 @@ export function createRunnerStore(
             ...(inherited === undefined ? {} : { inheritedAuth: inherited }),
             ...scriptOptions(target.requestId, editorRequest.name, working),
             cookies: { jar: session.cookieJar, onChange: () => session.saveCookies() },
+            oauth2: session.oauthTokens,
           });
           return executor.execute(editorRequest, ctx, {
             signal,

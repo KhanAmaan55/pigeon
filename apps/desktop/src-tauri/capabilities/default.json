@@ -25,6 +25,8 @@
     "allow-app-state-write",
     "allow-app-state-backup",
     "allow-secrets-read",
-    "allow-secrets-write"
+    "allow-secrets-write",
+    "allow-oauth-begin",
+    "allow-oauth-complete"
   ]
 }

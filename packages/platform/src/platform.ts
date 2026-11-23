@@ -2,6 +2,7 @@ import type { AppStateStore } from './app-state';
 import type { Capabilities } from './capabilities';
 import type { Dialogs } from './dialogs';
 import type { FileExchange } from './files';
+import type { OAuthBrowser } from './oauth';
 import type { ProjectFileSystem, ProjectLocation } from './fs';
 import type { ProjectLocator } from './projects';
 import type { PickedFileStore } from './picked-files';
@@ -26,4 +27,6 @@ export interface Platform {
   readonly secrets: SecretStore;
   readonly dialogs: Dialogs;
   readonly files: FileExchange;
+  /** OAuth 2.0 authorization-code browser step (PIGN-047); absent where it can't run. */
+  readonly oauth?: OAuthBrowser;
 }

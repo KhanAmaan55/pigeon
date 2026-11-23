@@ -56,6 +56,7 @@ import type {
   ProjectRequest,
 } from '../model/project';
 import { CookieJar } from '../cookies/jar';
+import type { OAuthToken, OAuthTokenStore } from '../execution/auth/oauth2';
 
 export type Unsubscribe = () => void;
 
@@ -268,6 +269,30 @@ export class ProjectSession {
     this.#cookieJar ??= new CookieJar(this.#local?.state.cookies ?? []);
     return this.#cookieJar;
   }
+
+  /**
+   * OAuth 2.0 tokens of this project (PIGN-047), kept in the secret store under the `oauth2`
+   * scope: never in project files, exports or local state.
+   */
+  readonly oauthTokens: OAuthTokenStore = {
+    get: (key) => {
+      const raw = this.#secretValues.get(OAUTH_SCOPE)?.[key];
+      if (raw === undefined) return undefined;
+      try {
+        return JSON.parse(raw) as OAuthToken;
+      } catch {
+        return undefined;
+      }
+    },
+    set: (key, token) => {
+      this.#setSecretValue(
+        OAUTH_SCOPE,
+        key,
+        token === undefined ? undefined : JSON.stringify(token),
+      );
+      this.#emit();
+    },
+  };
 
   /** Saves the cookie jar to local state (after a response stored cookies, or an edit). */
   saveCookies(): void {
@@ -1056,6 +1081,8 @@ function restoreFromBase(working: ProjectModel, base: ProjectModel, id: string):
 
 /** Separates scope and variable key in `SecretStore` keys (`env:<id>\0token`). */
 export const SECRET_KEY_SEPARATOR = '\u0000';
+/** Secret-store scope of OAuth 2.0 tokens (PIGN-047). */
+const OAUTH_SCOPE = 'oauth2';
 
 /** The variables of a scope key in `model`. */
 function variablesOfScope(model: ProjectModel, scope: string): readonly ProjectEnvVariable[] {

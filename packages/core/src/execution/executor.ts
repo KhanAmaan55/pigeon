@@ -7,6 +7,8 @@ import type { Request } from '../model/request';
 import { runPreRequestScripts } from '../scripting/prerequest';
 import { signAwsV4 } from './auth/awsv4';
 import { digestAuthorization, parseDigestChallenge } from './auth/digest';
+import type { OAuthToken, OAuthTokenStore } from './auth/oauth2';
+import { ensureToken } from './auth/oauth2';
 import type { TestRun } from '../scripting/tests';
 import { runTestScripts } from '../scripting/tests';
 import { EMPTY_SCOPES } from '../variables/scopes';
@@ -123,6 +125,50 @@ export class RequestExecutor {
       req.url = signed.url;
       req.headers = signed.headers;
       req.meta.secretValues = [...new Set([...req.meta.secretValues, ...signed.credentials])];
+    } else if (deferred?.type === 'oauth2') {
+      const store = ctx.oauth2 ?? memoryTokenStore();
+      let outcome: Awaited<ReturnType<typeof ensureToken>>;
+      try {
+        outcome = await ensureToken(this.#transport, store, deferred, {
+          ...(opts.signal ? { signal: opts.signal } : {}),
+        });
+      } catch (error) {
+        return {
+          ...base,
+          id: crypto.randomUUID(),
+          request: {
+            method: req.method,
+            url: maskSecrets(req.url, req.meta.secretValues),
+            headers: [],
+          },
+          error: {
+            kind: 'invalid-request',
+            message: maskSecrets(
+              `OAuth 2.0: ${error instanceof Error ? error.message : String(error)}`,
+              req.meta.secretValues,
+            ),
+            hint: 'Check the token URL, client id and secret, or get a token from the Auth tab.',
+          },
+          warnings: [],
+        };
+      }
+      if (outcome.note) (req.meta.warnings ??= []).push(outcome.note);
+      const token = outcome.token?.accessToken;
+      if (token) {
+        req.meta.secretValues = [...new Set([...req.meta.secretValues, token])];
+        if (deferred.addTokenTo === 'queryParams') {
+          const url = new URL(req.url);
+          url.searchParams.set('access_token', token);
+          req.url = url.toString();
+        } else if (req.headers.some(([name]) => name.toLowerCase() === 'authorization')) {
+          (req.meta.warnings ??= []).push(
+            'Your Authorization header replaces the OAuth 2.0 token.',
+          );
+        } else {
+          const prefix = deferred.headerPrefix || 'Bearer';
+          req.headers.push(['Authorization', `${prefix} ${token}`]);
+        }
+      }
     } else if (deferred?.type === 'digest' && deferred.realm && deferred.nonce) {
       // Realm and nonce given: sign the first request (Postman's preemptive digest).
       req.headers.push([
@@ -228,6 +274,15 @@ export class RequestExecutor {
       release();
     }
   }
+}
+
+/** A token store that lasts one send (no project). */
+function memoryTokenStore(): OAuthTokenStore {
+  const tokens = new Map<string, OAuthToken>();
+  return {
+    get: (key) => tokens.get(key),
+    set: (key, token) => (token ? tokens.set(key, token) : tokens.delete(key)),
+  };
 }
 
 /** Path and query of `url`, as Digest's `uri` parameter wants it. */

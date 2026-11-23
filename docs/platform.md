@@ -190,6 +190,10 @@ All three OSes use the same `platform-desktop` package and the same Rust code:
 - The main window's size, position and maximized state are saved on close to `<app-data>/window-state.json` and restored at start (a position no longer on any monitor is ignored).
 - Releases: `.github/workflows/release.yml` on `v*` tags builds and smoke-tests all installers and drafts a GitHub release with `SHA256SUMS`; steps and manual checks in [release-checklist.md](release-checklist.md).
 
+### 5.4.2 OAuth 2.0 redirects (PIGN-047)
+- Desktop: `src-tauri/src/oauth.rs` binds a loopback listener (`oauth_begin`; a loopback redirect URI from the auth, with its port and path, is honoured, else a free port and `/callback`), opens the system browser (`oauth_complete`, http/https URLs only) and returns the redirect's query parameters; 5-minute timeout. Register `http://127.0.0.1:<port>/callback` (or the URI you entered) with the provider.
+- Web: a popup to the provider; it redirects to `oauth-callback.html` (served next to `index.html`), which posts the parameters to the opener (same origin only) and closes. Register that page's URL. Token endpoints must allow CORS.
+
 ### 5.5 Offline
 Desktop works fully offline: no sign-in, no remote config, fonts and assets bundled, no update checks unless enabled by the user (later). Only user-initiated requests touch the network.
 

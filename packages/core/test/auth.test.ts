@@ -202,14 +202,17 @@ describe('auth handlers', () => {
     ]);
   });
 
-  it('unsupported auth (oauth2) is sent without auth and with a warning', async () => {
-    const session = await open();
-    const oauth = session.findRequest('oauth2')!;
-    const req = await prepared(oauth, { type: 'bearer', token: 'parent' });
-    expect(header(req.headers, 'Authorization')).toEqual([]);
-    expect(req.meta.warnings).toContainEqual(
-      expect.stringMatching(/"oauth2" is not supported yet/),
+  it('unsupported auth (hawk) is sent without auth and with a warning', async () => {
+    // oauth2 runs since PIGN-047; Hawk is still kept verbatim and not sent.
+    const req = await prepared(
+      {
+        ...createRequest({ url: 'http://x.test' }),
+        auth: { type: 'unsupported', authType: 'hawk' },
+      },
+      { type: 'bearer', token: 'parent' },
     );
+    expect(header(req.headers, 'Authorization')).toEqual([]);
+    expect(req.meta.warnings).toContainEqual(expect.stringMatching(/"hawk" is not supported yet/));
     expect(applyAuth(undefined).headers).toEqual([]);
   });
 

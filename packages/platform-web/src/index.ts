@@ -7,6 +7,7 @@ import { openPigeonDb } from './idb';
 import { IdbAppState } from './idb-app-state';
 import { WebProjectLocator } from './project-locator';
 import { IdbSecretStore } from './secrets';
+import { createWebOAuth } from './oauth';
 
 export type { FetchTransportOptions } from './fetch-transport';
 export { FetchTransport } from './fetch-transport';
@@ -79,6 +80,7 @@ export function createWebPlatform(): Platform {
     pickedFiles,
     ...memory,
     files: new WebFileExchange(),
+    oauth: createWebOAuth(),
   };
   if (!('indexedDB' in window)) return base;
 
@@ -104,3 +106,4 @@ export function createWebPlatform(): Platform {
     secrets: new IdbSecretStore(getDb),
   };
 }
+export { callbackUrl, createWebOAuth } from './oauth';

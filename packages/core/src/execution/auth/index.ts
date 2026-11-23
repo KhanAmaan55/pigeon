@@ -19,7 +19,7 @@ export interface AuthOutput {
    * Auth applied by the executor once the final request is known (PIGN-046): Digest answers the
    * server's challenge, AWS SigV4 signs the final URL, headers and body.
    */
-  deferred?: Extract<Auth, { type: 'digest' | 'awsv4' }>;
+  deferred?: Extract<Auth, { type: 'digest' | 'awsv4' | 'oauth2' }>;
 }
 
 export interface AuthHandler<A extends Auth = Auth> {
@@ -113,6 +113,16 @@ registerAuthHandler<Extract<Auth, { type: 'awsv4' }>>({
         },
 });
 
+registerAuthHandler<Extract<Auth, { type: 'oauth2' }>>({
+  type: 'oauth2',
+  // The token comes from the project's token cache in the executor (PIGN-047).
+  apply: (auth) => ({
+    ...none(),
+    credentials: [auth.clientSecret, auth.password, auth.accessToken].filter((c) => c !== ''),
+    deferred: auth,
+  }),
+});
+
 /** What `auth` adds to a request; unsupported types add nothing and a warning. */
 export function applyAuth(auth: Auth | undefined): AuthOutput {
   if (!auth) return none();
@@ -148,6 +158,20 @@ export function resolveAuth(auth: Auth, resolve: (text: string) => string): Auth
         nonceCount: resolve(auth.nonceCount),
         clientNonce: resolve(auth.clientNonce),
         opaque: resolve(auth.opaque),
+      };
+    case 'oauth2':
+      return {
+        ...auth,
+        authUrl: resolve(auth.authUrl),
+        accessTokenUrl: resolve(auth.accessTokenUrl),
+        clientId: resolve(auth.clientId),
+        clientSecret: resolve(auth.clientSecret),
+        scope: resolve(auth.scope),
+        state: resolve(auth.state),
+        redirectUri: resolve(auth.redirectUri),
+        username: resolve(auth.username),
+        password: resolve(auth.password),
+        accessToken: resolve(auth.accessToken),
       };
     case 'awsv4':
       return {

@@ -6,6 +6,7 @@ import { useId, useRef } from 'react';
 
 import { VariableInput } from '../../components/VariableInput';
 import { LiteralSecretHint } from '../request-editor/LiteralSecretHint';
+import { emptyOAuth2, OAuth2Fields } from './OAuth2';
 
 /**
  * Where the auth is edited: requests and folders can inherit; a collection (and the scratch
@@ -14,7 +15,15 @@ import { LiteralSecretHint } from '../request-editor/LiteralSecretHint';
 export type AuthLevel = 'request' | 'folder' | 'collection' | 'scratch';
 
 type Choice =
-  'inherit' | 'noauth' | 'basic' | 'bearer' | 'apikey' | 'digest' | 'awsv4' | 'unsupported';
+  | 'inherit'
+  | 'noauth'
+  | 'basic'
+  | 'bearer'
+  | 'apikey'
+  | 'digest'
+  | 'awsv4'
+  | 'oauth2'
+  | 'unsupported';
 
 const CHOICES: Array<{ value: Choice; label: string }> = [
   { value: 'inherit', label: 'Inherit from parent' },
@@ -24,6 +33,7 @@ const CHOICES: Array<{ value: Choice; label: string }> = [
   { value: 'apikey', label: 'API Key' },
   { value: 'digest', label: 'Digest Auth' },
   { value: 'awsv4', label: 'AWS Signature' },
+  { value: 'oauth2', label: 'OAuth 2.0' },
 ];
 
 function emptyAuth(type: Exclude<Choice, 'inherit' | 'unsupported'>): Auth {
@@ -49,6 +59,8 @@ function emptyAuth(type: Exclude<Choice, 'inherit' | 'unsupported'>): Auth {
         clientNonce: '',
         opaque: '',
       };
+    case 'oauth2':
+      return emptyOAuth2();
     case 'awsv4':
       return {
         type,
@@ -364,6 +376,16 @@ export function AuthEditor({
             Add the signature to the query string (instead of headers)
           </label>
         </>
+      )}
+
+      {auth?.type === 'oauth2' && (
+        <OAuth2Fields
+          auth={auth}
+          onChange={onChange}
+          text={text}
+          secretField={secretField}
+          readOnly={readOnly}
+        />
       )}
 
       {auth?.type === 'unsupported' && (

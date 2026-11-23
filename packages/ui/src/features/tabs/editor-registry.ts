@@ -97,6 +97,7 @@ export function getTabEditor(
           : scriptsNotRun(session.getWorkingModel(), requestId),
       skippedScriptsReason: () => 'disabled',
       cookies: () => ({ jar: session.cookieJar, onChange: () => session.saveCookies() }),
+      oauth2: () => session.oauthTokens,
       tests: () => {
         if (!projectStore.getState().scriptsEnabled) return null;
         const scripts = scriptChain(session.getWorkingModel(), requestId, 'test');

@@ -54,7 +54,7 @@ describe('golden fixture: projects/auth (PIGN-026)', () => {
       expect(decoder.decode(bytes), path).toBe(files.get(path));
   });
 
-  it('types basic, bearer, apikey, noauth, digest and awsv4; keeps the rest as unsupported', async () => {
+  it('types basic, bearer, apikey, noauth, digest, awsv4 and oauth2; keeps the rest as unsupported', async () => {
     const { result } = await fixture();
     const collection = result.model.collections[0]!;
     expect(collection.auth).toMatchObject({ type: 'bearer', token: '{{token}}' });
@@ -71,10 +71,8 @@ describe('golden fixture: projects/auth (PIGN-026)', () => {
       in: 'header',
     });
     expect(request(result, 'apikey-query').auth).toMatchObject({ in: 'query', key: 'api_key' });
-    expect(request(result, 'oauth2').auth).toMatchObject({
-      type: 'unsupported',
-      authType: 'oauth2',
-    });
+    // Typed since PIGN-047.
+    expect(request(result, 'oauth2').auth).toMatchObject({ type: 'oauth2' });
     // Typed since PIGN-046.
     expect(request(result, 'digest').auth).toMatchObject({
       type: 'digest',

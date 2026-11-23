@@ -24,6 +24,8 @@ fn main() {
             "app_state_backup",
             "secrets_read",
             "secrets_write",
+            "oauth_begin",
+            "oauth_complete",
         ]),
     ))
     .expect("failed to run tauri-build");

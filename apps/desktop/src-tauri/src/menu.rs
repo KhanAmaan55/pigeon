@@ -210,7 +210,7 @@ pub fn handle<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
 }
 
 /// Opens `url` in the default browser (no shell plugin: a fixed URL, never user input).
-fn open_in_browser(url: &str) {
+pub fn open_in_browser(url: &str) {
     #[cfg(target_os = "macos")]
     let result = std::process::Command::new("open").arg(url).spawn();
     #[cfg(target_os = "windows")]

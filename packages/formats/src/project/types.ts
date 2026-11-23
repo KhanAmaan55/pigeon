@@ -109,8 +109,37 @@ export type ProjectAuth =
       source?: ExtraFields;
     }
   | {
+      /** OAuth 2.0 (PIGN-047). Tokens are never stored here: they live in the secret store. */
+      type: 'oauth2';
+      /** Postman `grant_type`: `client_credentials`, `password_credentials`,
+       * `authorization_code`, `authorization_code_with_pkce`, `implicit` (not run). */
+      grantType: string;
+      authUrl: string;
+      accessTokenUrl: string;
+      clientId: string;
+      clientSecret: string;
+      scope: string;
+      state: string;
+      redirectUri: string;
+      username: string;
+      password: string;
+      /** PKCE: `S256` (default) or `plain`. */
+      challengeAlgorithm: string;
+      codeVerifier: string;
+      /** Client credentials as Basic auth (`header`, default) or in the body. */
+      clientAuthentication: string;
+      /** `header` (default) or `queryParams`. */
+      addTokenTo: string;
+      /** Default `Bearer`. */
+      headerPrefix: string;
+      /** A token saved in the file by Postman (used when Pigeon has none of its own). */
+      accessToken: string;
+      tokenName: string;
+      source?: ExtraFields;
+    }
+  | {
       type: 'unsupported';
-      /** The Postman type: `oauth2`, `ntlm`, `hawk`, … */
+      /** The Postman type: `ntlm`, `hawk`, … */
       authType: string;
       source?: unknown;
     };

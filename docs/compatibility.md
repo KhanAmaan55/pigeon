@@ -49,7 +49,7 @@ The official v2.1 JSON Schema is vendored in `packages/fixtures/postman/schema/c
 | `body.disabled`, `body.options.*` | `extra` | | Preserved |
 | `auth` noauth / basic / bearer / apikey | `Auth` typed | | Full (executed) |
 | `auth` digest / awsv4 | `Auth` typed (all Postman params) | unchanged auth written verbatim | Full (executed, PIGN-046). Digest: MD5, MD5-sess, SHA-256, SHA-256-sess, `qop=auth` (not `auth-int`); on the web only when the server exposes `WWW-Authenticate` via CORS. AWS SigV4: header or query signing, session token |
-| `auth` oauth2 | `Auth unsupported` | preserved verbatim | Preserved; executed in PIGN-047 |
+| `auth` oauth2 | `Auth` typed (Postman params: `grant_type`, `authUrl`, `accessTokenUrl`, `clientId`, `clientSecret`, `scope`, `state`, `redirect_uri`, `username`, `password`, `challengeAlgorithm`, `code_verifier`, `client_authentication`, `addTokenTo`, `headerPrefix`, `accessToken`, `tokenName`; others kept) | unchanged auth written verbatim | Full (PIGN-047): client credentials and password (automatic on send), authorization code with/without PKCE ("Get new token"), refresh; implicit grant not run. Tokens live in the secret store, never in files or exports; a token Postman saved in the file is used when Pigeon has none |
 | `auth` oauth1 / hawk / ntlm / akamai / edgegrid / jwt / asap / others | `Auth unsupported` | preserved verbatim | Preserved only; UI shows "Not supported yet — request sent without auth" |
 | `event[]` prerequest / test | `ScriptEvent[]` | | Preserved + editable; pre-request and test scripts run (PIGN-043/044, §A.7) |
 | `variable[]` (collection) | `Collection.variables` | | Full |

@@ -6,6 +6,7 @@ import type {
   ConsoleEntry,
   CookieJar,
   CurrentValueWrite,
+  OAuthTokenStore,
   EffectiveAuth,
   ExecutionPreferences,
   NewExample,
@@ -74,6 +75,8 @@ export interface RequestBinding {
    * go to `onScriptWrites` (current values) and console output to `onScriptLogs`.
    */
   preRequest?: () => { scripts: ScriptSource[]; requestName: string } | null;
+  /** The project's OAuth 2.0 token cache (PIGN-047). */
+  oauth2?: () => OAuthTokenStore;
   /** The project's cookie jar (PIGN-045) and how to save it after a response changed it. */
   cookies?: () => { jar: CookieJar; onChange: () => void };
   /** Test scripts to run after the response (PIGN-044), `null` when none run. */
@@ -370,6 +373,7 @@ export function createScratchRequestStore(
               }
             : {}),
           ...(cookies ? { cookies } : {}),
+          ...(binding?.oauth2 ? { oauth2: binding.oauth2() } : {}),
           ...(tests
             ? {
                 tests: {

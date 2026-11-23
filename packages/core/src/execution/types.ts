@@ -12,6 +12,7 @@ import type {
 } from '@pigeon/platform';
 import type { CurrentValueWrite, ScriptSource } from '../scripting/prerequest';
 import type { CookieJar } from '../cookies/jar';
+import type { OAuthTokenStore } from './auth/oauth2';
 import type { TestRun } from '../scripting/tests';
 import type { ConsoleEntry, ScriptRunner } from '../scripting/types';
 import type { SkippedScriptsReason } from './scripts';
@@ -69,6 +70,8 @@ export interface ExecutionContext {
    * (`canReadAllResponseHeaders`). `onChange` runs when the jar changed.
    */
   cookies?: { jar: CookieJar; onChange?: () => void };
+  /** The project's OAuth 2.0 token cache (PIGN-047); without it tokens last one send. */
+  oauth2?: OAuthTokenStore;
   /** Test scripts to run after a response (PIGN-044); same callbacks as `preRequest`. */
   tests?: {
     runner: ScriptRunner;
@@ -99,6 +102,7 @@ export function createExecutionContext(
     ...(init.preRequest === undefined ? {} : { preRequest: init.preRequest }),
     ...(init.tests === undefined ? {} : { tests: init.tests }),
     ...(init.cookies === undefined ? {} : { cookies: init.cookies }),
+    ...(init.oauth2 === undefined ? {} : { oauth2: init.oauth2 }),
   };
 }
 

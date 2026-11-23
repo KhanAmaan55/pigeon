@@ -8,6 +8,7 @@ import { DesktopFileExchange } from './files';
 import { NativeTransport } from './native-transport';
 import { DesktopProjectLocator } from './project-locator';
 import { FileSecretStore } from './secrets';
+import { createDesktopOAuth } from './oauth';
 
 export { FileAppState } from './app-state';
 export { DESKTOP_CAPABILITIES } from './capabilities';
@@ -58,6 +59,7 @@ export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): 
     appState: new FileAppState(),
     secrets: new FileSecretStore(),
     files: new DesktopFileExchange(),
+    oauth: createDesktopOAuth(),
   };
 }
 export { onMenuCommand } from './menu';

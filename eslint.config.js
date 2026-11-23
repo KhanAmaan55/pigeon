@@ -127,6 +127,13 @@ export default defineConfig(
     rules: { 'no-var': 'off' },
   },
   {
+    // Static scripts the web app serves as files (CSP: no inline scripts), e.g. the OAuth callback.
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: {
+      globals: { window: 'readonly', document: 'readonly', URLSearchParams: 'readonly' },
+    },
+  },
+  {
     // Repository scripts run in Node (e.g. `pnpm version:sync`).
     files: ['scripts/**/*.mjs'],
     languageOptions: { globals: { process: 'readonly', console: 'readonly' } },

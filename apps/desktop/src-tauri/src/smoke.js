@@ -169,6 +169,28 @@
     if (!withCookie.includes('cookie: smoke=jar')) {
       throw new Error(`cookie jar not used: ${withCookie.join(' | ')}`);
     }
+    // OAuth 2.0 (PIGN-047): authorization code + PKCE through the loopback listener (smoke
+    // runs follow the auto-approving authorize page instead of opening a browser).
+    find('auth-tab').dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true }));
+    const getToken = await waitFor('Get new token', () => find('oauth-get-token')).catch(() => {
+      throw new Error(
+        `no Get new token button; auth tab shows: ${(find('request-editor')?.textContent ?? '').slice(0, 400)}`,
+      );
+    });
+    getToken.click();
+    await waitFor('token', () => {
+      const message = text('oauth-token-message') ?? '';
+      if (message && message !== 'Working…' && message !== 'Token acquired.') {
+        throw new Error(`OAuth flow failed: ${message}`);
+      }
+      return message === 'Token acquired.';
+    });
+    setValue(url, `${PROBE_URL}/oauth-check`);
+    find('send-button').click();
+    const withToken = await echoedFor('/oauth-check');
+    if (!withToken.includes('authorization: bearer smoke-token')) {
+      throw new Error(`OAuth token not sent: ${withToken.join(' | ')}`);
+    }
     setValue(url, `${PROBE_URL}/edited`);
     await delay(100);
     const mac = navigator.userAgent.includes('Mac');

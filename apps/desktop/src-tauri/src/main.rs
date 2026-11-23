@@ -6,6 +6,7 @@ mod data_dir;
 mod files;
 mod http;
 mod menu;
+mod oauth;
 mod project_fs;
 mod smoke;
 #[cfg(test)]
@@ -22,6 +23,7 @@ fn main() {
         .manage(http::HttpState::default())
         .manage(watch::Watchers::default())
         .manage(menu::Zoom::default())
+        .manage(oauth::OAuthListeners::default())
         .setup(|app| {
             project_fs::setup(app)?;
             window_state::setup(app)
@@ -54,6 +56,8 @@ fn main() {
             app_state::app_state_backup,
             app_state::secrets_read,
             app_state::secrets_write,
+            oauth::oauth_begin,
+            oauth::oauth_complete,
             smoke::smoke_report
         ])
     } else {
@@ -77,7 +81,9 @@ fn main() {
             app_state::app_state_write,
             app_state::app_state_backup,
             app_state::secrets_read,
-            app_state::secrets_write
+            app_state::secrets_write,
+            oauth::oauth_begin,
+            oauth::oauth_complete
         ])
     };
 

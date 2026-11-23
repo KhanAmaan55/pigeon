@@ -27,6 +27,25 @@ const FIELDS = {
     'opaque',
   ],
   awsv4: ['accessKey', 'secretKey', 'region', 'service', 'sessionToken', 'addAuthDataToQuery'],
+  oauth2: [
+    'grant_type',
+    'authUrl',
+    'accessTokenUrl',
+    'clientId',
+    'clientSecret',
+    'scope',
+    'state',
+    'redirect_uri',
+    'username',
+    'password',
+    'challengeAlgorithm',
+    'code_verifier',
+    'client_authentication',
+    'addTokenTo',
+    'headerPrefix',
+    'accessToken',
+    'tokenName',
+  ],
 } as const satisfies Record<Typed['type'], readonly string[]>;
 
 function isObject(value: unknown): value is ExtraFields {
@@ -104,6 +123,28 @@ export function authFromPostman(raw: unknown): ProjectAuth {
           params.get('addAuthDataToQuery') === true || text('addAuthDataToQuery') === 'true',
         source: raw,
       };
+    case 'oauth2':
+      return {
+        type,
+        grantType: text('grant_type'),
+        authUrl: text('authUrl'),
+        accessTokenUrl: text('accessTokenUrl'),
+        clientId: text('clientId'),
+        clientSecret: text('clientSecret'),
+        scope: text('scope'),
+        state: text('state'),
+        redirectUri: text('redirect_uri'),
+        username: text('username'),
+        password: text('password'),
+        challengeAlgorithm: text('challengeAlgorithm'),
+        codeVerifier: text('code_verifier'),
+        clientAuthentication: text('client_authentication'),
+        addTokenTo: text('addTokenTo'),
+        headerPrefix: text('headerPrefix'),
+        accessToken: text('accessToken'),
+        tokenName: text('tokenName'),
+        source: raw,
+      };
     default:
       return { type: 'unsupported', authType: type, source: raw };
   }
@@ -140,6 +181,26 @@ function fieldValues(auth: Typed): Record<string, string> {
         service: auth.service,
         sessionToken: auth.sessionToken,
         addAuthDataToQuery: auth.addAuthDataToQuery ? 'true' : 'false',
+      };
+    case 'oauth2':
+      return {
+        grant_type: auth.grantType,
+        authUrl: auth.authUrl,
+        accessTokenUrl: auth.accessTokenUrl,
+        clientId: auth.clientId,
+        clientSecret: auth.clientSecret,
+        scope: auth.scope,
+        state: auth.state,
+        redirect_uri: auth.redirectUri,
+        username: auth.username,
+        password: auth.password,
+        challengeAlgorithm: auth.challengeAlgorithm,
+        code_verifier: auth.codeVerifier,
+        client_authentication: auth.clientAuthentication,
+        addTokenTo: auth.addTokenTo,
+        headerPrefix: auth.headerPrefix,
+        accessToken: auth.accessToken,
+        tokenName: auth.tokenName,
       };
   }
 }
@@ -209,6 +270,8 @@ export function authTypeLabel(auth: ProjectAuth): string {
       return 'Digest';
     case 'awsv4':
       return 'AWS Signature';
+    case 'oauth2':
+      return 'OAuth 2.0';
     case 'unsupported':
       return auth.authType;
   }

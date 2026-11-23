@@ -147,6 +147,19 @@ export type { CurrentValueWrite, PreRequestOutcome, ScriptSource } from './scrip
 export { runPreRequestScripts, scriptChain } from './scripting/prerequest';
 export { createQuickJsRunner } from './scripting/quickjs';
 export type { StoredCookie } from './cookies/jar';
+export type { OAuth2Auth, OAuthToken, OAuthTokenStore, TokenGrant } from './execution/auth/oauth2';
+export {
+  authorizationUrl,
+  ensureToken,
+  isAuthorizationCodeGrant,
+  isExpired,
+  OAuthError,
+  pkcePair,
+  randomState,
+  requestToken,
+  tokenCacheKey,
+  usesPkce,
+} from './execution/auth/oauth2';
 export {
   COOKIES_PER_DOMAIN,
   COOKIES_PER_JAR,

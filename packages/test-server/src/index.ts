@@ -7,3 +7,4 @@ export { LIMITS } from './routes.ts';
 export { DEFAULT_HOST, DEFAULT_PORT, startTestServer } from './server.ts';
 export type { TestServer, TestServerOptions } from './server.ts';
 export { AWS_TEST_KEYS, DIGEST_REALM } from './signed-auth.ts';
+export { OAUTH_TEST } from './oauth.ts';
