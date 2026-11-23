@@ -5,13 +5,15 @@ import { TransportError } from '@pigeon/platform';
 
 import type { Request } from '../model/request';
 import { runPreRequestScripts } from '../scripting/prerequest';
+import type { TestRun } from '../scripting/tests';
+import { runTestScripts } from '../scripting/tests';
 import { EMPTY_SCOPES } from '../variables/scopes';
 import { toExecutionError } from './errors';
 import { hasShortSecret, maskHeaders, maskSecrets } from './mask';
 import { prepareRequest } from './prepare';
 import { resolveProjectFiles } from './project-files';
 import { normalizeResponse } from './response';
-import type { ExecutionContext, ExecutionResult } from './types';
+import type { ExecutionContext, ExecutionResult, NormalizedResponse } from './types';
 
 const BODY_PREVIEW_CHARS = 10_000;
 
@@ -110,8 +112,10 @@ export class RequestExecutor {
       const raw = await this.#transport.send(resolved.request, { signal });
       const response = normalizeResponse(raw);
       const mask = (text: string) => maskSecrets(text, req.meta.secretValues);
+      const tests = await runTests(request, response, ctx, req.meta.secretValues);
       return {
         ...summary,
+        ...(tests ? { tests } : {}),
         // The final URL and redirect hops echo the request URL: mask them like the request.
         response: {
           ...response,
@@ -144,6 +148,33 @@ export class RequestExecutor {
       release();
     }
   }
+}
+
+/** Runs the test scripts of `ctx.tests` on a response (PIGN-044); `undefined` when none. */
+async function runTests(
+  request: Request,
+  response: NormalizedResponse,
+  ctx: ExecutionContext,
+  secrets: readonly string[],
+): Promise<TestRun | undefined> {
+  if (!ctx.tests || ctx.tests.scripts.length === 0) return undefined;
+  const mask = (text: string) => maskSecrets(text, secrets);
+  const { run, writes, logs } = await runTestScripts(ctx.tests.runner, ctx.tests.scripts, {
+    request,
+    response,
+    scopes: ctx.scopes ?? EMPTY_SCOPES,
+    requestName: ctx.tests.requestName,
+  });
+  ctx.tests.onWrites?.(writes);
+  ctx.tests.onLogs?.(logs.map((entry) => ({ ...entry, message: mask(entry.message) })));
+  return {
+    counts: run.counts,
+    results: run.results.map((result) => ({
+      ...result,
+      name: mask(result.name),
+      ...(result.message === undefined ? {} : { message: mask(result.message) }),
+    })),
+  };
 }
 
 /** The request as shown in results: secret values masked, body truncated. */

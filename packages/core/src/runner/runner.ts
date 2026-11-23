@@ -8,6 +8,8 @@
 import type { ProjectItem, ProjectModel, ProjectRequest } from '../model/project';
 import type { ComparisonOutcome, ComparisonResult } from '../comparison/comparison-service';
 import type { ExecutionResult } from '../execution/types';
+import type { TestCounts } from '../scripting/tests';
+import { testsOutcome } from '../scripting/tests';
 import { findContainer } from '../workspace/commands';
 
 export interface RunTarget {
@@ -34,6 +36,8 @@ export interface RunEntry {
   exampleId?: string;
   exampleName?: string;
   counts?: ComparisonResult['counts'];
+  /** Test script results (PIGN-044): counts, and the failed or errored tests. */
+  tests?: TestCounts & { failures?: Array<{ name: string; message?: string }> };
   /** Error message (outcome `error`) or why there was no comparison. */
   message?: string;
 }
@@ -48,7 +52,7 @@ export interface RunReport {
   startedAt: string;
   finishedAt: string;
   durationMs: number;
-  options: { stopOnFail: boolean; onlyWithBaseline: boolean };
+  options: { stopOnFail: boolean; onlyWithBaseline: boolean; testsAffectOutcome?: boolean };
   /** Stopped by Cancel (the rest is `skipped`). */
   cancelled: boolean;
   /** Stopped after the first failure (stop on first failure). */
@@ -84,6 +88,8 @@ export interface RunOptions {
   transport: string;
   stopOnFail?: boolean;
   onlyWithBaseline?: boolean;
+  /** A failed or errored test makes the request `fail` (default on, PIGN-044). */
+  testsAffectOutcome?: boolean;
   signal?: AbortSignal;
 }
 
@@ -126,6 +132,25 @@ const EMPTY_TOTALS = (): Record<RunOutcome, number> => ({
   error: 0,
   skipped: 0,
 });
+
+/** The entry with test results folded in: the worst of comparison and tests. */
+function withTests(entry: RunEntry, result: ExecutionResult, affectOutcome: boolean): RunEntry {
+  const tests = result.tests;
+  if (!tests || tests.results.length === 0) return entry;
+  const failures = tests.results
+    .filter((t) => t.outcome !== 'pass')
+    .slice(0, 20)
+    .map((t) => ({ name: t.name, ...(t.message === undefined ? {} : { message: t.message }) }));
+  const next: RunEntry = {
+    ...entry,
+    tests: { ...tests.counts, ...(failures.length > 0 ? { failures } : {}) },
+  };
+  if (!affectOutcome || entry.outcome === 'error' || entry.outcome === 'skipped') return next;
+  if (testsOutcome(tests.counts) === 'fail') return { ...next, outcome: 'fail' };
+  // Tests passed and nothing was compared: the request passed.
+  if (entry.outcome === 'no-baseline') return { ...next, outcome: 'pass' };
+  return next;
+}
 
 function entryFor(
   target: RunTarget,
@@ -190,7 +215,11 @@ export async function* runRegression(
     const result = await deps.execute(target, signal);
     if (signal.aborted && result.error?.kind === 'aborted') break;
     const comparison = result.response ? await deps.compare(target, result) : undefined;
-    const entry = entryFor(target, result, comparison);
+    const entry = withTests(
+      entryFor(target, result, comparison),
+      result,
+      options.testsAffectOutcome ?? true,
+    );
     entries[index] = entry;
     yield {
       type: 'request-finished',
@@ -218,6 +247,7 @@ export async function* runRegression(
     options: {
       stopOnFail: options.stopOnFail ?? false,
       onlyWithBaseline: options.onlyWithBaseline ?? false,
+      testsAffectOutcome: options.testsAffectOutcome ?? true,
     },
     cancelled: signal.aborted,
     stoppedOnFail,

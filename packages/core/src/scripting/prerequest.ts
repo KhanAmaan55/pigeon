@@ -98,7 +98,7 @@ export function scriptVariables(scopes: VariableScopes): ScriptVariables {
   };
 }
 
-function scriptRequest(request: Request): ScriptState['request'] {
+export function scriptRequest(request: Request): ScriptState['request'] {
   return {
     method: request.method,
     url: request.url.raw,
@@ -141,7 +141,7 @@ function applyRequest(request: Request, changed: ScriptState['request']): Reques
 }
 
 /** `scopes` with the script's writes and its request-local variables (on top). */
-function applyScopes(
+export function applyScopes(
   scopes: VariableScopes,
   variables: ScriptVariables,
   writes: ScriptState['writes'],

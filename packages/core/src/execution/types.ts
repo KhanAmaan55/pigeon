@@ -11,6 +11,7 @@ import type {
   TransportErrorKind,
 } from '@pigeon/platform';
 import type { CurrentValueWrite, ScriptSource } from '../scripting/prerequest';
+import type { TestRun } from '../scripting/tests';
 import type { ConsoleEntry, ScriptRunner } from '../scripting/types';
 import type { SkippedScriptsReason } from './scripts';
 
@@ -61,6 +62,14 @@ export interface ExecutionContext {
     onWrites?: (writes: CurrentValueWrite[]) => void;
     onLogs?: (entries: ConsoleEntry[]) => void;
   };
+  /** Test scripts to run after a response (PIGN-044); same callbacks as `preRequest`. */
+  tests?: {
+    runner: ScriptRunner;
+    scripts: readonly ScriptSource[];
+    requestName: string;
+    onWrites?: (writes: CurrentValueWrite[]) => void;
+    onLogs?: (entries: ConsoleEntry[]) => void;
+  };
 }
 
 export function createExecutionContext(
@@ -81,6 +90,7 @@ export function createExecutionContext(
       ? {}
       : { skippedScriptsReason: init.skippedScriptsReason }),
     ...(init.preRequest === undefined ? {} : { preRequest: init.preRequest }),
+    ...(init.tests === undefined ? {} : { tests: init.tests }),
   };
 }
 
@@ -127,4 +137,6 @@ export interface ExecutionResult {
   error?: ExecutionError;
   /** Unresolved variables, dropped forbidden headers, … */
   warnings: string[];
+  /** Results of the test scripts (PIGN-044); absent when none ran. Secrets masked. */
+  tests?: TestRun;
 }

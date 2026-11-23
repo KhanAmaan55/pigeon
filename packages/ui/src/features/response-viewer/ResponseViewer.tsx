@@ -29,6 +29,7 @@ import { HeadersTable } from './HeadersTable';
 import { StatusLine } from './StatusLine';
 import { TimelineTab } from './TimelineTab';
 import { ConsolePanel, useConsoleEntries } from '../console/ConsolePanel';
+import { TestsBadge, TestsTab } from './TestsTab';
 
 export type ResponseDock = 'bottom' | 'right';
 
@@ -86,13 +87,20 @@ export function ResponseViewer({
             <StatusLine
               response={result.response}
               transport={result.transport}
-              {...(canCompare
+              {...(canCompare || result.tests
                 ? {
                     comparison: (
-                      <ComparisonBadge
-                        comparison={comparison}
-                        onOpen={() => selectTab('compare')}
-                      />
+                      <>
+                        {canCompare && (
+                          <ComparisonBadge
+                            comparison={comparison}
+                            onOpen={() => selectTab('compare')}
+                          />
+                        )}
+                        {result.tests && (
+                          <TestsBadge run={result.tests} onOpen={() => selectTab('tests')} />
+                        )}
+                      </>
                     ),
                   }
                 : {})}
@@ -277,6 +285,22 @@ function ResponseTabs({
               Compare
             </ResponseTab>
           )}
+          {result.tests && (
+            <ResponseTab value="tests" testId="response-tests-tab">
+              Tests
+              <span
+                data-testid="response-tests-count"
+                className={`rounded-full px-1.5 text-xs leading-4 ${
+                  result.tests.counts.fail + result.tests.counts.error > 0
+                    ? 'bg-fail/15 text-fail'
+                    : 'bg-hover text-fg'
+                }`}
+              >
+                {result.tests.counts.pass}/
+                {result.tests.counts.pass + result.tests.counts.fail + result.tests.counts.error}
+              </span>
+            </ResponseTab>
+          )}
           {hasProject && (
             <ResponseTab value="console" testId="response-console-tab">
               Console
@@ -429,6 +453,14 @@ function ResponseTabs({
               onTab('body');
             }}
           />
+        </Tabs.Content>
+      )}
+      {result.tests && (
+        <Tabs.Content
+          value="tests"
+          className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+        >
+          <TestsTab run={result.tests} />
         </Tabs.Content>
       )}
       {hasProject && (

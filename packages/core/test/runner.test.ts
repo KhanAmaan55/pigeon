@@ -243,3 +243,88 @@ describe('regression runner (PIGN-038)', () => {
     expect(reports[0]!.id).toBe('run24');
   });
 });
+
+describe('test results in runs (PIGN-044)', () => {
+  const target = (id: string): RunTarget => ({
+    requestId: id,
+    name: id,
+    method: 'GET',
+    folders: [],
+  });
+  const result = (tests: Array<'pass' | 'fail' | 'error'>) =>
+    ({
+      id: 'e',
+      environmentId: null,
+      startedAt: '',
+      transport: 'mock',
+      request: { method: 'GET', url: 'http://x/', headers: [] },
+      warnings: [],
+      response: {
+        status: 200,
+        statusText: 'OK',
+        headers: [],
+        body: new Uint8Array(),
+        url: '',
+        redirects: [],
+        timings: { startedAt: 0, totalMs: 1 },
+        headersRestricted: false,
+      },
+      tests: {
+        results: tests.map((outcome, i) => ({
+          name: `t${i}`,
+          outcome,
+          ...(outcome === 'pass' ? {} : { message: 'nope' }),
+        })),
+        counts: {
+          pass: tests.filter((t) => t === 'pass').length,
+          fail: tests.filter((t) => t === 'fail').length,
+          error: tests.filter((t) => t === 'error').length,
+        },
+      },
+    }) as never;
+  const run = async (testsAffectOutcome?: boolean) => {
+    const outcomes: Record<string, Array<'pass' | 'fail' | 'error'>> = {
+      ok: ['pass', 'pass'],
+      bad: ['pass', 'fail', 'error'],
+    };
+    const generator = runRegression(
+      [target('ok'), target('bad')],
+      {
+        execute: async (t) => result(outcomes[t.requestId]!),
+        compare: async () => ({ kind: 'no-baseline', requestId: 'x' }),
+      },
+      {
+        scope: { kind: 'collection', id: 'c', name: 'C' },
+        environment: null,
+        transport: 'mock',
+        ...(testsAffectOutcome === undefined ? {} : { testsAffectOutcome }),
+      },
+    );
+    for (;;) {
+      const next = await generator.next();
+      if (next.done) return next.value;
+    }
+  };
+
+  it('a failed or errored test fails the request; passing tests pass an uncompared one', async () => {
+    const report = await run();
+    expect(report.entries.map((e) => [e.outcome, e.tests])).toEqual([
+      ['pass', { pass: 2, fail: 0, error: 0 }],
+      [
+        'fail',
+        {
+          pass: 1,
+          fail: 1,
+          error: 1,
+          failures: [
+            { name: 't1', message: 'nope' },
+            { name: 't2', message: 'nope' },
+          ],
+        },
+      ],
+    ]);
+    expect(report.options.testsAffectOutcome).toBe(true);
+    const ignored = await run(false);
+    expect(ignored.entries.map((e) => e.outcome)).toEqual(['no-baseline', 'no-baseline']);
+  });
+});

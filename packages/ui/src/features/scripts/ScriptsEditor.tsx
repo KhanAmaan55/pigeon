@@ -38,7 +38,7 @@ export function ScriptsEditor({
       >
         <Info size={12} className="shrink-0" aria-hidden />
         {scriptsRun
-          ? 'Pre-request scripts run before each send, in a sandbox (Console tab in the response). Test scripts are saved but not run yet.'
+          ? 'Scripts run in a sandbox: pre-request before each send, tests after the response (Tests and Console tabs).'
           : 'Script execution is off for this project (Settings → Scripts). Scripts are saved and exported.'}
       </p>
       {SCRIPTS.map(({ listen, label }) => {

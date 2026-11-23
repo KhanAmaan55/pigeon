@@ -50,7 +50,7 @@ The official v2.1 JSON Schema is vendored in `packages/fixtures/postman/schema/c
 | `auth` noauth / basic / bearer / apikey | `Auth` typed | | Full (executed) |
 | `auth` digest / awsv4 / oauth2 | `Auth unsupported` | preserved verbatim | Preserved; executed in PIGN-046/047 |
 | `auth` oauth1 / hawk / ntlm / akamai / edgegrid / jwt / asap / others | `Auth unsupported` | preserved verbatim | Preserved only; UI shows "Not supported yet — request sent without auth" |
-| `event[]` prerequest / test | `ScriptEvent[]` | | Preserved + editable; pre-request scripts run (PIGN-043, §A.7); test scripts later (PIGN-044) |
+| `event[]` prerequest / test | `ScriptEvent[]` | | Preserved + editable; pre-request and test scripts run (PIGN-043/044, §A.7) |
 | `variable[]` (collection) | `Collection.variables` | | Full |
 | `variable[]` (folder/request level) | preserved | | Preserved; folder vars resolved (see data-model §5) |
 | `response[]` | `Example[]` | `examples/**` + body sidecars | Full |
@@ -98,14 +98,15 @@ Exported file name: `<collection name>.postman_collection.json`.
 
 - Postman WebSocket, gRPC, Socket.IO, MQTT requests and Postman's newer standalone GraphQL request type are **not representable in v2.1 exports** and are out of scope.
 - Postman flows, mocks, monitors, APIs/specs, workspaces, team data.
-- Test scripts (`pm.test`, `pm.expect`, `pm.response`) don't run yet (PIGN-044); pre-request scripts run with the subset in §A.7.
+- Scripts run with the `pm` subset in §A.7 only (no `pm.sendRequest`, cookies, visualizer, `setNextRequest`, `require`).
 - Postman vault references (`{{vault:…}}`) are left unresolved (highlighted).
 
-### A.7 Pre-request scripts (PIGN-043)
+### A.7 Scripts (PIGN-043/044)
 
-Pre-request scripts run before each send (and in regression runs) in a QuickJS sandbox in a Web
-Worker, the same on desktop and web: collection → folders (outermost first) → request, sharing
-one state. Each script stops after **5 s** and has a 64 MB heap; a failing script stops the send
+Pre-request scripts run before each send and test scripts after the response (also in regression
+runs) in a QuickJS sandbox in a Web Worker, the same on desktop and web: collection → folders
+(outermost first) → request, sharing one state. Test results show in the response's **Tests** tab
+and badge, and per request in runs. Each script stops after **5 s** and has a 64 MB heap; a failing script stops the send
 with "Pre-request script error in <place>: …" and its output stays in the **Console** tab. The
 sandbox has only JavaScript built-ins: no `fetch`/XHR/WebSocket, timers, DOM, storage, Node,
 Tauri, file system or `require`. Settings → Scripts turns execution off per project.
@@ -119,7 +120,10 @@ Tauri, file system or `require`. Settings → Scripts turns execution off per pr
 | `console.log` / `info` / `warn` / `error` / `debug` | Yes → Console tab (per project, last 500 entries; secret values masked) |
 | `postman.setEnvironmentVariable` / `getEnvironmentVariable` / `setGlobalVariable` / `getGlobalVariable` (legacy) | Yes |
 | `pm.sendRequest`, `pm.cookies`, `pm.vault`, `pm.execution.*`, `require(...)`, `pm.environment.clear` | No: throws `NotSupportedInPigeon: <name>` |
-| `pm.test`, `pm.expect`, `pm.response` | Not in pre-request scripts; test scripts arrive with PIGN-044 |
+| `pm.test(name, fn)` | Test scripts. A failed assertion is **fail**, any other thrown error **error**; the next tests still run. `pm.test.skip` records a skipped test. A script that throws outside `pm.test` (or times out) is an **error** result named after its place; the next script still runs |
+| `pm.response`: `code`, `status`, `headers.get/has/toObject/each`, `json()`, `text()`, `responseTime`, `responseSize`, `to.have.status(code or text)`, `to.have.header(name[, value])`, `to.be.ok`, `to.have.jsonBody()` | Test scripts (the body is passed as text, at most 10 MB) |
+| `pm.expect` (own chai-style subset, not chai): chains `to be been is that which and has have with at of same but does still also`; `not`, `deep`; `equal/equals/eq`, `eql`, `include/contain`, `a/an(type)`, `true`, `false`, `null`, `undefined`, `NaN`, `ok`, `exist`, `empty`, `property(name[, value])`, `length/lengthOf`, `above/gt`, `below/lt`, `least/gte`, `most/lte`, `within`, `match`, `oneOf`, `keys`; `pm.expect.fail` | Yes; messages read like chai's ("expected 1 to equal 2") |
+| Other chai features (`satisfy`, `throw`, `members`, `closeTo`, plugins…) | Not available: calling them throws a TypeError, reported as an **error** result |
 
 ---
 

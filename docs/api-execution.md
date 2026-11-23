@@ -238,6 +238,8 @@ Order: collection pre-request → folder pre-request(s) → request pre-request 
 
 Pre-request scripts (PIGN-043): `core/scripting` (`runPreRequestScripts`, `scriptChain`, the `pm` prelude, `createQuickJsRunner` on `quickjs-emscripten-core` + the release-sync wasm build) runs before `prepareRequest`; its request and variable changes apply to that send (`ExecutionContext.preRequest`). The UI runs QuickJS in a Worker (`ui/src/features/scripts/run-script.ts`; a stuck worker is terminated 3 s after the deadline). A failure becomes an `ExecutionError` of kind `script`. Supported API: compatibility.md §A.7.
 
+Test scripts (PIGN-044): `runTestScripts` (`core/scripting/tests.ts`) runs the `test` chain after the response with `pm.response`, `pm.test` and the `pm.expect` subset (in the prelude, inside the sandbox; only results cross). `ExecutionContext.tests` enables it; the results are `ExecutionResult.tests` (`counts`, `results` with place, secrets masked). Variable writes in test scripts become current values too.
+
 ## 10. Results storage
 
 The latest `ExecutionResult` per request is kept in memory and persisted (bounded, see file-format §6) so reopening a request shows its last response. Results are never written to project files; the only way a response reaches files is **Save as example** or **Accept as new baseline**.

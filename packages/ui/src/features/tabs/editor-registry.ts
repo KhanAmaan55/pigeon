@@ -90,15 +90,18 @@ export function getTabEditor(
         session.apply({ type: 'updateRequest', id: requestId, patch: { events } });
         projectStore.getState().pinTab(requestId);
       },
-      // Pre-request scripts run (PIGN-043) unless script execution is off for the project;
-      // test scripts are skipped until PIGN-044.
+      // Scripts run (PIGN-043/044) unless script execution is off for the project.
       skippedScripts: () =>
-        scriptsNotRun(
-          session.getWorkingModel(),
-          requestId,
-          projectStore.getState().scriptsEnabled ? 'test' : undefined,
-        ),
-      skippedScriptsReason: () => (projectStore.getState().scriptsEnabled ? 'tests' : 'disabled'),
+        projectStore.getState().scriptsEnabled
+          ? []
+          : scriptsNotRun(session.getWorkingModel(), requestId),
+      skippedScriptsReason: () => 'disabled',
+      tests: () => {
+        if (!projectStore.getState().scriptsEnabled) return null;
+        const scripts = scriptChain(session.getWorkingModel(), requestId, 'test');
+        const name = session.findRequest(requestId)?.name ?? '';
+        return scripts.length > 0 ? { scripts, requestName: name } : null;
+      },
       preRequest: () => {
         if (!projectStore.getState().scriptsEnabled) return null;
         const scripts = scriptChain(session.getWorkingModel(), requestId, 'prerequest');

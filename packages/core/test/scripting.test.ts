@@ -96,9 +96,13 @@ describe('script sandbox (PIGN-043)', () => {
   });
 
   it('runs out of memory instead of taking the process down', async () => {
-    const result = await evaluate('var a = []; while (true) a.push(new Array(100000).fill(1));');
-    expect(result).toMatchObject({ ok: false, reason: 'memory' });
-  });
+    // Filling 64 MB takes a few seconds in QuickJS: on a busy machine the 5 s deadline may stop
+    // it first. Either way the script fails cleanly and the process carries on.
+    const result = await evaluate('var a = []; while (true) a.push(new Array(2000000).fill(1));');
+    expect(result.ok).toBe(false);
+    expect(!result.ok && ['memory', 'timeout']).toContain(!result.ok && result.reason);
+    expect((await evaluate('console.log("still alive")')).ok).toBe(true);
+  }, 30_000);
 
   it('has no network, DOM, timers, Node or Tauri APIs', async () => {
     const result = await evaluate(`

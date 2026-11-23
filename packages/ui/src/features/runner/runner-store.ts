@@ -46,6 +46,8 @@ export interface RunSettings {
   environmentId: string | null;
   stopOnFail: boolean;
   onlyWithBaseline: boolean;
+  /** A failed or errored test script fails the request (PIGN-044; default on). */
+  testsAffectOutcome?: boolean;
 }
 
 export interface LiveRun {
@@ -182,9 +184,17 @@ export function createRunnerStore(
         ) => {
           const enabled = projectStore.getState().scriptsEnabled;
           const scripts = enabled ? scriptChain(working, requestId, 'prerequest') : [];
+          const tests = enabled ? scriptChain(working, requestId, 'test') : [];
+          const callbacks = {
+            onWrites: (writes: CurrentValueWrite[]) => applyScriptWrites(session, writes),
+            onLogs: (entries: ConsoleEntry[]) => projectStore.getState().appendConsole(entries),
+          };
           return {
-            skippedScripts: scriptsNotRun(working, requestId, enabled ? 'test' : undefined),
-            skippedScriptsReason: enabled ? ('tests' as const) : ('disabled' as const),
+            skippedScripts: enabled ? [] : scriptsNotRun(working, requestId),
+            skippedScriptsReason: 'disabled' as const,
+            ...(tests.length > 0
+              ? { tests: { runner: workerScriptRunner, scripts: tests, requestName, ...callbacks } }
+              : {}),
             ...(scripts.length > 0
               ? {
                   preRequest: {
@@ -238,6 +248,7 @@ export function createRunnerStore(
             transport: platform.capabilities.transport,
             stopOnFail: settings.stopOnFail,
             onlyWithBaseline: settings.onlyWithBaseline,
+            testsAffectOutcome: settings.testsAffectOutcome ?? true,
             signal: own.signal,
           },
         );

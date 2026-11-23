@@ -73,6 +73,8 @@ export interface RequestBinding {
    * go to `onScriptWrites` (current values) and console output to `onScriptLogs`.
    */
   preRequest?: () => { scripts: ScriptSource[]; requestName: string } | null;
+  /** Test scripts to run after the response (PIGN-044), `null` when none run. */
+  tests?: () => { scripts: ScriptSource[]; requestName: string } | null;
   onScriptWrites?: (writes: CurrentValueWrite[]) => void;
   onScriptLogs?: (entries: ConsoleEntry[]) => void;
   /** Compares a result with the request's baseline example (PIGN-034). */
@@ -340,6 +342,7 @@ export function createScratchRequestStore(
           platform.capabilities.transport === 'fetch' ? env.pageOrigin?.() : undefined;
         const inherited = get().request.auth ? undefined : binding?.inheritedAuth?.().auth;
         const preRequest = binding?.preRequest?.();
+        const tests = binding?.tests?.();
         const ctx = createExecutionContext({
           capabilities: platform.capabilities,
           preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
@@ -357,6 +360,17 @@ export function createScratchRequestStore(
                   runner: env.scriptRunner ?? workerScriptRunner,
                   scripts: preRequest.scripts,
                   requestName: preRequest.requestName,
+                  ...(binding?.onScriptWrites ? { onWrites: binding.onScriptWrites } : {}),
+                  ...(binding?.onScriptLogs ? { onLogs: binding.onScriptLogs } : {}),
+                },
+              }
+            : {}),
+          ...(tests
+            ? {
+                tests: {
+                  runner: env.scriptRunner ?? workerScriptRunner,
+                  scripts: tests.scripts,
+                  requestName: tests.requestName,
                   ...(binding?.onScriptWrites ? { onWrites: binding.onScriptWrites } : {}),
                   ...(binding?.onScriptLogs ? { onLogs: binding.onScriptLogs } : {}),
                 },

@@ -140,11 +140,207 @@ var __logs = [];
     sendRequest: notSupported('pm.sendRequest'),
     cookies: { get: notSupported('pm.cookies'), has: notSupported('pm.cookies'), jar: notSupported('pm.cookies.jar') },
     vault: { get: notSupported('pm.vault') },
-    test: notSupported('pm.test (test scripts arrive with PIGN-044)'),
-    expect: notSupported('pm.expect (test scripts arrive with PIGN-044)'),
-    response: undefined,
+    test: state.info.eventName === 'test' ? test : notSupported('pm.test in a pre-request script'),
+    expect: expect,
+    response: state.response ? response(state.response) : undefined,
     execution: { skipRequest: notSupported('pm.execution.skipRequest'), setNextRequest: notSupported('pm.execution.setNextRequest') }
   };
+  // --- Tests (PIGN-044): pm.test, a chai-style pm.expect subset, pm.response -----------------
+  function AssertionError(message) { this.name = 'AssertionError'; this.message = message; }
+  AssertionError.prototype = Object.create(Error.prototype);
+  AssertionError.prototype.constructor = AssertionError;
+  function show(value) {
+    if (typeof value === 'string') return "'" + value + "'";
+    if (value === undefined) return 'undefined';
+    if (typeof value === 'number' || typeof value === 'boolean' || value === null) return String(value);
+    try { var json = JSON.stringify(value); return json.length > 200 ? json.slice(0, 197) + '...' : json; } catch (e) { return String(value); }
+  }
+  function typeOf(value) {
+    if (value === null) return 'null';
+    if (Array.isArray(value)) return 'array';
+    if (value instanceof RegExp) return 'regexp';
+    if (value instanceof Date) return 'date';
+    return typeof value;
+  }
+  function deepEqual(a, b) {
+    if (a === b) return true;
+    if (typeof a === 'number' && typeof b === 'number' && isNaN(a) && isNaN(b)) return true;
+    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    var ka = Object.keys(a), kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    for (var i = 0; i < ka.length; i++) {
+      if (!Object.prototype.hasOwnProperty.call(b, ka[i]) || !deepEqual(a[ka[i]], b[ka[i]])) return false;
+    }
+    return true;
+  }
+  function Assertion(value, message) {
+    this._value = value;
+    this._not = false;
+    this._deep = false;
+    this._message = message;
+  }
+  Assertion.prototype._assert = function (ok, positive, negative) {
+    if (this._not ? ok : !ok) {
+      var text = this._not ? negative : positive;
+      throw new AssertionError((this._message ? this._message + ': ' : '') + text);
+    }
+    return this;
+  };
+  ['to', 'be', 'been', 'is', 'that', 'which', 'and', 'has', 'have', 'with', 'at', 'of', 'same', 'but', 'does', 'still', 'also'].forEach(function (word) {
+    Object.defineProperty(Assertion.prototype, word, { get: function () { return this; } });
+  });
+  Object.defineProperty(Assertion.prototype, 'not', { get: function () { this._not = !this._not; return this; } });
+  Object.defineProperty(Assertion.prototype, 'deep', { get: function () { this._deep = true; return this; } });
+  function flag(name, check, words) {
+    Object.defineProperty(Assertion.prototype, name, {
+      get: function () {
+        return this._assert(check(this._value), 'expected ' + show(this._value) + ' to ' + words, 'expected ' + show(this._value) + ' not to ' + words);
+      }
+    });
+  }
+  flag('true', function (v) { return v === true; }, 'be true');
+  flag('false', function (v) { return v === false; }, 'be false');
+  flag('null', function (v) { return v === null; }, 'be null');
+  flag('undefined', function (v) { return v === undefined; }, 'be undefined');
+  flag('NaN', function (v) { return typeof v === 'number' && isNaN(v); }, 'be NaN');
+  flag('ok', function (v) { return !!v; }, 'be truthy');
+  flag('exist', function (v) { return v !== null && v !== undefined; }, 'exist');
+  flag('empty', function (v) {
+    if (typeof v === 'string' || Array.isArray(v)) return v.length === 0;
+    if (v && typeof v === 'object') return Object.keys(v).length === 0;
+    return false;
+  }, 'be empty');
+  var A = Assertion.prototype;
+  A.equal = A.equals = A.eq = function (expected) {
+    var ok = this._deep ? deepEqual(this._value, expected) : this._value === expected;
+    return this._assert(ok, 'expected ' + show(this._value) + ' to equal ' + show(expected), 'expected ' + show(this._value) + ' not to equal ' + show(expected));
+  };
+  A.eql = A.eqls = function (expected) {
+    return this._assert(deepEqual(this._value, expected), 'expected ' + show(this._value) + ' to deeply equal ' + show(expected), 'expected ' + show(this._value) + ' not to deeply equal ' + show(expected));
+  };
+  A.include = A.includes = A.contain = A.contains = function (expected) {
+    var v = this._value, ok;
+    if (typeof v === 'string') ok = v.indexOf(expected) !== -1;
+    else if (Array.isArray(v)) ok = v.some(function (item) { return deepEqual(item, expected); });
+    else if (v && typeof v === 'object' && expected && typeof expected === 'object') {
+      ok = Object.keys(expected).every(function (k) { return deepEqual(v[k], expected[k]); });
+    } else ok = false;
+    return this._assert(ok, 'expected ' + show(v) + ' to include ' + show(expected), 'expected ' + show(v) + ' not to include ' + show(expected));
+  };
+  A.a = A.an = function (type) {
+    var actual = typeOf(this._value);
+    var wanted = String(type).toLowerCase();
+    return this._assert(actual === wanted, 'expected ' + show(this._value) + ' to be a ' + wanted + ' (got ' + actual + ')', 'expected ' + show(this._value) + ' not to be a ' + wanted);
+  };
+  A.property = function (name, value) {
+    var v = this._value;
+    var has = v !== null && v !== undefined && Object(v)[name] !== undefined;
+    if (arguments.length < 2 || !has) {
+      this._assert(has, 'expected ' + show(v) + ' to have property ' + show(name), 'expected ' + show(v) + ' not to have property ' + show(name));
+      if (has && !this._not) this._value = Object(v)[name];
+      return this;
+    }
+    var actual = Object(v)[name];
+    var same = this._deep ? deepEqual(actual, value) : actual === value;
+    return this._assert(same, 'expected ' + show(v) + ' to have property ' + show(name) + ' of ' + show(value) + ', but got ' + show(actual), 'expected ' + show(v) + ' not to have property ' + show(name) + ' of ' + show(value));
+  };
+  A.length = A.lengthOf = function (n) {
+    var v = this._value;
+    var len = v === null || v === undefined ? undefined : v.length !== undefined ? v.length : (typeof v === 'object' ? Object.keys(v).length : undefined);
+    return this._assert(len === n, 'expected ' + show(v) + ' to have length ' + n + ' but got ' + len, 'expected ' + show(v) + ' not to have length ' + n);
+  };
+  function compare(name, test, words) {
+    A[name] = function (n) {
+      return this._assert(test(this._value, n), 'expected ' + show(this._value) + ' to be ' + words + ' ' + n, 'expected ' + show(this._value) + ' not to be ' + words + ' ' + n);
+    };
+  }
+  compare('above', function (v, n) { return v > n; }, 'above');
+  compare('below', function (v, n) { return v < n; }, 'below');
+  compare('least', function (v, n) { return v >= n; }, 'at least');
+  compare('most', function (v, n) { return v <= n; }, 'at most');
+  A.gt = A.greaterThan = A.above; A.lt = A.lessThan = A.below; A.gte = A.least; A.lte = A.most;
+  A.within = function (low, high) {
+    return this._assert(this._value >= low && this._value <= high, 'expected ' + show(this._value) + ' to be within ' + low + '..' + high, 'expected ' + show(this._value) + ' not to be within ' + low + '..' + high);
+  };
+  A.match = A.matches = function (pattern) {
+    return this._assert(pattern instanceof RegExp && pattern.test(String(this._value)), 'expected ' + show(this._value) + ' to match ' + String(pattern), 'expected ' + show(this._value) + ' not to match ' + String(pattern));
+  };
+  A.oneOf = function (list) {
+    var v = this._value;
+    return this._assert(list.some(function (item) { return deepEqual(item, v); }), 'expected ' + show(v) + ' to be one of ' + show(list), 'expected ' + show(v) + ' not to be one of ' + show(list));
+  };
+  A.keys = function () {
+    var wanted = Array.isArray(arguments[0]) ? arguments[0] : Array.prototype.slice.call(arguments);
+    var v = this._value || {};
+    return this._assert(wanted.every(function (k) { return Object.prototype.hasOwnProperty.call(v, k); }), 'expected ' + show(v) + ' to have keys ' + show(wanted), 'expected ' + show(v) + ' not to have keys ' + show(wanted));
+  };
+  A.status = function (expected) {
+    var res = this._value;
+    var ok = typeof expected === 'number' ? res.code === expected : res.status === expected;
+    return this._assert(ok, 'expected response to have status ' + show(expected) + ' but got ' + res.code + (res.status ? ' ' + res.status : ''), 'expected response not to have status ' + show(expected));
+  };
+  A.header = function (name, value) {
+    var actual = this._value.headers.get(name);
+    var ok = arguments.length < 2 ? actual !== undefined : actual === value;
+    return this._assert(ok, 'expected response to have header ' + show(name) + (arguments.length < 2 ? '' : ' with value ' + show(value)), 'expected response not to have header ' + show(name));
+  };
+  A.jsonBody = function () {
+    var ok = true; try { this._value.json(); } catch (e) { ok = false; }
+    return this._assert(ok, 'expected response body to be JSON', 'expected response body not to be JSON');
+  };
+  function expect(value, message) { return new Assertion(value, message); }
+  expect.fail = function (message) { throw new AssertionError(message || 'expect.fail()'); };
+
+  function test(name, fn) {
+    var result = { name: String(name), outcome: 'pass' };
+    try {
+      if (typeof fn === 'function') fn();
+    } catch (e) {
+      var assertion = e instanceof AssertionError || (e && e.name === 'AssertionError');
+      result.outcome = assertion ? 'fail' : 'error';
+      result.message = e && e.message !== undefined ? (assertion ? '' : (e.name || 'Error') + ': ') + e.message : String(e);
+    }
+    state.tests.push(result);
+  }
+  test.skip = function (name) { state.tests.push({ name: String(name), outcome: 'pass', message: 'skipped' }); };
+
+  function response(raw) {
+    var json;
+    var res = {
+      code: raw.code,
+      status: raw.status,
+      responseTime: raw.responseTime,
+      responseSize: raw.responseSize,
+      headers: {
+        get: function (name) {
+          var lower = String(name).toLowerCase();
+          for (var i = 0; i < raw.headers.length; i++) if (raw.headers[i][0].toLowerCase() === lower) return raw.headers[i][1];
+          return undefined;
+        },
+        has: function (name) { return res.headers.get(name) !== undefined; },
+        toObject: function () { var out = {}; raw.headers.forEach(function (h) { out[h[0]] = h[1]; }); return out; },
+        each: function (fn) { raw.headers.forEach(function (h) { fn({ key: h[0], value: h[1] }); }); }
+      },
+      text: function () { return raw.body; },
+      json: function () {
+        if (json === undefined) json = JSON.parse(raw.body);
+        return json;
+      }
+    };
+    Object.defineProperty(res, 'to', {
+      get: function () {
+        var assertion = new Assertion(res);
+        Object.defineProperty(assertion, 'ok', { get: function () {
+          return this._assert(res.code >= 200 && res.code < 300, 'expected response to be 2xx but got ' + res.code, 'expected response not to be 2xx');
+        } });
+        return assertion;
+      }
+    });
+    return res;
+  }
+  if (!state.tests) state.tests = [];
+
   function format(args) {
     return Array.prototype.map.call(args, function (a) {
       if (typeof a === 'string') return a;

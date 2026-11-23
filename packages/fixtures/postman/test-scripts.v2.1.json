@@ -1,0 +1,100 @@
+{
+  "info": {
+    "_postman_id": "tested-api",
+    "name": "Tested API",
+    "description": "Test scripts with known outcomes (PIGN-044): Get user \u2192 5 pass; Missing user \u2192 3 pass, 1 fail, 1 error.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('status is 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Users",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('has a content type', () => pm.response.to.have.header('Content-Type'));"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Get user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.test/user",
+              "protocol": "https",
+              "host": [
+                "api",
+                "test"
+              ],
+              "path": [
+                "user"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const user = pm.response.json();",
+                  "pm.test('name', () => pm.expect(user.name).to.eql('Ada'));",
+                  "pm.test('roles', () => pm.expect(user.roles).to.include('admin').and.have.length(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.test/missing",
+              "protocol": "https",
+              "host": [
+                "api",
+                "test"
+              ],
+              "path": [
+                "missing"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('found', () => pm.response.to.have.status(200));",
+                  "pm.test('throws', () => { notDefined(); });",
+                  "pm.test('still runs', () => pm.expect(true).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

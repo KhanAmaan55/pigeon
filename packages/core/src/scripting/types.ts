@@ -40,8 +40,35 @@ export interface ScriptWrite {
   value: string | null;
 }
 
+/** The response a test script sees (PIGN-044). */
+export interface ScriptResponse {
+  code: number;
+  status: string;
+  headers: Array<[string, string]>;
+  /** Decoded as UTF-8 text (bodies over `MAX_SCRIPT_BODY` are cut). */
+  body: string;
+  responseTime: number;
+  responseSize: number;
+}
+
+export type TestOutcome = 'pass' | 'fail' | 'error';
+
+/** One `pm.test` (or a script that failed outside a test, as `error`). */
+export interface TestResult {
+  name: string;
+  outcome: TestOutcome;
+  /** Why it failed, e.g. "expected 404 to equal 200". */
+  message?: string;
+  /** Where the script lives ("collection Users API", "this request"); set by the host. */
+  place?: string;
+}
+
 export interface ScriptState {
   request: ScriptRequest;
+  /** Test scripts only. */
+  response?: ScriptResponse;
+  /** `pm.test` results so far (test scripts). */
+  tests?: TestResult[];
   variables: ScriptVariables;
   info: { requestName: string; requestId: string; eventName: 'prerequest' | 'test' };
   /** Writes so far, in order (persisted as current values after the scripts ran). */
@@ -83,5 +110,7 @@ export interface ScriptRunner {
 }
 
 export const SCRIPT_TIMEOUT_MS = 5000;
+/** Response text handed to test scripts at most (characters). */
+export const MAX_SCRIPT_BODY = 10 * 1024 * 1024;
 /** QuickJS heap per script run. */
 export const SCRIPT_MEMORY_BYTES = 64 * 1024 * 1024;

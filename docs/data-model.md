@@ -353,7 +353,7 @@ interface RunReport {
   transport: 'native' | 'fetch' | 'node' | string;
   startedAt: string; finishedAt: string; // ISO 8601
   durationMs: number;
-  options: { stopOnFail: boolean; onlyWithBaseline: boolean };
+  options: { stopOnFail: boolean; onlyWithBaseline: boolean; testsAffectOutcome?: boolean };
   cancelled: boolean;                  // Cancel: the rest is "skipped"
   stoppedOnFail: boolean;              // stopped after the first fail/error: the rest is "skipped"
   totals: Record<RunOutcome, number>;
@@ -362,12 +362,17 @@ interface RunReport {
 interface RunEntry {
   requestId: Id; name: string; method: string;
   folders: string[];                   // folder names from the scope down to the request
-  outcome: RunOutcome;                 // no-baseline also covers comparison off / pinned example missing
+  outcome: RunOutcome;                 // worst of comparison and tests (when testsAffectOutcome): a failed or
+                                       // errored test → fail; passing tests with nothing compared → pass
   url?: string;                        // as sent, secrets masked
   status?: number; timeMs?: number;
   exampleId?: Id; exampleName?: string; // the baseline compared with
   counts?: { fail: number; warn: number; info: number; ignored: number };
   message?: string;                    // error message, or why nothing was compared
+  tests?: {                            // test scripts (PIGN-044)
+    pass: number; fail: number; error: number;
+    failures?: Array<{ name: string; message?: string }>; // first 20
+  };
 }
 ```
 

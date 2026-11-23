@@ -1900,7 +1900,7 @@ describe('scripts tab (PIGN-031)', () => {
     await act(async () => screen.getByTestId('scripts-tab').focus());
     const pre = await screen.findByTestId('script-prerequest');
     expect(screen.getByTestId('scripts-not-run').textContent).toContain(
-      'Pre-request scripts run before each send',
+      'pre-request before each send',
     );
     expect(within(pre).getByTestId('script-prerequest-lines').textContent).toBe('1 line');
     expect((await within(pre).findByTestId('script-prerequest-editor')).textContent).toContain(
@@ -1913,9 +1913,9 @@ describe('scripts tab (PIGN-031)', () => {
 
     await user.click(screen.getByTestId('send-button'));
     await waitFor(() => expect(transport.requests).toHaveLength(1));
-    expect((await screen.findByTestId('response-panel')).textContent).toContain(
-      'Test scripts were not run (not supported yet): collection Users API.',
-    );
+    // The collection's test script runs (PIGN-044): nothing is skipped.
+    expect((await screen.findByTestId('tests-badge')).textContent).toBe('Tests 1/1');
+    expect(screen.getByTestId('response-panel').textContent).not.toContain('were not run');
 
     await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
     await waitFor(async () =>
@@ -2371,8 +2371,9 @@ describe('regression runs (PIGN-038)', () => {
     ]);
     expect(rows().map((row) => row.getAttribute('data-outcome'))).toEqual([
       'fail',
-      'no-baseline',
-      'no-baseline',
+      // The collection's test script ("users") runs and passes (PIGN-044).
+      'pass',
+      'pass',
       'error',
     ]);
     // Create user posts a body file that isn't in the project.
@@ -2410,7 +2411,7 @@ describe('regression runs (PIGN-038)', () => {
     expect(report).toMatchObject({
       pigeonRunReport: 1,
       scope: { kind: 'collection', id: 'users-collection', name: 'Users API' },
-      totals: { pass: 1, 'no-baseline': 2, error: 1 },
+      totals: { pass: 3, error: 1 },
     });
 
     // Both runs are listed in the Runner view; the older one opens as a stored report.
@@ -2605,5 +2606,49 @@ describe('pre-request scripts (PIGN-043)', () => {
     expect((await screen.findByTestId('response-panel')).textContent).toContain(
       'Scripts were not run (script execution is off for this project)',
     );
+  }, 30_000);
+});
+
+describe('test scripts (PIGN-044)', () => {
+  it('shows results in the Tests tab and badge, and per request in runs', async () => {
+    const transport = new MockTransport().on(
+      { url: /./ },
+      { headers: [['Content-Type', 'application/json']], body: '{"id":1}' },
+    );
+    const { platform } = await fixturePlatform(transport);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    await user.dblClick(screen.getByText('List users'));
+    await act(async () => screen.getByTestId('scripts-tab').focus());
+    const editor = await within(await screen.findByTestId('script-test')).findByTestId(
+      'script-test-editor',
+    );
+    setEditorText(
+      editor,
+      "pm.test('has id', () => pm.expect(pm.response.json()).to.have.property('id', 1));\npm.test('is 201', () => pm.response.to.have.status(201));",
+    );
+    await user.click(screen.getByTestId('send-button'));
+    const badge = await screen.findByTestId('tests-badge', {}, { timeout: 10_000 });
+    // The collection's test ("users") plus the two of the request.
+    expect(badge.textContent).toBe('Tests 2/3');
+    expect(badge.getAttribute('data-outcome')).toBe('fail');
+    fireEvent.click(badge);
+    const results = await screen.findAllByTestId('test-result');
+    expect(results.map((r) => r.getAttribute('data-outcome'))).toEqual(['pass', 'pass', 'fail']);
+    expect(results[2]!.textContent).toContain('expected response to have status 201 but got 200');
+
+    fireEvent.contextMenu(screen.getByText('Users API'));
+    fireEvent.click(await screen.findByTestId('menu-run'));
+    fireEvent.click(within(await screen.findByTestId('run-dialog')).getByTestId('run-start'));
+    await waitFor(
+      () => expect(screen.getByTestId('run-status').getAttribute('data-status')).toBe('done'),
+      { timeout: 15_000 },
+    );
+    const row = screen.getAllByTestId('run-row')[0]!;
+    expect(row.getAttribute('data-outcome')).toBe('fail');
+    expect(within(row).getByTestId('run-row-tests').textContent).toBe('2/3 tests');
+    expect(within(row).getByTestId('run-row-tests').getAttribute('title')).toContain('is 201');
   }, 30_000);
 });

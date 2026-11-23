@@ -134,6 +134,22 @@ exports[`importPostmanCollection (PIGN-028) > scripts.v2.1.json imports, writes 
 }
 `;
 
+exports[`importPostmanCollection (PIGN-028) > test-scripts.v2.1.json imports, writes valid project files and reads back identically 1`] = `
+{
+  "counts": {
+    "examples": 0,
+    "folders": 1,
+    "requests": 2,
+  },
+  "format": "Postman Collection v2.1",
+  "regeneratedIds": [],
+  "warnings": [
+    "4 scripts are kept but not run yet.",
+    "3 items without an id got one.",
+  ],
+}
+`;
+
 exports[`importPostmanCollection (PIGN-028) > unknown-fields.v2.1.json imports, writes valid project files and reads back identically 1`] = `
 {
   "counts": {

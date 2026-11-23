@@ -139,11 +139,15 @@ export type {
   ScriptRunner,
   ScriptRunOutput,
   ScriptState,
+  TestOutcome,
+  TestResult,
 } from './scripting/types';
 export { SCRIPT_MEMORY_BYTES, SCRIPT_TIMEOUT_MS } from './scripting/types';
 export type { CurrentValueWrite, PreRequestOutcome, ScriptSource } from './scripting/prerequest';
 export { runPreRequestScripts, scriptChain } from './scripting/prerequest';
 export { createQuickJsRunner } from './scripting/quickjs';
+export type { TestCounts, TestRun } from './scripting/tests';
+export { countTests, runTestScripts, testsOutcome } from './scripting/tests';
 export type { GraphqlError, GraphqlOperation, GraphqlView } from './execution/graphql';
 export { graphqlOperations, interpretGraphql } from './execution/graphql';
 export type { ScriptListen, ScriptView } from '@pigeon/formats';

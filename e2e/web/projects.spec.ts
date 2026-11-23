@@ -677,7 +677,7 @@ test.describe('scripts', () => {
     await page.getByTestId('scripts-tab').click();
     await expect(page.getByTestId('scripts-not-run')).toBeVisible();
     await page.getByTestId('script-test-editor').click();
-    await page.keyboard.type("pm.test('ok', () => {});");
+    await page.keyboard.type("pm.test('ok', () => pm.response.to.have.status(200));");
     await expect(page.getByTestId('script-test-lines')).toHaveText('1 line');
     await page.keyboard.press('ControlOrMeta+Shift+s');
     await expect(page.getByTestId('toast')).toContainText('Wrote');
@@ -689,9 +689,10 @@ test.describe('scripts', () => {
     ).toHaveText('JS');
 
     await page.getByTestId('send-button').click();
-    await expect(page.getByTestId('response-panel')).toContainText(
-      'Test scripts were not run (not supported yet): this request.',
-    );
+    // The test script runs after the response (PIGN-044).
+    await expect(page.getByTestId('tests-badge')).toHaveText('Tests 1/1', { timeout: 15_000 });
+    await page.getByTestId('tests-badge').click();
+    await expect(page.getByTestId('test-result')).toHaveAttribute('data-outcome', 'pass');
   });
 
   test('pre-request scripts add a header, log, and an infinite loop is stopped', async ({
@@ -711,7 +712,7 @@ test.describe('scripts', () => {
     await url.fill(`${TEST_SERVER_URL}/echo`);
 
     await page.getByTestId('scripts-tab').click();
-    await expect(page.getByTestId('scripts-not-run')).toContainText('Pre-request scripts run');
+    await expect(page.getByTestId('scripts-not-run')).toContainText('Scripts run in a sandbox');
     const editor = page.getByTestId('script-prerequest-editor');
     await editor.click();
     await page.keyboard.type("pm.variables.set('who', 'pigeon-web');");

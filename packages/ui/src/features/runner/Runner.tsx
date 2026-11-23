@@ -144,6 +144,7 @@ function RunForm({
   const [environmentId, setEnvironmentId] = useState(selectedEnvironmentId ?? '');
   const [stopOnFail, setStopOnFail] = useState(false);
   const [onlyWithBaseline, setOnlyWithBaseline] = useState(false);
+  const [testsAffectOutcome, setTestsAffectOutcome] = useState(true);
   return (
     <form
       onSubmit={(event) => {
@@ -154,6 +155,7 @@ function RunForm({
           environmentId: environmentId || null,
           stopOnFail,
           onlyWithBaseline,
+          testsAffectOutcome,
         });
       }}
       className="flex flex-col gap-3"
@@ -211,6 +213,16 @@ function RunForm({
           onChange={(event) => setOnlyWithBaseline(event.target.checked)}
         />
         Only requests with a baseline example
+      </label>
+      <label htmlFor={`${id}-tests`} className="flex items-center gap-2">
+        <input
+          id={`${id}-tests`}
+          type="checkbox"
+          data-testid="run-tests-affect-outcome"
+          checked={testsAffectOutcome}
+          onChange={(event) => setTestsAffectOutcome(event.target.checked)}
+        />
+        Failed test scripts fail the request
       </label>
       <div className="flex justify-end gap-2">
         <Dialog.Close asChild>
@@ -482,6 +494,21 @@ const RunRow = memo(function RunRow({
           <span className="text-fg-muted">{entry.folders.join(' / ')} / </span>
         )}
         {entry.name}
+      </span>
+      <span
+        className={`w-16 text-right text-xs ${
+          entry.tests && entry.tests.fail + entry.tests.error > 0 ? 'text-fail' : 'text-fg-muted'
+        }`}
+        data-testid="run-row-tests"
+        title={
+          entry.tests?.failures
+            ?.map((f) => `${f.name}${f.message ? `: ${f.message}` : ''}`)
+            .join('\n') ?? undefined
+        }
+      >
+        {entry.tests
+          ? `${entry.tests.pass}/${entry.tests.pass + entry.tests.fail + entry.tests.error} tests`
+          : ''}
       </span>
       <span className="w-10 text-right font-mono text-xs" data-testid="run-row-status">
         {entry.status ?? ''}
