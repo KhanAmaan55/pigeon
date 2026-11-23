@@ -1,0 +1,26 @@
+{
+  "name": "@pigeon/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "pigeon run / pigeon validate: regression checks of a Pigeon project in CI (PIGN-054).",
+  "type": "module",
+  "bin": {
+    "pigeon": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "vite build",
+    "start": "vite build --logLevel warn && node dist/cli.js"
+  },
+  "dependencies": {
+    "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
+    "@pigeon/core": "workspace:*",
+    "@pigeon/formats": "workspace:*",
+    "@pigeon/platform": "workspace:*",
+    "@pigeon/platform-node": "workspace:*",
+    "quickjs-emscripten-core": "0.32.0"
+  },
+  "devDependencies": {
+    "@pigeon/test-server": "workspace:*",
+    "vite": "^8.3.4"
+  }
+}

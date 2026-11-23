@@ -1,0 +1,17 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": ["."],
+  "references": [
+    { "path": ".." },
+    { "path": "../../../packages/core" },
+    { "path": "../../../packages/platform" },
+    { "path": "../../../packages/platform-node" },
+    { "path": "../../../packages/test-server" }
+  ]
+}

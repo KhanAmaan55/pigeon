@@ -277,9 +277,9 @@ Options: `--port`, `--host` (default `127.0.0.1`), `--allow-origin <url>` (repea
 - In Chromium with an fs-access folder that is inside a Git checkout, Save for Commit writes into the working tree; users run Git themselves. This is the full Git workflow on web.
 - In browser-workspace mode there is no Git; export a zip and commit elsewhere.
 
-## 7. Node (tests, future CLI)
+## 7. Node (tests, CLI)
 
-`platform-node` implements `NodeFs` (node:fs/promises; recursive `fs.watch`; locked-file retries; symlinked directories not followed) and `NodeTransport` (node:http/https: raw header order and duplicates, manual redirects with every hop, gzip/deflate/br, `strictSSL`, timeouts, aborts; `NODE_CAPABILITIES`). Both pass the shared conformance suites. They are used by the cross-OS integration suite (`packages/core/test/cross-os.test.ts`, PIGN-040) and the CLI runner (PIGN-054). Capabilities mirror desktop (no CORS, all headers).
+`platform-node` implements `NodeFs` (node:fs/promises; recursive `fs.watch`; locked-file retries; symlinked directories not followed) and `NodeTransport` (node:http/https: raw header order and duplicates, manual redirects with every hop, gzip/deflate/br, `strictSSL`, timeouts, aborts; `NODE_CAPABILITIES`). Both pass the shared conformance suites. They are used by the cross-OS integration suite (`packages/core/test/cross-os.test.ts`, PIGN-040) and the CLI (`apps/cli`, PIGN-054, [cli.md](cli.md)), which reads projects through a read-only wrapper and keeps app state and secrets in memory (`MemoryAppState`, `MemorySecretStore`). Capabilities mirror desktop (no CORS, all headers).
 
 ## 8. Conformance suites
 

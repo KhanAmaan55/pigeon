@@ -11,6 +11,7 @@ import type {
   VariableScopes,
 } from '@pigeon/core';
 import {
+  applyScriptWrites as applyCoreScriptWrites,
   buildScopes,
   inheritedAuth,
   projectRules,
@@ -253,8 +254,7 @@ export function disposeTabEditor(session: ProjectSession, requestId: string): vo
 }
 
 /** Saves script variable writes as current values (never shared values, PIGN-043). */
+/** Script variable writes become current values (the same as runs and the CLI). */
 export function applyScriptWrites(session: ProjectSession, writes: readonly CurrentValueWrite[]) {
-  for (const write of writes) {
-    session.setCurrentValue(write.scopeKey, write.key, write.value ?? undefined);
-  }
+  applyCoreScriptWrites(session, writes);
 }

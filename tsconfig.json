@@ -50,6 +50,12 @@
       "path": "packages/cors-proxy/test"
     },
     {
+      "path": "apps/cli"
+    },
+    {
+      "path": "apps/cli/test"
+    },
+    {
       "path": "packages/ui"
     },
     {

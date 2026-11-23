@@ -51,7 +51,7 @@ Rule: **core, formats, compare, platform must not import React, DOM APIs, Tauri,
       src/main.tsx
       index.html
       vite.config.ts
-    cli/                       # Node CLI runner `pigeon run` (PIGN-054, later)
+    cli/                       # Node CLI `pigeon run` / `pigeon validate` (PIGN-054, docs/cli.md)
     desktop/                   # Tauri app
       src/main.tsx             # wires packages/ui + packages/platform-desktop
       src-tauri/
@@ -114,7 +114,7 @@ Allowed dependencies (enforced by ESLint `no-restricted-imports` + per-package `
 | ui | core, formats, compare, platform |
 | platform-web / platform-desktop / platform-node | platform |
 | apps/web, apps/desktop | ui, platform-* |
-| apps/cli (later) | core, formats, compare, platform, platform-node |
+| apps/cli (PIGN-054) | core, formats, platform, platform-node |
 | cors-proxy (PIGN-052) | platform, platform-node |
 | test-server | — (Node-only test tooling; nothing in `src` may import it) |
 
@@ -126,7 +126,7 @@ The rules live in `eslint.config.js` (the `packages` table at the top). Tests (`
 - **Project references.** Every package has a composite `tsconfig.json` (`rootDir: src`, `outDir: dist`) with `references` matching its `@pigeon/*` dependencies. `packages/<pkg>/test/tsconfig.json` is a composite `noEmit` project that type-checks tests against the package. The root `tsconfig.json` is a solution file referencing all of them. A missing reference shows up as a `rootDir` error, which keeps `references` and the dependency table in sync.
 - **`pnpm typecheck`** = `tsc -b` (incremental; emits `dist/` + `*.tsbuildinfo`, both git-ignored). **`pnpm build`** = each package's `build` script (`tsc -b` for libraries; apps will use `vite build`).
 - **Pure packages** (`core`, `formats`, `compare`, `platform`, `fixtures`) compile with `lib: ["ES2022"]`, `types: []` and the shared `types/web-globals.d.ts` (TextEncoder/Decoder, URL, URLSearchParams, AbortSignal/Controller, structuredClone, crypto.randomUUID/subtle.digest). DOM and Node globals are type errors there. Extend `web-globals.d.ts` only with APIs available in browsers, Tauri webviews **and** Node. DOM packages (`platform-web`, `platform-desktop`, `ui`) add `DOM` and `DOM.Iterable`. Test projects use `types: ["node"]`.
-- **Vitest** runs every package as a project via `test.projects: ['packages/*']` in the root `vitest.config.ts`. A package that needs another environment (jsdom for `ui`) adds its own `vitest.config.ts`.
+- **Vitest** runs every package as a project via `test.projects: ['packages/*', 'apps/web', 'apps/cli']` in the root `vitest.config.ts`. A package that needs another environment (jsdom for `ui`) adds its own `vitest.config.ts`.
 - **Apps** (PIGN-002) are `noEmit` composite projects in the root solution. `apps/web/tsconfig.json` covers `src/` (`types: ["vite/client"]`) and `apps/web/tsconfig.node.json` covers `vite.config.ts`. `e2e/tsconfig.json` type-checks the Playwright specs and `playwright.config.ts`. `pnpm build` runs `vite build` for apps.
 - **Styles.** `@pigeon/ui` exports its stylesheet as `@pigeon/ui/styles.css` (Tailwind v4 + design tokens + bundled JetBrains Mono). The app imports it, and the app's Vite build compiles it (`@source` in the stylesheet points Tailwind at the ui sources). Components use token-backed Tailwind names (`bg-surface`, `text-fg-muted`, `text-method-get`, `text-pass`, …), never raw colours. Dark mode is `data-theme="dark"` on `<html>`, set by `ThemeProvider`.
 
@@ -174,6 +174,8 @@ See [file-format.md](file-format.md) and [compatibility.md](compatibility.md).
 
 ### 3.6 Runner (`core/runner`)
 Executes an ordered list of requests (folder/collection) sequentially with one environment, runs comparison for each, emits progress events, returns a `RunReport`. (PIGN-038)
+
+`runner/project-run.ts` holds the per-request steps both runners share: `executeProjectRequest` (variables, inherited auth, scripts, cookies, OAuth tokens) and `compareProjectResult` (effective comparison settings and baseline). The UI runner (`ui/features/runner`) and the CLI (`apps/cli`, PIGN-054) call the same functions, so a run gives the same outcomes in the apps and in CI; only the transport, the script runner (a Web Worker in the UI, inline QuickJS in Node) and the body-comparison scheduling differ.
 
 ## 4. Platform layer
 

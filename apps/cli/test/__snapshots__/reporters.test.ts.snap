@@ -1,0 +1,51 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`reporters > junit (escaped, one testcase per request) 1`] = `
+"<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="pigeon" tests="6" failures="1" errors="1" skipped="2" time="1.250">
+  <testsuite name="Users &lt;API&gt;" tests="6" failures="1" errors="1" skipped="2" time="1.250" timestamp="2026-11-23T10:00:00.000">
+    <properties>
+      <property name="scope" value="collection"/>
+      <property name="environment" value="Staging"/>
+    </properties>
+    <testcase classname="Users &lt;API&gt;" name="GET List" time="0.012"></testcase>
+    <testcase classname="Users &lt;API&gt;/Admin" name="GET Get" time="0.008">
+      <system-out>GET http://api.test/users/1 → 200
+WARN $.nickname: Field added</system-out>
+    </testcase>
+    <testcase classname="Users &lt;API&gt;/Admin" name="POST Create" time="0.030">
+      <failure message="2 differences, 1/2 tests failed, vs “201 &amp; &quot;Created&quot;”" type="fail">POST http://api.test/users?key=•••••• → 500
+FAIL status: Status changed: 201 → 500
+FAIL $.id: Type changed: number → string
+TEST is 201: expected 500 to equal 201</failure>
+    </testcase>
+    <testcase classname="Users &lt;API&gt;" name="GET Ping" time="0.003">
+      <skipped message="No baseline example"/>
+    </testcase>
+    <testcase classname="Users &lt;API&gt;" name="GET Down" time="0.000">
+      <error message="connect ECONNREFUSED 127.0.0.1:1" type="error">GET http://127.0.0.1:1/</error>
+    </testcase>
+    <testcase classname="Users &lt;API&gt;" name="DELETE Later" time="0.000">
+      <skipped message="Skipped (stopped after the first failure)"/>
+    </testcase>
+  </testsuite>
+</testsuites>
+"
+`;
+
+exports[`reporters > pretty 1`] = `
+"Users <API> (collection · environment Staging) · 6 requests
+  ✓ GET    List 200 12 ms  vs “200 OK”
+  ! GET    Admin / Get 200 8 ms  1 warning, vs “200 OK”
+      $.nickname: Field added
+  ✗ POST   Admin / Create 500 30 ms  2 differences, 1/2 tests failed, vs “201 & "Created"”
+      status: Status changed: 201 → 500
+      $.id: Type changed: number → string
+      test “is 201”: expected 500 to equal 201
+  – GET    Ping 204 3 ms  No baseline example
+  ✗ GET    Down  error: connect ECONNREFUSED 127.0.0.1:1
+  · DELETE Later  skipped
+  1 passed, 1 with warnings, 1 failed, 1 errored, 1 not compared, 1 skipped in 1.3 s (stopped after the first failure)
+
+"
+`;

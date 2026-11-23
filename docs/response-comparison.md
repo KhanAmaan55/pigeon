@@ -136,7 +136,7 @@ All actions are undoable until Save for Commit by discarding the draft.
 - Scope: collection or folder (recursive), in explorer order; optional filter (only requests with baselines).
 - Environment: the currently selected one (can be changed in the run dialog).
 - Execution: sequential; stop-on-first-fail option; per-request timeout from settings.
-- Report (`RunReport`, local): per request: outcome, status, time, findings counts; totals; duration; environment; started/finished timestamps; transport. Exportable as JSON (and JUnit XML later with the CLI, PIGN-054).
+- Report (`RunReport`, local): per request: outcome, status, time, findings counts; totals; duration; environment; started/finished timestamps; transport. Exportable as JSON. In CI, `pigeon run` (PIGN-054, [cli.md](cli.md)) runs the same way from the committed files and reports as text, JSON or JUnit XML.
 - Reports are local state (last 20 kept). They are not committed.
 
 ## 8. Output shape and examples

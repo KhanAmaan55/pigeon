@@ -88,6 +88,13 @@ export type {
   RunTarget,
 } from './runner/runner';
 export { rememberRunReport, RUN_REPORTS_LIMIT, runRegression, runTargets } from './runner/runner';
+export type { CompareBody, ProjectExecutionOptions } from './runner/project-run';
+export {
+  applyScriptWrites,
+  compareProjectResult,
+  executeProjectRequest,
+  sendableRequest,
+} from './runner/project-run';
 export type {
   BodyComparisonInput,
   BodyComparisonSettings,

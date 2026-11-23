@@ -8,7 +8,6 @@
 import type {
   ComparisonOutcome,
   ConsoleEntry,
-  CurrentValueWrite,
   ExecutionResult,
   ProjectSession,
   RunEntry,
@@ -17,17 +16,13 @@ import type {
 } from '@pigeon/core';
 import {
   acceptedExamplePatch,
-  buildScopes,
-  createExecutionContext,
   DEFAULT_PREFERENCES,
+  executeProjectRequest,
   findContainer,
-  inheritedAuth,
   rememberRunReport,
   RequestExecutor,
   runRegression,
   runTargets,
-  scriptChain,
-  scriptsNotRun,
 } from '@pigeon/core';
 import type { Platform } from '@pigeon/platform';
 import { createStore } from 'zustand';
@@ -36,7 +31,7 @@ import type { ProjectStore } from '../../stores/project-store';
 import { compareRequestResult } from '../compare/compare-request';
 import type { ScratchRequestEnvironment } from '../request-editor/scratch-store';
 import { workerScriptRunner } from '../scripts/run-script';
-import { applyScriptWrites, getTabEditor, toEditorRequest } from '../tabs/editor-registry';
+import { getTabEditor, toEditorRequest } from '../tabs/editor-registry';
 import { RUNNER_TAB_ID } from './tab';
 
 export { RUNNER_TAB_ID } from './tab';
@@ -176,67 +171,28 @@ export function createRunnerStore(
         const secrets = new Map<string, readonly string[]>();
         const pageOrigin =
           platform.capabilities.transport === 'fetch' ? env.pageOrigin?.() : undefined;
-        // Pre-request scripts run in runs too (PIGN-043), with the same project switch.
-        const scriptOptions = (
-          requestId: string,
-          requestName: string,
-          working: ReturnType<typeof session.getWorkingModel>,
-        ) => {
-          const enabled = projectStore.getState().scriptsEnabled;
-          const scripts = enabled ? scriptChain(working, requestId, 'prerequest') : [];
-          const tests = enabled ? scriptChain(working, requestId, 'test') : [];
-          const callbacks = {
-            onWrites: (writes: CurrentValueWrite[]) => applyScriptWrites(session, writes),
-            onLogs: (entries: ConsoleEntry[]) => projectStore.getState().appendConsole(entries),
-          };
-          return {
-            skippedScripts: enabled ? [] : scriptsNotRun(working, requestId),
-            skippedScriptsReason: 'disabled' as const,
-            ...(tests.length > 0
-              ? { tests: { runner: workerScriptRunner, scripts: tests, requestName, ...callbacks } }
-              : {}),
-            ...(scripts.length > 0
-              ? {
-                  preRequest: {
-                    runner: workerScriptRunner,
-                    scripts,
-                    requestName,
-                    onWrites: (writes: CurrentValueWrite[]) => applyScriptWrites(session, writes),
-                    onLogs: (entries: ConsoleEntry[]) =>
-                      projectStore.getState().appendConsole(entries),
-                  },
-                }
-              : {}),
-          };
-        };
-        const execute = (target: RunTarget, signal: AbortSignal) => {
-          const working = session.getWorkingModel();
-          const request = session.findRequest(target.requestId)!;
-          const editorRequest = toEditorRequest(request);
-          const inherited = editorRequest.auth
-            ? undefined
-            : inheritedAuth(working, target.requestId).auth;
-          const ctx = createExecutionContext({
-            capabilities: platform.capabilities,
-            preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
-            ...(pageOrigin === undefined ? {} : { pageOrigin }),
-            projectFs: session.fs,
-            projectId: session.localKey || session.id,
-            scopes: buildScopes(working, {
+        // Pre-request and test scripts run in runs too (PIGN-043/044), with the same project
+        // switch; sending is the same code as the CLI (core `executeProjectRequest`).
+        const execute = (target: RunTarget, signal: AbortSignal) =>
+          executeProjectRequest(
+            session,
+            target.requestId,
+            {
+              executor,
+              capabilities: platform.capabilities,
+              preferences: { ...(env.preferences?.() ?? DEFAULT_PREFERENCES) },
+              ...(pageOrigin === undefined ? {} : { pageOrigin }),
               environmentId: environment?.id ?? null,
-              currentValues: (key) => session.currentValues(key),
-              itemId: target.requestId,
-            }),
-            ...(inherited === undefined ? {} : { inheritedAuth: inherited }),
-            ...scriptOptions(target.requestId, editorRequest.name, working),
-            cookies: { jar: session.cookieJar, onChange: () => session.saveCookies() },
-            oauth2: session.oauthTokens,
-          });
-          return executor.execute(editorRequest, ctx, {
-            signal,
-            onPrepared: (prepared) => secrets.set(target.requestId, prepared.meta.secretValues),
-          });
-        };
+              scripts: {
+                runner: workerScriptRunner,
+                enabled: projectStore.getState().scriptsEnabled,
+                onLogs: (entries: ConsoleEntry[]) => projectStore.getState().appendConsole(entries),
+              },
+              signal,
+              onPrepared: (prepared) => secrets.set(target.requestId, prepared.meta.secretValues),
+            },
+            toEditorRequest(session.findRequest(target.requestId)!),
+          );
         const generator = runRegression(
           targets,
           {
