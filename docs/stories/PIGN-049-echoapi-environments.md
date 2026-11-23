@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-049 | 9 — Later | Later | Todo | PIGN-030 |
+| PIGN-049 | 9 — Later | Later | Blocked | PIGN-030 |
 
 ## Goal
 Support importing Echo API environments — via Postman-format exports if that's what Echo API produces, otherwise via a dedicated importer built from real samples.
@@ -38,3 +38,14 @@ Fixture-based tests; detection matrix.
 
 ## Definition of done
 Standard DoD.
+
+## Status: Blocked (2026-11-23)
+The story's first step is blocking: it needs real Echo API export files, and none are available to
+the implementer (no Echo API account or sample exports in the repository, and the format is only an
+assumption in compatibility.md §B.3). Writing an importer against invented files would encode
+guesses as facts, which this story explicitly forbids ("If samples can't be obtained, stop and mark
+the story Blocked").
+
+**To unblock**: add at least three sanitized Echo API environment exports (different versions or
+options, Postman-format and native if both exist) to
+`packages/fixtures/echoapi/`, then set the status back to `Todo`.

@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-048 | 9 — Later | Later | Todo | PIGN-030 |
+| PIGN-048 | 9 — Later | Later | Blocked | PIGN-030 |
 
 ## Goal
 Import environments (and globals, if present) from Apidog exports, built strictly from real sample files.
@@ -40,3 +40,14 @@ Fixture-based snapshot tests; detection matrix across all fixtures.
 
 ## Definition of done
 Standard DoD.
+
+## Status: Blocked (2026-11-23)
+The story's first step is blocking: it needs real Apidog export files, and none are available to
+the implementer (no Apidog account or sample exports in the repository, and the format is only an
+assumption in compatibility.md §B.2). Writing an importer against invented files would encode
+guesses as facts, which this story explicitly forbids ("If samples can't be obtained, stop and mark
+the story Blocked").
+
+**To unblock**: add at least three sanitized Apidog environment exports (different versions or
+options, with several base URLs/services and secret-like variables) to
+`packages/fixtures/apidog/`, then set the status back to `Todo`.

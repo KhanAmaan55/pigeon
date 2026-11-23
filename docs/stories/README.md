@@ -4,7 +4,7 @@ Stories are small, ordered, vertical slices. Implement them **one at a time, in 
 
 ## How to work a story (for coding agents)
 
-1. **Pick** the lowest-numbered story with status `Todo` whose dependencies are `Done`.
+1. **Pick** the lowest-numbered story with status `Todo` whose dependencies are `Done` (`Blocked` stories say what they need).
 2. **Read** `docs/README.md`, the story file, and every doc section the story links. Don't re-derive requirements — the docs are the spec.
 3. **Plan** the change within the story's *Scope*. Anything under *Out of scope* stays out, even if tempting.
 4. **Implement** with tests (see [testing.md](../testing.md)). Keep package boundaries ([architecture.md §2](../architecture.md#2-repository-layout)).
@@ -76,8 +76,8 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-045](PIGN-045-cookie-jar.md) | Cookie jar & cookie manager | 9 Later | Later | 042 | Done |
 | [PIGN-046](PIGN-046-digest-awsv4-auth.md) | Digest & AWS SigV4 auth | 9 Later | Later | 042 | Done |
 | [PIGN-047](PIGN-047-oauth2.md) | OAuth 2.0 auth | 9 Later | Later | 046 | Done |
-| [PIGN-048](PIGN-048-apidog-environments.md) | Apidog environment import | 9 Later | Later | 030 | Todo |
-| [PIGN-049](PIGN-049-echoapi-environments.md) | Echo API environment import | 9 Later | Later | 030 | Todo |
+| [PIGN-048](PIGN-048-apidog-environments.md) | Apidog environment import | 9 Later | Later | 030 | Blocked |
+| [PIGN-049](PIGN-049-echoapi-environments.md) | Echo API environment import | 9 Later | Later | 030 | Blocked |
 | [PIGN-050](PIGN-050-curl-import-snippets.md) | cURL import & code snippets | 9 Later | Later | 042 | Todo |
 | [PIGN-051](PIGN-051-request-history.md) | Local request history | 9 Later | Later | 042 | Todo |
 | [PIGN-052](PIGN-052-web-cors-proxy.md) | Optional self-hosted CORS proxy (web) | 9 Later | Later | 039, 040 | Todo |
