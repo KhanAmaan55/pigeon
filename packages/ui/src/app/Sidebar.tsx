@@ -11,6 +11,7 @@ import { KeyboardSettings } from '../features/settings/Keyboard';
 import { ProjectComparisonSettings } from '../features/settings/ProjectComparisonSettings';
 import { RequestDefaults } from '../features/settings/RequestDefaults';
 import { ScriptSettings } from '../features/settings/ScriptSettings';
+import { SecretsSettings } from '../features/settings/SecretsSettings';
 import { useAppStore } from '../stores/AppStoreProvider';
 import type { SidebarView } from './views';
 import { SIDEBAR_VIEW_TITLES } from './views';
@@ -33,6 +34,7 @@ export function Sidebar({ view }: { view: SidebarView }) {
           <CorsProxySettings />
           <ExampleSettings />
           <ProjectComparisonSettings />
+          <SecretsSettings />
           <ScriptSettings />
           <KeyboardSettings />
           <Diagnostics />

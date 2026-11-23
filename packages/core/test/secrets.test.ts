@@ -150,3 +150,31 @@ describe('secret variables (PIGN-025)', () => {
     expect(a.session.localKey).not.toBe(b.session.localKey);
   });
 });
+
+describe('forgetting secrets (PIGN-053)', () => {
+  it('removes every secret current value and OAuth token of the project only', async () => {
+    const secrets = new MemorySecretStore();
+    const { session } = await project(secrets);
+    session.apply({
+      type: 'createEnvironment',
+      id: 'env',
+      name: 'Local',
+      values: [{ key: 'token', value: '', type: 'secret', enabled: true }],
+    });
+    session.setCurrentValue('env:env', 'token', 'super-secret-token');
+    session.oauthTokens.set('default', { accessToken: 'abc', tokenType: 'Bearer' } as never);
+    await secrets.set('other-project', 'globals\u0000k', 'keep');
+    let changes = 0;
+    session.onChange(() => changes++);
+
+    await session.forgetSecrets();
+
+    expect(session.currentValues('env:env')).toEqual({});
+    expect(session.oauthTokens.get('default')).toBeUndefined();
+    expect(await secrets.getAll(session.localKey)).toEqual({});
+    expect(await secrets.getAll('other-project')).toEqual({ 'globals\u0000k': 'keep' });
+    expect(changes).toBeGreaterThan(0);
+    expect(session.secretBackend).toBe('memory');
+    expect(session.secretStoreNotice).toBeUndefined();
+  });
+});

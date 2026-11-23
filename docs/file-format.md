@@ -286,7 +286,11 @@ Keying: local state is keyed by `projectId` from `pigeon.json`. If two folders h
 
 ## 7. Secrets
 
-- Variables of `type: "secret"`: current values are stored in `SecretStore`, never in `state.json` (desktop MVP uses a separate `secrets.json` with `0600` permissions; OS keychain in PIGN-053), never in project files, never in exported files (export writes the shared value only).
+- Variables of `type: "secret"`: current values (and OAuth 2.0 tokens, scope `oauth2`) are stored in `SecretStore`, never in `state.json`, never in project files, never in exported files (export writes the shared value only).
+- Desktop (PIGN-053): the OS credential store — macOS Keychain, Windows Credential Manager, Linux Secret Service — one entry per value: service `pigeon:<localKey>`, account `<scope>/<key>` (`%` and `/` escaped in the scope). The stores cannot list entries portably, so `<app-data>/projects/<localKey>/keychain.json` lists the account **names** (never values); a project's secrets are read in one batch when it opens. A `secrets.json` from before (or from the fallback) is moved into the keychain when the project opens and deleted only after every value reads back unchanged; repeating the move is harmless.
+- Fallback: when the credential store is unavailable (no Secret Service on Linux, a denied or broken keychain), values go to `<app-data>/projects/<localKey>/secrets.json` (`0600` on macOS/Linux) for the rest of the run; Settings → Secrets and Diagnostics say so and why.
+- Settings → Secrets → **Forget all secrets for this project** removes every keychain entry, the index and `secrets.json` of the project.
+- Web: IndexedDB (not encrypted at rest; the UI says so).
 - Auth fields (passwords, tokens) are just strings in request files. Users should reference variables (`{{token}}`). When a user types a literal value into a password/token field, the editor shows a hint: "This value will be committed. Use a secret variable instead?" with a one-click "Move to secret variable".
 - Logs, last-result storage, examples, and run reports mask resolved secret values (`••••`).
 

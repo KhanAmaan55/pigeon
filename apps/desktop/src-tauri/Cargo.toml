@@ -31,5 +31,16 @@ tauri-plugin-dialog = "2"
 # File watching for open projects (PIGN-020); events are hints, the webview verifies by hash.
 notify = { version = "8", default-features = false, features = ["macos_fsevent"] }
 
+# OS credential store for secret values (PIGN-053): macOS Keychain, Windows Credential Manager,
+# Linux Secret Service (pure-Rust zbus client, so no libdbus at build time).
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3.6", features = ["apple-native"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3.6", features = ["windows-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3.6", features = ["async-secret-service", "async-io", "crypto-rust"] }
+
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

@@ -108,5 +108,13 @@ describe('IdbSecretStore', () => {
     await secrets.delete('p1', 'env:a\u0000token');
     expect(await secrets.getAll('p1')).toEqual({});
     expect(secrets.backend).toBe('indexeddb');
+
+    // "Forget all secrets" (PIGN-053) clears one project only.
+    await secrets.set('p1', 'globals\u0000a', '1');
+    await secrets.set('p1', 'oauth2\u0000default', '{}');
+    await secrets.clear('p1');
+    expect(await secrets.getAll('p1')).toEqual({});
+    expect(await secrets.getAll('p2')).toEqual({ 'env:a\u0000token': 'other' });
+    expect(await state.get('project:p1', 'state')).toEqual({ x: 1 });
   });
 });

@@ -16,7 +16,7 @@ export const DESKTOP_CAPABILITIES: Readonly<Capabilities> = defineCapabilities({
   fileWatch: true,
   persistentFolderAccess: true,
   fileReferencesByPath: true,
-  secretStorage: 'local-state', // os-keychain with PIGN-053
+  secretStorage: 'os-keychain', // falls back to secrets.json when unavailable (PIGN-053)
   multiWindow: false, // later
   offline: true,
 });

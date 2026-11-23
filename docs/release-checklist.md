@@ -63,7 +63,8 @@ network** for items 3–8: Pigeon must work fully offline.
 | 8 | Menus: File (New Request, Open Project, Import, Export Project, Close Project), View (Toggle Sidebar, Toggle Response Layout), Help (Documentation, Web Limitations, About) | ☐ | ☐ | ☐ |
 | 9 | Dark mode follows the OS and the theme toggle | ☐ | ☐ | ☐ |
 | 10 | Window size and position are restored after a restart (and maximized stays maximized) | ☐ | ☐ | ☐ |
-| 11 | Uninstall (drag to Trash / Apps & features / `apt remove pigeon` or delete the AppImage) removes the app; the project folders are untouched | ☐ | ☐ | ☐ |
+| 11 | Secrets (PIGN-053): set a secret variable's current value, quit, start again — the value is back; it is in the native store (macOS Keychain Access / Windows Credential Manager → Generic credentials / Linux `secret-tool search service pigeon:<project id>` or Seahorse) under `pigeon:<project id>`, and no `secrets.json` exists in the app data. Settings → Secrets → Forget all secrets removes the entries. Linux without a Secret Service: Settings → Secrets shows the fallback notice and values still survive a restart. `cargo test keychain::tests::os_store_round_trip -- --ignored` passes | ☐ | ☐ | ☐ |
+| 12 | Uninstall (drag to Trash / Apps & features / `apt remove pigeon` or delete the AppImage) removes the app; the project folders are untouched | ☐ | ☐ | ☐ |
 
 Record the results (OS version, artifact, date, who) in the release notes or the story's
 implementation notes.
@@ -72,6 +73,8 @@ implementation notes.
 
 - App data: macOS `~/Library/Application Support/dev.pigeon.desktop/`, Windows
   `%APPDATA%\dev.pigeon.desktop\`, Linux `~/.local/share/dev.pigeon.desktop/` (`app.json`,
-  `window-state.json`, `project-roots.json`, per-project state and secrets). Uninstalling keeps it;
-  delete it by hand for a clean start.
+  `window-state.json`, `project-roots.json`, per-project state, history, `keychain.json` (secret
+  names only) and, without a keychain, `secrets.json`). Secret values live in the OS credential
+  store under `pigeon:<project id>`. Uninstalling keeps both;
+  delete the folder (and the `pigeon:` keychain entries) by hand for a clean start.
 - Logs: stderr when started from a terminal.

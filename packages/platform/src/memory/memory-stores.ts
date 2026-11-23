@@ -51,6 +51,10 @@ export class MemorySecretStore implements SecretStore {
   async delete(projectId: string, key: string): Promise<void> {
     this.#values.get(projectId)?.delete(key);
   }
+
+  async clear(projectId: string): Promise<void> {
+    this.#values.delete(projectId);
+  }
 }
 
 export type ShownDialog =

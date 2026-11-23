@@ -53,4 +53,10 @@ export class IdbSecretStore implements SecretStore {
       tx.objectStore('projects').delete(keyOf(projectId, key));
     });
   }
+
+  async clear(projectId: string): Promise<void> {
+    await transact(await this.#db(), 'projects', 'readwrite', (tx) => {
+      tx.objectStore('projects').delete(prefixRange(keyOf(projectId, '')));
+    });
+  }
 }

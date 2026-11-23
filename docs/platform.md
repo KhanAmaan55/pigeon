@@ -56,10 +56,13 @@ interface AppStateStore {             // key/value JSON documents, namespaced
 }
 
 interface SecretStore {
+  getAll(projectId: string): Promise<Record<string, string>>;   // one batch at project open
   get(projectId: string, key: string): Promise<string | undefined>;
   set(projectId: string, key: string, value: string): Promise<void>;
   delete(projectId: string, key: string): Promise<void>;
-  readonly backend: 'os-keychain' | 'local-state' | 'indexeddb' | 'memory';
+  clear(projectId: string): Promise<void>;                      // "Forget all secrets" (PIGN-053)
+  readonly backend: 'os-keychain' | 'local-state' | 'indexeddb' | 'memory'; // current, after any fallback
+  readonly notice?: string;                                     // why the preferred backend is not in use
 }
 
 interface HistoryStore {               // request history (PIGN-051), per project local key
@@ -153,7 +156,7 @@ interface Capabilities {
 | fileWatch | ✅ (notify) | ✅ | ✅ (inotify) | ❌ (refresh on focus) | ❌ | ❌ |
 | persistentFolderAccess | ✅ (persisted scope) | ✅ | ✅ | ⚠️ re-prompt per session unless browser grants persistent permission | n/a | n/a |
 | fileReferencesByPath | ✅ | ✅ | ✅ | ⚠️ only files inside the opened project folder | ❌ re-pick | ❌ re-pick |
-| secretStorage | local-state (MVP) → os-keychain (PIGN-053) | same | same (Secret Service) | indexeddb | indexeddb | indexeddb |
+| secretStorage | os-keychain (Keychain) | os-keychain (Credential Manager) | os-keychain (Secret Service; local-state fallback) | indexeddb | indexeddb | indexeddb |
 | multiWindow | later | later | later | browser tabs | browser tabs | browser tabs |
 | offline | ✅ full | ✅ full | ✅ full | ⚠️ app must be loaded; PWA future | ⚠️ | ⚠️ |
 
@@ -169,6 +172,8 @@ All three OSes use the same `platform-desktop` package and the same Rust code:
 - **Scope**: a folder becomes reachable only after the user picked or created it; Rust stores these roots in `<app-data>/project-roots.json`, so recent projects reopen without re-picking (`project_reopen`), and checks the root and path of every call (D-15).
 - **AppState**: JSON files under `appDataDir()` (see [file-format.md §6](file-format.md#6-local-app-state)).
 - **Watch**: Rust `notify` watcher (`project_watch`, `src-tauri/src/watch.rs`; recursive, debounced 250 ms) → `project-fs-change` events → `FsChangeEvent[]`; the session verifies by hash.
+- **Secrets** (PIGN-053): `KeychainSecretStore` over Rust `keychain_status/get_all/set/delete/clear` (`src-tauri/src/keychain.rs`, `keyring` crate behind a `KeyStore` trait; an in-memory store in tests and `--smoke` runs). The availability probe runs once per launch; any keychain error switches to `FileSecretStore` (`secrets.json`) for the rest of the run, with the reason in Settings → Secrets and Diagnostics. Capability `secretStorage` is `os-keychain`; `platform.secrets.backend` reports what is in use now. Storage layout, migration and "Forget all secrets": [file-format.md §7](file-format.md#7-secrets).
+- **Keychain prompts**: on macOS an unsigned build is a different app to the Keychain after every rebuild, so reading entries written by an earlier build asks "Pigeon wants to use your confidential information" (choose *Always Allow*). Signed releases (D-11) keep one identity and do not ask again.
 
 ### 5.2 macOS
 - WebView: WKWebView (WebKit). UI must be tested in WebKit (Playwright WebKit covers most rendering issues).

@@ -6,6 +6,7 @@ mod data_dir;
 mod files;
 mod history;
 mod http;
+mod keychain;
 mod menu;
 mod oauth;
 mod project_fs;
@@ -57,6 +58,12 @@ fn main() {
             app_state::app_state_backup,
             app_state::secrets_read,
             app_state::secrets_write,
+            keychain::secrets_remove,
+            keychain::keychain_status,
+            keychain::keychain_get_all,
+            keychain::keychain_set,
+            keychain::keychain_delete,
+            keychain::keychain_clear,
             oauth::oauth_begin,
             oauth::oauth_complete,
             history::history_append,
@@ -88,6 +95,12 @@ fn main() {
             app_state::app_state_backup,
             app_state::secrets_read,
             app_state::secrets_write,
+            keychain::secrets_remove,
+            keychain::keychain_status,
+            keychain::keychain_get_all,
+            keychain::keychain_set,
+            keychain::keychain_delete,
+            keychain::keychain_clear,
             oauth::oauth_begin,
             oauth::oauth_complete,
             history::history_append,

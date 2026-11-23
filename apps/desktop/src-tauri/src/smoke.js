@@ -213,6 +213,24 @@
     }
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await waitFor('history entry closed', () => !find('history-entry'));
+    // OS keychain secrets (PIGN-053): the OAuth token went through the keychain commands (an
+    // in-memory credential store in smoke runs), and Settings → Secrets names the keychain.
+    await invoke('keychain_status', {});
+    const kept = await waitFor('token in keychain', async () => {
+      const all = await invoke('keychain_get_all', { projectId: 'smoke-project' });
+      return Object.keys(all).some((account) => account.startsWith('oauth2/')) ? all : null;
+    });
+    if (!Object.values(kept).some((value) => value.includes('smoke-token'))) {
+      throw new Error('the OAuth token is not in the keychain');
+    }
+    document.querySelector('[data-testid="activity-settings"]').click();
+    const backend = await waitFor('secrets settings', () => find('secrets-backend'));
+    if (
+      !/Keychain|Credential Manager|Secret Service/.test(backend.textContent) ||
+      find('secrets-notice')
+    ) {
+      throw new Error(`secrets are not in the keychain: ${backend.textContent}`);
+    }
     document.querySelector('[data-testid="activity-collections"]').click();
     await delay(100);
     setValue(url, `${PROBE_URL}/edited`);

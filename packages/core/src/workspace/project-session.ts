@@ -251,6 +251,21 @@ export class ProjectSession {
     return this.#secretStore?.backend;
   }
 
+  /** Why the preferred secret backend is not in use (keychain fallback, PIGN-053). */
+  get secretStoreNotice(): string | undefined {
+    return this.#secretStore?.notice;
+  }
+
+  /**
+   * "Forget all secrets for this project" (PIGN-053): every secret current value and OAuth token
+   * of this project, from memory and from the secret store (keychain entries included).
+   */
+  async forgetSecrets(): Promise<void> {
+    this.#secretValues.clear();
+    this.#emit();
+    await this.#secretStore?.clear(this.localKey);
+  }
+
   /** Key of this project's local state (and transport pool): the id, or `<id>@<hash>`. */
   localKey = '';
 
