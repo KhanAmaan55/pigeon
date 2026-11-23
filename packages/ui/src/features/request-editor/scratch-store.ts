@@ -17,6 +17,7 @@ import type {
   KeyValue,
   Request,
   RequestSettings,
+  ProjectHistory,
   ScriptRunner,
   ScriptSource,
   SkippedScriptsReason,
@@ -29,6 +30,7 @@ import {
   acceptedExamplePatch,
   emptyBody,
   exampleFromResponse,
+  historyEntryFromResult,
   requestFromCurl,
   RequestExecutor,
   syncQueryIntoRaw,
@@ -81,6 +83,12 @@ export interface RequestBinding {
   oauth2?: () => OAuthTokenStore;
   /** The project's cookie jar (PIGN-045) and how to save it after a response changed it. */
   cookies?: () => { jar: CookieJar; onChange: () => void };
+  /** Where sends are recorded (PIGN-051); `null` when the project keeps no history. */
+  history?: () => {
+    history: ProjectHistory;
+    requestName: string;
+    environment?: { id: string; name: string };
+  } | null;
   /** Test scripts to run after the response (PIGN-044), `null` when none run. */
   tests?: () => { scripts: ScriptSource[]; requestName: string } | null;
   onScriptWrites?: (writes: CurrentValueWrite[]) => void;
@@ -201,6 +209,8 @@ export interface ScratchRequestEnvironment {
   autoCompare?: () => boolean;
   /** Runs pre-request scripts (PIGN-043); the Worker-based runner by default. */
   scriptRunner?: ScriptRunner;
+  /** Record sends in the project's history (PIGN-051, default on). */
+  recordHistory?: () => boolean;
 }
 
 export function createScratchRequestStore(
@@ -413,7 +423,8 @@ export function createScratchRequestStore(
             : {}),
         });
         let secrets: readonly string[] = [];
-        const result = await executor.execute(get().request, ctx, {
+        const sent = get().request;
+        const result = await executor.execute(sent, ctx, {
           signal: controller.signal,
           onPrepared: (prepared) => (secrets = prepared.meta.secretValues),
         });
@@ -421,7 +432,32 @@ export function createScratchRequestStore(
         inFlight = null;
         lastSecrets = secrets;
         set({ status: 'idle', result, comparison: null });
-        if (env.autoCompare?.() !== false) void get().compare?.();
+        const compared = env.autoCompare?.() !== false ? get().compare?.() : undefined;
+        void compared?.catch(() => undefined);
+        // History (PIGN-051): recorded after the comparison, off the send path.
+        const target = env.recordHistory?.() === false ? null : binding?.history?.();
+        if (target) {
+          void (async () => {
+            await compared?.catch(() => undefined);
+            const comparison = get().comparison;
+            const outcome =
+              comparison?.status === 'done' && get().result === result
+                ? comparison.outcome.kind === 'compared'
+                  ? comparison.outcome.result.outcome
+                  : comparison.outcome.kind === 'no-baseline'
+                    ? ('no-baseline' as const)
+                    : undefined
+                : undefined;
+            const entry = historyEntryFromResult(result, {
+              secretValues: secrets,
+              requestName: target.requestName,
+              source: sent,
+              ...(target.environment ? { environment: target.environment } : {}),
+              ...(outcome ? { comparison: outcome } : {}),
+            });
+            if (entry) target.history.record(entry);
+          })();
+        }
       },
       cancel: () => {
         inFlight?.abort(new DOMException('The request was cancelled.', 'AbortError'));

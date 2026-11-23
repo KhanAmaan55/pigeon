@@ -40,6 +40,8 @@ export type {
 } from './transport';
 export { TransportError } from './transport';
 export type { OAuthBrowser, OAuthRedirect } from './oauth';
+export type { HistoryRecord, HistoryStore } from './history';
+export { MemoryHistoryStore } from './history';
 
 export { MemoryFs } from './memory/memory-fs';
 export type { MemoryPlatform, MemoryServices } from './memory/memory-platform';

@@ -1,4 +1,4 @@
-import { FolderTree, GitCompareArrows, Play, Settings, Variable } from 'lucide-react';
+import { FolderTree, GitCompareArrows, History, Play, Settings, Variable } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { IconButton } from '../components/IconButton';
@@ -11,6 +11,7 @@ const ICON_SIZE = 18;
 const PRIMARY_VIEWS: Array<{ view: SidebarView; icon: ReactNode }> = [
   { view: 'collections', icon: <FolderTree size={ICON_SIZE} /> },
   { view: 'environments', icon: <Variable size={ICON_SIZE} /> },
+  { view: 'history', icon: <History size={ICON_SIZE} /> },
   { view: 'pending', icon: <GitCompareArrows size={ICON_SIZE} /> },
   { view: 'runner', icon: <Play size={ICON_SIZE} /> },
 ];

@@ -17,6 +17,9 @@ export interface PreferencesState {
   /** Compare every response with its baseline example after a send (PIGN-034). */
   autoCompare: boolean;
   setAutoCompare: (autoCompare: boolean) => void;
+  /** Keep a local history of sends per project (PIGN-051). */
+  recordHistory: boolean;
+  setRecordHistory: (recordHistory: boolean) => void;
 }
 
 export type PreferencesStore = ReturnType<typeof createPreferencesStore>;
@@ -29,6 +32,8 @@ export function createPreferencesStore(initial: Partial<ExecutionPreferences> = 
     setVolatileHeaders: (volatileHeaders) => set({ volatileHeaders }),
     autoCompare: true,
     setAutoCompare: (autoCompare) => set({ autoCompare }),
+    recordHistory: true,
+    setRecordHistory: (recordHistory) => set({ recordHistory }),
   }));
 }
 

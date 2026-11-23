@@ -23,6 +23,7 @@ import {
 } from '@pigeon/formats';
 import type {
   AppStateStore,
+  HistoryStore,
   SecretStore,
   Platform,
   ProjectFileSystem,
@@ -30,6 +31,7 @@ import type {
   ProjectPath,
 } from '@pigeon/platform';
 
+import { ProjectHistory } from '../history/history';
 import type { EditCommand } from './commands';
 import type { CommitPlan, DiskState } from './commit-planner';
 import { planCommit } from './commit-planner';
@@ -203,6 +205,8 @@ export class ProjectSession {
       localKey?: (projectId: string) => string | Promise<string>;
       /** Where secret current values live (PIGN-025); never local state or files. */
       secrets?: SecretStore;
+      /** Local request history (PIGN-051), kept under the same local key. */
+      history?: HistoryStore;
     } = {},
   ): Promise<ProjectSession> {
     const read = await readProject(fs);
@@ -214,6 +218,7 @@ export class ProjectSession {
     const session = new ProjectSession(fs.root, fs, read, local);
     session.localKey = localKey;
     if (persistable && opts.secrets) await session.#loadSecrets(opts.secrets);
+    if (persistable && opts.history) session.history = new ProjectHistory(opts.history, localKey);
     return session;
   }
 
@@ -248,6 +253,9 @@ export class ProjectSession {
 
   /** Key of this project's local state (and transport pool): the id, or `<id>@<hash>`. */
   localKey = '';
+
+  /** This project's request history (PIGN-051); `null` without local state (read-only, tests). */
+  history: ProjectHistory | null = null;
 
   #loadDrafts(drafts: readonly Draft[]): void {
     const { model, stale } = applyDrafts(this.#read.model, drafts);

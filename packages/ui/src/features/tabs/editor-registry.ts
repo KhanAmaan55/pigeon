@@ -98,6 +98,16 @@ export function getTabEditor(
       skippedScriptsReason: () => 'disabled',
       cookies: () => ({ jar: session.cookieJar, onChange: () => session.saveCookies() }),
       oauth2: () => session.oauthTokens,
+      history: () => {
+        if (!session.history) return null;
+        const environmentId = session.selectedEnvironmentId;
+        const environment = environmentId ? session.findEnvironment(environmentId) : undefined;
+        return {
+          history: session.history,
+          requestName: session.findRequest(requestId)?.name ?? '',
+          ...(environment ? { environment: { id: environment.id, name: environment.name } } : {}),
+        };
+      },
       tests: () => {
         if (!projectStore.getState().scriptsEnabled) return null;
         const scripts = scriptChain(session.getWorkingModel(), requestId, 'test');

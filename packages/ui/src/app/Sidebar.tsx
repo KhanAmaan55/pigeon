@@ -1,5 +1,6 @@
 import { EnvironmentsView } from '../features/environments/EnvironmentsView';
 import { Explorer } from '../features/explorer/Explorer';
+import { HistoryView } from '../features/history/HistoryView';
 import { PendingChanges } from '../features/pending-changes/PendingChanges';
 import { RunnerSidebar } from '../features/runner/Runner';
 import { Welcome } from '../features/projects/Welcome';
@@ -36,6 +37,8 @@ export function Sidebar({ view }: { view: SidebarView }) {
         </div>
       ) : view === 'environments' ? (
         <EnvironmentsView />
+      ) : view === 'history' ? (
+        <HistoryView />
       ) : view === 'runner' ? (
         <RunnerSidebar />
       ) : view === 'pending' ? (

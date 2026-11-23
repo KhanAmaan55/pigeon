@@ -1,3 +1,4 @@
+import { MemoryHistoryStore } from '../history';
 import type { Capabilities } from '../capabilities';
 import { defineCapabilities } from '../capabilities';
 import type { ProjectFileSystem, ProjectLocation } from '../fs';
@@ -57,6 +58,7 @@ export interface MemoryServices {
   openProjectFs(loc: ProjectLocation): Promise<ProjectFileSystem>;
   readonly appState: MemoryAppState;
   readonly secrets: MemorySecretStore;
+  readonly history: MemoryHistoryStore;
   readonly dialogs: MemoryDialogs;
   readonly files: MemoryFileExchange;
 }
@@ -68,6 +70,7 @@ export function createMemoryServices(): MemoryServices {
     openProjectFs: (loc) => projects.open(loc),
     appState: new MemoryAppState(),
     secrets: new MemorySecretStore(),
+    history: new MemoryHistoryStore(),
     dialogs: new MemoryDialogs(),
     files: new MemoryFileExchange(),
   };

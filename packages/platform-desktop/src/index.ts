@@ -7,6 +7,7 @@ import { DESKTOP_CAPABILITIES } from './capabilities';
 import { DesktopFileExchange } from './files';
 import { NativeTransport } from './native-transport';
 import { DesktopProjectLocator } from './project-locator';
+import { FileHistoryStore } from './history-store';
 import { FileSecretStore } from './secrets';
 import { createDesktopOAuth } from './oauth';
 
@@ -17,6 +18,7 @@ export type { Invoke, NativeTransportOptions, WireBody, WireFileRef } from './na
 export { decodeResponseFrame, encodeRequestFrame, NativeTransport } from './native-transport';
 export { fromNativePath, isWindowsPath, nativeBaseName, toNativePath } from './paths';
 export { DesktopProjectLocator } from './project-locator';
+export { FileHistoryStore } from './history-store';
 export { FileSecretStore } from './secrets';
 export type { Listen } from './tauri-fs';
 export { encodeWriteFrame, TauriFs, toFsError } from './tauri-fs';
@@ -58,6 +60,7 @@ export function createDesktopPlatform(os: OperatingSystem = detectDesktopOs()): 
     openProjectFs: async (loc) => projects.open(loc),
     appState: new FileAppState(),
     secrets: new FileSecretStore(),
+    history: new FileHistoryStore(),
     files: new DesktopFileExchange(),
     oauth: createDesktopOAuth(),
   };

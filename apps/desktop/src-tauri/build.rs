@@ -26,6 +26,11 @@ fn main() {
             "secrets_write",
             "oauth_begin",
             "oauth_complete",
+            "history_append",
+            "history_list",
+            "history_get",
+            "history_remove",
+            "history_clear",
         ]),
     ))
     .expect("failed to run tauri-build");

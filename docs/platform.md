@@ -62,6 +62,14 @@ interface SecretStore {
   readonly backend: 'os-keychain' | 'local-state' | 'indexeddb' | 'memory';
 }
 
+interface HistoryStore {               // request history (PIGN-051), per project local key
+  append(projectKey: string, records: { id: string; summary: unknown; entry: unknown }[]): Promise<void>;
+  list(projectKey: string): Promise<unknown[]>;   // summaries, oldest first
+  get(projectKey: string, id: string): Promise<unknown>;
+  remove(projectKey: string, ids: string[]): Promise<void>;
+  clear(projectKey: string): Promise<void>;
+}   // desktop: app-data files (history.rs); web: IndexedDB; memory for tests
+
 interface FileExchange {
   pickFiles(opts: { accept: string[]; multiple?: boolean }): Promise<PickedFile[]>; // name + bytes
   saveFile(suggestedName: string, data: Uint8Array | string, mime: string): Promise<'saved' | 'cancelled'>;

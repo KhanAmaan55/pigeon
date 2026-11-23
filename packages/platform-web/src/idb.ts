@@ -1,11 +1,20 @@
 /**
  * The `pigeon` IndexedDB database (docs/file-format.md §6): `app` and `projects` (local app
- * state), `handles` (persisted folder handles), `workspaces` and `blobs` (browser workspaces).
+ * state), `handles` (persisted folder handles), `workspaces` and `blobs` (browser workspaces),
+ * `history` and `historyIndex` (request history, PIGN-051; added in version 2).
  */
 
 export const DB_NAME = 'pigeon';
-const DB_VERSION = 1;
-export const STORES = ['app', 'projects', 'handles', 'workspaces', 'blobs'] as const;
+const DB_VERSION = 2;
+export const STORES = [
+  'app',
+  'projects',
+  'handles',
+  'workspaces',
+  'blobs',
+  'history',
+  'historyIndex',
+] as const;
 export type StoreName = (typeof STORES)[number];
 
 export function openPigeonDb(

@@ -114,7 +114,7 @@ export type AppStore = ReturnType<typeof createAppStore>;
 const IMPORT_ACCEPT = ['.json', 'application/json', '.txt', '.sh', '.curl', 'text/plain'];
 
 type AppPlatform = Pick<Platform, 'projects' | 'openProjectFs' | 'appState'> &
-  Partial<Pick<Platform, 'files' | 'capabilities' | 'secrets'>>;
+  Partial<Pick<Platform, 'files' | 'capabilities' | 'secrets' | 'history'>>;
 
 export function createAppStore(platform: AppPlatform) {
   return createStore<AppState>()((set, get) => {
@@ -228,6 +228,7 @@ export function createAppStore(platform: AppPlatform) {
       const session = await ProjectSession.fromFs(fs, {
         appState: platform.appState,
         ...(platform.secrets ? { secrets: platform.secrets } : {}),
+        ...(platform.history ? { history: platform.history } : {}),
         localKey: async (projectId) => {
           const resolved = await resolveLocalKey(projectId, fs.root);
           duplicateOf = resolved.duplicateOf;

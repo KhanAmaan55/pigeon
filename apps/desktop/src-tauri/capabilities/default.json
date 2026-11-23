@@ -27,6 +27,11 @@
     "allow-secrets-read",
     "allow-secrets-write",
     "allow-oauth-begin",
-    "allow-oauth-complete"
+    "allow-oauth-complete",
+    "allow-history-append",
+    "allow-history-list",
+    "allow-history-get",
+    "allow-history-remove",
+    "allow-history-clear"
   ]
 }

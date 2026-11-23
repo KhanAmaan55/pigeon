@@ -19,6 +19,7 @@ export function useEditorEnvironment(): ScratchRequestEnvironment {
   return {
     preferences: () => preferences?.getState().execution,
     autoCompare: () => preferences?.getState().autoCompare ?? true,
+    recordHistory: () => preferences?.getState().recordHistory ?? true,
     // An https page cannot call http APIs; core tells that apart from CORS by the origin.
     pageOrigin: () => globalThis.location?.origin,
   };

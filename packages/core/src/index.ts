@@ -315,3 +315,19 @@ export type {
 export { createExecutionContext, DEFAULT_PREFERENCES } from './execution/types';
 
 export { PIGEON_VERSION } from './version';
+export type {
+  HistoryComparison,
+  HistoryEntry,
+  HistoryEntryOptions,
+  HistoryFilter,
+  HistoryLimits,
+  HistorySummary,
+} from './history/history';
+export {
+  filterHistory,
+  groupHistoryByDay,
+  HISTORY_LIMITS,
+  historyEntryFromResult,
+  historySummary,
+  ProjectHistory,
+} from './history/history';

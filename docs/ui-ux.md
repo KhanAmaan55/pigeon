@@ -30,7 +30,7 @@ Implementation: `packages/ui`. Stack: React, Zustand, CodeMirror 6, Tailwind, Ra
 │ ● Native transport · Watching files · 3 pending changes · macOS                │ ← status bar
 └────────────────────────────────────────────────────────────────────────────────┘
 ```
-Activity bar (left icons): Collections, Environments, Pending Changes, Runner, Settings. Response panel can dock bottom or right (toggle, remembered per project).
+Activity bar (left icons): Collections, Environments, History, Pending Changes, Runner, Settings. Response panel can dock bottom or right (toggle, remembered per project).
 
 ## 3. Screens and workflows
 
@@ -97,6 +97,11 @@ Activity bar (left icons): Collections, Environments, Pending Changes, Runner, S
 - Import (`Cmd/Ctrl+O` or drag & drop anywhere): detects format → preview dialog: detected format + version, target (new collection / merge into existing — MVP: new only), counts (folders, requests, examples, environments), warnings (unsupported auth, scripts not executed, absolute file paths), id regenerations; options (use imported values as current values for envs); buttons **Import & write files** (default) / **Import as local drafts**.
 - Export: from collection/environment context menu → options (include examples, include Pigeon metadata) → save dialog / download.
 - Web browser-workspace: **Export project (.zip)** and **Import project (.zip)** in project menu and welcome screen.
+
+### 3.9.1 History (PIGN-051)
+- Activity bar **History**: this project's sends, newest first, grouped by day (Today, Yesterday, dates); filter by URL/name text, method and status class (2xx…5xx, no response); each row shows method, URL, status, time and request name.
+- Clicking an entry opens it read-only: the request as sent (secrets `••••••`), the response (status, headers, body up to 256 KB) and warnings; **Open as new request** (into the selected collection or folder) and **Restore into request** (replaces the original request's definition, unsaved) use the definition saved with the entry, `{{variables}}` kept; masked literal secrets are flagged for re-entry.
+- **Record sends** (preference, on by default) and **Clear history** (with confirmation). History stays on this machine, never in the project folder.
 
 ### 3.10 Runner (PIGN-038)
 - Run dialog: scope, environment, stop on first failure, only requests with baselines.

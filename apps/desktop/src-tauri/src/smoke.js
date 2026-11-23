@@ -50,7 +50,7 @@
     };
     const waitFor = async (what, check) => {
       for (let attempt = 0; attempt < 50; attempt++) {
-        const found = check();
+        const found = await check();
         if (found) return found;
         await delay(100);
       }
@@ -191,6 +191,30 @@
     if (!withToken.includes('authorization: bearer smoke-token')) {
       throw new Error(`OAuth token not sent: ${withToken.join(' | ')}`);
     }
+    // Local history (PIGN-051): the sends above went to app data through the history commands,
+    // with the OAuth token masked.
+    const stored = await waitFor('history on disk', async () => {
+      const list = await invoke('history_list', { projectKey: 'smoke-project' });
+      return list.length >= 4 ? list : null;
+    });
+    if (!stored.some((summary) => summary.url === `${PROBE_URL}/oauth-check`)) {
+      throw new Error(`history misses the last send: ${JSON.stringify(stored).slice(0, 300)}`);
+    }
+    document.querySelector('[data-testid="activity-history"]').click();
+    const oauthEntry = await waitFor('history item', () =>
+      [...document.querySelectorAll('[data-testid="history-item"]')].find((row) =>
+        row.textContent.includes('/oauth-check'),
+      ),
+    );
+    oauthEntry.click();
+    const sentHeaders = await waitFor('history entry', () => find('history-entry-request-headers'));
+    if (sentHeaders.textContent.includes('smoke-token')) {
+      throw new Error('the OAuth token was stored unmasked in history');
+    }
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await waitFor('history entry closed', () => !find('history-entry'));
+    document.querySelector('[data-testid="activity-collections"]').click();
+    await delay(100);
     setValue(url, `${PROBE_URL}/edited`);
     await delay(100);
     const mac = navigator.userAgent.includes('Mac');

@@ -4,6 +4,7 @@
 mod app_state;
 mod data_dir;
 mod files;
+mod history;
 mod http;
 mod menu;
 mod oauth;
@@ -58,6 +59,11 @@ fn main() {
             app_state::secrets_write,
             oauth::oauth_begin,
             oauth::oauth_complete,
+            history::history_append,
+            history::history_list,
+            history::history_get,
+            history::history_remove,
+            history::history_clear,
             smoke::smoke_report
         ])
     } else {
@@ -83,7 +89,12 @@ fn main() {
             app_state::secrets_read,
             app_state::secrets_write,
             oauth::oauth_begin,
-            oauth::oauth_complete
+            oauth::oauth_complete,
+            history::history_append,
+            history::history_list,
+            history::history_get,
+            history::history_remove,
+            history::history_clear
         ])
     };
 

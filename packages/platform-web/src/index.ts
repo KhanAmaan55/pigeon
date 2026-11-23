@@ -6,6 +6,7 @@ import { WebFileExchange } from './files';
 import { openPigeonDb } from './idb';
 import { IdbAppState } from './idb-app-state';
 import { WebProjectLocator } from './project-locator';
+import { IdbHistoryStore } from './history-store';
 import { IdbSecretStore } from './secrets';
 import { createWebOAuth } from './oauth';
 
@@ -16,6 +17,7 @@ export { WebFileExchange } from './files';
 export { FsAccessFs } from './fs-access-fs';
 export { DB_NAME, openPigeonDb } from './idb';
 export { IdbAppState } from './idb-app-state';
+export { IdbHistoryStore } from './history-store';
 export type { WorkspaceRecord } from './idb-fs';
 export { deleteWorkspace, IdbFs } from './idb-fs';
 export type { HandleRecord, HandleStore, WebProjectLocatorOptions } from './project-locator';
@@ -104,6 +106,7 @@ export function createWebPlatform(): Platform {
     openProjectFs: (loc) => projects.open(loc),
     appState: new IdbAppState(getDb),
     secrets: new IdbSecretStore(getDb),
+    history: new IdbHistoryStore(getDb),
   };
 }
 export { callbackUrl, createWebOAuth } from './oauth';

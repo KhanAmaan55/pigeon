@@ -264,7 +264,7 @@ Local state never lives inside the project folder.
 | macOS | `~/Library/Application Support/<app-id>/` |
 | Windows | `%APPDATA%\<app-id>\` |
 | Linux | `$XDG_DATA_HOME/<app-id>/` (default `~/.local/share/<app-id>/`) |
-| Web | IndexedDB database `pigeon` (object stores: `app`, `projects`, `handles`, `workspaces`, `blobs`) |
+| Web | IndexedDB database `pigeon` (object stores: `app`, `projects`, `handles`, `workspaces`, `blobs`; `history`, `historyIndex` since version 2) |
 
 Desktop layout:
 ```text
@@ -272,8 +272,12 @@ Desktop layout:
   app.json                               # AppState
   projects/<projectId>/state.json        # LocalProjectState (drafts, tabs, current values, ...)
   projects/<projectId>/results/<requestId>.json   # last response per request (bounded)
+  projects/<projectId>/history/index.jsonl        # request history summaries, one line each (PIGN-051)
+  projects/<projectId>/history/entries/<id>.json  # one full history entry each
   logs/pigeon.log
 ```
+
+Request history (PIGN-051): every send of a project request — the request as sent and as defined, the response, environment, timing, size and comparison outcome — with secret values and auth credentials masked (`••••••`). Response bodies are kept up to 256 KB each (binary as base64); a project keeps the last 1,000 entries or 100 MB, the oldest evicted first. Writes are batched off the send path; `index.jsonl` is only appended to except when entries are evicted, removed or cleared (then rewritten atomically), and a torn last line is skipped. On the web the same data lives in the `history` (entries) and `historyIndex` (summaries with an append sequence) stores, keyed `<localKey>/<entryId>`. Results with a secret too short to mask, and cancelled sends, are never recorded. Recording can be turned off (preference `recordHistory`), and history is cleared per project from the History view.
 Run reports (last 20) are part of `state.json` (`runReports`, data-model.md §7.3): they hold counts, not findings, so they stay small.
 
 Limits (defaults): last-response bodies stored up to 1 MB each, 50 MB per project on desktop, 20 MB on web; older entries evicted LRU. State files have `schemaVersion` and are migrated forward; unreadable state is backed up (`state.json.bak-<ts>`) and reset — project files are unaffected.

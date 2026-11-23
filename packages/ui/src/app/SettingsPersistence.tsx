@@ -16,6 +16,7 @@ export interface StoredPreferences {
   /** Only stored once changed from the defaults (so new defaults reach everyone else). */
   volatileHeaders?: string[];
   autoCompare?: boolean;
+  recordHistory?: boolean;
 }
 
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
@@ -42,6 +43,9 @@ export function SettingsPersistence() {
         if (typeof stored?.autoCompare === 'boolean' && preferences) {
           preferences.getState().setAutoCompare(stored.autoCompare);
         }
+        if (typeof stored?.recordHistory === 'boolean' && preferences) {
+          preferences.getState().setRecordHistory(stored.recordHistory);
+        }
         if (Array.isArray(stored?.volatileHeaders) && preferences) {
           preferences
             .getState()
@@ -63,11 +67,13 @@ export function SettingsPersistence() {
       const execution = preferences?.getState().execution;
       const volatileHeaders = preferences?.getState().volatileHeaders;
       const autoCompare = preferences?.getState().autoCompare;
+      const recordHistory = preferences?.getState().recordHistory;
       void appState
         .set<StoredPreferences>('app', PREFERENCES_KEY, {
           theme: preference,
           ...(execution ? { execution } : {}),
           ...(autoCompare === false ? { autoCompare } : {}),
+          ...(recordHistory === false ? { recordHistory } : {}),
           ...(volatileHeaders && volatileHeaders !== DEFAULT_VOLATILE_HEADERS
             ? { volatileHeaders: [...volatileHeaders] }
             : {}),
