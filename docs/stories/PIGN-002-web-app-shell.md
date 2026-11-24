@@ -2,7 +2,7 @@
 
 | Story ID | Phase | Tier | Status | Dependencies |
 |---|---|---|---|---|
-| PIGN-002 | 0 — Foundation | MVP | In review (CI pending) | PIGN-001 |
+| PIGN-002 | 0 — Foundation | MVP | Done | PIGN-001 |
 
 ## Goal
 A running web app (`apps/web`) rendering the Pigeon layout from `packages/ui` with placeholder panels, themes, and a Playwright smoke test.
@@ -29,7 +29,7 @@ As a developer, I want to open Pigeon in my browser and see the app layout, so t
 - [x] `pnpm --filter @pigeon/web dev` shows the layout; `build` produces a static `dist/`.
 - [x] Layout matches the regions in ui-ux.md §2; sidebar and response split are resizable.
 - [x] Theme toggle switches light/dark; default follows OS.
-- [x] `pnpm test:e2e` passes in Chromium, Firefox, WebKit (smoke: shell regions visible via `data-testid`). *(Locally on macOS; CI `e2e-web` on Ubuntu pending.)*
+- [x] `pnpm test:e2e` passes in Chromium, Firefox, WebKit (smoke: shell regions visible via `data-testid`). *(Locally on macOS, and in CI `e2e-web` on Ubuntu, 2026-11-24.)*
 - [x] `packages/ui` has no imports from `@tauri-apps/*` or `node:*`.
 
 ## Technical notes
@@ -61,5 +61,5 @@ Standard DoD plus: CI job `e2e-web` added and green.
 - **Gotchas**:
   - `react-resizable-panels` copies a `Panel`'s `id` into `data-testid`, so panel ids (`*-pane`) must differ from content test ids (`*-panel`).
   - pnpm's release-age gate rejected `react-resizable-panels@4.14.6` (published under 24 h earlier), so 4.14.5 is pinned through the lockfile. No exclusion was added.
-- **Follow-up:** once CI `e2e-web` is green, set Status to Done.
+- **Follow-up (done):** CI `e2e-web` went green on 2026-11-24; Status set to Done.
 
