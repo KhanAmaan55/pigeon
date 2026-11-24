@@ -34,9 +34,9 @@ As a team with mixed operating systems, I want Pigeon files to behave the same f
 - Network filesystems, cloud-synced folders (document as "best effort").
 
 ## Acceptance criteria
-- [ ] Cross-OS suite green on macOS, Windows, Linux CI runners. — green on macOS locally; Windows/Linux run in the CI verify matrix (not run yet, see notes)
-- [ ] Git scenario tests (testing.md §3.6) green on all three OSes, including `core.autocrlf=true` on Windows with the project `.gitattributes`. — green on macOS locally; CI pending
-- [ ] Desktop E2E (Windows, Linux) open → edit → Save for Commit → external change → reload passes. — in the `--smoke` run; passes on macOS locally, Windows/Linux in CI's desktop-build job (pending)
+- [x] Cross-OS suite green on macOS, Windows, Linux CI runners. — green in the CI verify matrix on all three (2026-11-24)
+- [x] Git scenario tests (testing.md §3.6) green on all three OSes, including `core.autocrlf=true` on Windows with the project `.gitattributes`. — green in the CI verify matrix on all three, autocrlf case included (2026-11-24)
+- [x] Desktop E2E (Windows, Linux) open → edit → Save for Commit → external change → reload passes. — in the `--smoke` run; passes in CI's desktop-build job on macOS, Windows and Linux (2026-11-24)
 - [x] No known phantom diffs: re-opening and committing without edits produces zero writes on every OS.
 
 ## Technical notes

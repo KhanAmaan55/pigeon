@@ -28,7 +28,7 @@ As a developer, I want to see which requests I've changed since my last commit, 
 - [x] After Save for Commit, changed files show as Git-modified; after the user commits externally, decorations clear on refresh.
 - [x] No Git subcommand other than the allowlisted read-only ones can be invoked (Rust test).
 - [x] Missing `git` → feature hidden, no errors.
-- [ ] Works on macOS, Windows, Linux. *Verified on macOS; the Rust temp-repository test runs on all three in CI once pushed (it skips when `git` is missing), and the Windows-only no-console flag compiles only there.*
+- [x] Works on macOS, Windows, Linux. *The Rust temp-repository test passed in CI's `cargo test` on all three, and the Windows-only no-console flag compiled there (2026-11-24).*
 
 ## Technical notes
 - Use `-z` output parsing to handle unicode/space paths safely.

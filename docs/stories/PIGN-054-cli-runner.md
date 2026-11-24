@@ -27,8 +27,8 @@ As a team, we want regression checks in CI using the Pigeon files committed in o
 
 ## Acceptance criteria
 - [x] Running against the fixture project + test server produces the same outcomes as the desktop runner.
-- [ ] JUnit output renders in GitHub Actions test reporting. *The XML follows the JUnit schema the common report actions read (snapshot-tested); not yet seen in a real Actions run — nothing has been pushed.*
-- [ ] Works on macOS, Windows, Linux (CI matrix). *Verified on macOS; the CLI tests are part of `pnpm verify`, which the CI matrix runs on all three once pushed.*
+- [ ] JUnit output renders in GitHub Actions test reporting. *The XML follows the JUnit schema the common report actions read (snapshot-tested); not yet seen in a real Actions report: CI runs the CLI tests but doesn't publish a JUnit file to a report action.*
+- [x] Works on macOS, Windows, Linux (CI matrix). *The CLI tests are part of `pnpm verify`, green in the CI matrix on all three (2026-11-24).*
 - [x] Secrets can be provided only via env vars/`--var`, never read from local app state.
 
 ## Technical notes
