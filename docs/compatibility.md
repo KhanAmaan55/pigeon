@@ -166,12 +166,12 @@ Export: one Postman environment file per environment. Secret variables are expor
 
 ### B.2 Apidog (Observed — PIGN-048)
 
-Observed from real exports (Apidog desktop, November 2026; project export format `$schema.version` **1.2.0**), sanitized into `packages/fixtures/apidog/`:
+Observed from four real exports (Apidog desktop, November 2026; project export format `$schema.version` **1.2.0**): two environment exports and two project exports, sanitized into `packages/fixtures/apidog/` (`environment-export`, `project-export`, `airport-gap-environment`, `airport-gap-project`):
 
 - **Environment export** (Environment Management → Export, `environment-export.apidog.json`): `{ "environments": [ … ], "servers": [ { "id", "name", "importSourceServerId"? } ] }`.
 - **Project export** in Apidog format (`project-export.apidog.json`): `{ "apidogProject": "1.0.0", "$schema": { "app": "apidog", "type": "project", "version": "1.2.0" }, "info", "projectSetting": { "servers": [ { "id", "name", "moduleId" } ], … }, "moduleSettings": [ { "id", "name", "description" } ], "environments", "globalVariables": [ { "id", "variables": [] } ], "apiCollection", "requestCollection", "docCollection", "schemaCollection", … }`.
 
-An environment holds `name`, `variables`, `baseUrl` (the main base URL), `baseUrls` (one per service: keyed by **module id** in project exports and by **server id**, incl. `default`, in environment exports), `parameters` (`cookie` / `query` / `header` / `body` lists), `advancedSettings` (proxy per service), `requestProxyAgentSettings`, `websocketBaseUrls`, `socketioBaseUrls`, `registrationCenters`, `type` (`normal`), and bookkeeping (`id`, `visibility`, `ordering`, `tags`, `projectType`). A variable holds `name`, `initialValue` (the shared value), `value` (the current one), `description`, `isSync` (`true` in all samples) and sometimes `securityType` (only `default` observed). Server names were all "Default Server"; module names come from `moduleSettings`.
+An environment holds `name`, `variables`, `baseUrl` (the main base URL), `baseUrls` (one per service: keyed by **module id** in project exports and by **server id**, incl. `default`, in environment exports), `parameters` (`cookie` / `query` / `header` / `body` lists), `advancedSettings` (proxy per service), `requestProxyAgentSettings`, `websocketBaseUrls`, `socketioBaseUrls`, `registrationCenters`, `type` (`normal`), and bookkeeping (`id`, `visibility`, `ordering`, `tags`, `projectType`). A variable holds `name`, `initialValue` (the shared value), `value` (the current one), `description`, `isSync` (`true` in all samples) and sometimes `securityType` (only `default` observed); newer exports add `isFixedValue` and `isBindInitial` (only `false` observed) and may leave out `description` and `isSync`. The main `baseUrl` can be empty while one service in `baseUrls` has the URL. Server names were all "Default Server"; module names come from `moduleSettings`.
 
 Mapping (`formats/src/apidog/environments.ts`):
 
@@ -182,8 +182,9 @@ Mapping (`formats/src/apidog/environments.ts`):
 | variable `value` when it differs from `initialValue` | offered as the local current value ("use as my current values") |
 | `isSync: false` (not observed) | value not written to files, only offered as the current value |
 | `securityType` other than `default` (not observed) | `type: 'secret'`, reported |
-| names ending like a credential (`…secret`, `…password`, `…token`, `…apiKey`, `…privateKey`, `…credentials`) with a value | `type: 'secret'` (value only on this machine), reported so it can be changed back |
-| `baseUrl` (or the `default` service's URL) | variable `baseUrl` (name editable in the import dialog), first in the list |
+| names ending like a credential (`…secret`, `…password`, `…token`, `…apiKey`, `…privateKey`, `…credentials`), even when empty | `type: 'secret'` (value only on this machine), reported so it can be changed back |
+| `isFixedValue` / `isBindInitial` set to `true` (not observed) | not honoured; reported |
+| `baseUrl` (else the `default` service's URL, else the first service with a URL) | variable `baseUrl` (name editable in the import dialog), first in the list |
 | other non-empty `baseUrls` with a different URL | `baseUrl_<module name or service id>`; empty services are skipped and counted in the report |
 | `globalVariables[].variables` (only empty lists observed) | project globals, same variable mapping |
 | `parameters` (non-empty), WebSocket/Socket.IO base URLs, registration centers, non-default proxy settings, unknown `type`, unknown environment or variable fields | not imported; listed in the import report |
@@ -194,17 +195,36 @@ A base URL variable whose name is already used by an exported variable is not ad
 
 Fallback: an Apidog-looking file that does not match shows "Unrecognized Apidog export. Export environments from Apidog in Postman format, or share a sample to add support."
 
-### B.3 Echo API (Assumption — needs samples, PIGN-049)
+### B.3 Echo API (Observed — PIGN-049)
 
-What we believe (unverified):
-- EchoAPI advertises Postman compatibility (import/export of Postman collections, possibly environments). If EchoAPI exports Postman-format environments, **no dedicated importer is needed** — the Postman importer handles them.
-- EchoAPI's native export format (if any) is unknown.
+Observed from a real Echo API **project export** (November 2026; the file has no format version), in `packages/fixtures/echoapi/airport-gap.echoapi.json` (the API list trimmed to one folder and one request). No standalone environment export was available. Echo API can also export a project as a Postman collection, which the Postman importer already handles (§B.1).
 
-Plan: PIGN-049 starts by collecting real export samples. If they are Postman-compatible, the story reduces to adding fixtures + tests + a detection hint. Otherwise a mapping table like B.2 is written from the samples before implementation.
+Shape: `{ "project_id", "name", "intro", "global": { "envs": [ … ], "servers": [ { "server_id", "name", "sort" } ], "global_vars": {}, "global_param": { "header"/"query"/"body"/"cookie": { "parameter": [] }, "auth": { "type", … }, "pre_tasks", "post_tasks" }, "codes", "marks", … }, "apis": [ … ], "models", "samples", "automated_testings" }`. Booleans are `1` / `-1`.
+
+An environment has `env_id`, `name`, `is_private` (`-1` in the sample), `sort`, `server_list` (`{ "server_id", "name", "sort", "uri" }`: a base URL per service) and `env_var_list`, an object keyed by variable name: `{ "value", "current_value", "description" }`. Echo API ships a "Default Environment" (no variables, no URL) and a "Mock Environment" (its cloud mock URL) in every project.
+
+Mapping (`formats/src/echoapi/environments.ts`):
+
+| Echo API | via Postman export | import (project export; or via Postman export) | import (project export) | PIGN-049, Observed |
+|---|---|
+| environment `name` | `Environment.name` (new id) |
+| `env_var_list` key / `value` | `Variable.key` / `Variable.value` (written to files), in file order |
+| `current_value` when it differs from `value` | offered as the local current value |
+| `is_private: 1` (not observed) | values not written to files, only offered as current values; reported |
+| credential-like names (same rule as §B.2), even when empty | `type: 'secret'`, reported |
+| first `server_list` entry with a `uri` | variable `baseUrl` (name editable in the import dialog) |
+| further servers with a `uri` | `baseUrl_<server name>` (name from the entry or `global.servers`) |
+| environments with no variables and no URL (e.g. "Default Environment") | not imported; listed in the report |
+| `global.global_vars` | project globals, same variable mapping |
+| `global.global_param` parameters, non-`noauth` auth, pre/post tasks | not imported; listed in the report |
+| `apis`, `models`, `samples`, `automated_testings` | not imported; the report says to export the project in Postman format |
+| unknown environment or variable fields | not imported; listed in the report |
+
+Detection is structural: `global.envs` whose entries have `env_id` and `env_var_list` or `server_list`. A file with `project_id` and `apis`, or `global.envs` and `global_vars`, that does not match shows "Unrecognized Echo API export. Export environments from Echo API in Postman format, or share a sample to add support." An export with nothing to import is rejected with a hint to export in Postman format.
 
 ### B.4 Detection order
 
-`detectFormat()` checks, in order: Pigeon project zip → Postman collection v2.1 → v2.0 → v1 (reject) → Postman environment → Postman globals → Apidog (PIGN-048) → EchoAPI native (PIGN-049) → cURL text (PIGN-050) → unknown. Detection is structural (keys and schema URLs), never by file name alone.
+`detectFormat()` checks, in order: Pigeon project zip → Postman collection v2.1 → v2.0 → v1 (reject) → Postman environment → Postman globals → Apidog environment/project export (PIGN-048) → Echo API project export (PIGN-049) → cURL text (PIGN-050) → unknown. Detection is structural (keys and schema URLs), never by file name alone.
 
 ### B.5 Compatibility summary
 

@@ -281,7 +281,7 @@ Status: **Proposed** = recommended, confirm before the dependent story starts. *
 | D-11 | Distribution | App identifier (placeholder `dev.pigeon.desktop` since PIGN-003; avoid a `.app` suffix, which clashes with the macOS bundle extension), code-signing certificates (Apple Developer ID, Windows Authenticode), auto-update policy | **Open** | PIGN-041 |
 | D-12 | Web hosting | Target host/domain for the static site | **Open** | PIGN-039 |
 | D-13 | License | Open-source license (if any) | **Open** | before public release |
-| D-14 | Apidog / Echo API formats | Collect real export samples before implementing importers | Apidog: **Accepted** (real environment and project exports, PIGN-048); Echo API: **Open** (needs samples) | PIGN-048/049 |
+| D-14 | Apidog / Echo API formats | Collect real export samples before implementing importers | **Accepted**: built from real Apidog environment/project exports (PIGN-048) and a real Echo API project export (PIGN-049) | PIGN-048/049 |
 | D-16 | Request history storage | No SQLite (D-07 stands): desktop keeps an append-only `history/index.jsonl` of summaries plus one JSON file per entry under the project's app-data dir (Rust `history_*` commands); web uses two IndexedDB stores. Limits and eviction live in core (`ProjectHistory`), so every platform behaves alike. | **Accepted** (PIGN-051) | PIGN-051 |
 | D-15 | Desktop project filesystem | App commands (`project_fs_*`) with a Rust-side scope of user-picked roots persisted in app data, instead of plugin-fs + persisted-scope: same model as `save_file`, no general fs permission in the webview, paths validated twice. | **Accepted** (PIGN-014) | PIGN-014 |
 

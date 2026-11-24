@@ -5,18 +5,19 @@
  */
 
 import type {
-  ApidogBaseUrl,
-  ApidogEnvironmentSource,
+  BaseUrl,
   Collection,
+  EnvironmentSource,
   ImportReport,
   ProjectEnvironment,
   ProjectGlobals,
   VariablesImportReport,
 } from '@pigeon/formats';
 import {
-  buildApidogEnvironment,
+  buildImportedEnvironment,
   detectFormat,
   importApidog,
+  importEchoApi,
   importPostmanCollection,
   importPostmanEnvironment,
   importPostmanGlobals,
@@ -84,6 +85,7 @@ export function previewImportFile(
     case 'postman-environment':
     case 'postman-globals':
     case 'apidog':
+    case 'echoapi':
       return {
         ok: false,
         format:
@@ -91,7 +93,9 @@ export function previewImportFile(
             ? 'Postman environment'
             : detected.kind === 'postman-globals'
               ? 'Postman globals'
-              : 'Apidog export',
+              : detected.kind === 'apidog'
+                ? 'Apidog export'
+                : 'Echo API export',
         message: 'Importing environments arrives with environment import (not yet available).',
       };
     case 'curl':
@@ -150,10 +154,10 @@ export type ImportItem =
       /** An environment with the same name already in the project. */
       collidesWith?: { id: string; name: string };
       regeneratedId?: string;
-      /** From Apidog (PIGN-048): rebuilt when the base URL variable name changes. */
-      apidog?: ApidogEnvironmentSource;
-      /** Apidog base URLs and the variables they became. */
-      baseUrls?: ApidogBaseUrl[];
+      /** From Apidog / Echo API (PIGN-048/049): rebuilt when the base URL variable changes. */
+      source?: EnvironmentSource;
+      /** Base URLs from the export and the variables they became. */
+      baseUrls?: BaseUrl[];
       /** About the whole file (what else it holds that is not imported). */
       fileWarnings?: string[];
     }
@@ -257,15 +261,18 @@ export function previewImportFiles(
         });
         break;
       }
-      case 'apidog': {
-        const imported = importApidog(detected, {
-          newId: () => {
-            let id = options.newId?.() ?? crypto.randomUUID();
-            while (taken.has(id)) id = crypto.randomUUID();
-            taken.add(id);
-            return id;
-          },
-        });
+      case 'apidog':
+      case 'echoapi': {
+        const newId = () => {
+          let id = options.newId?.() ?? crypto.randomUUID();
+          while (taken.has(id)) id = crypto.randomUUID();
+          taken.add(id);
+          return id;
+        };
+        const imported =
+          detected.kind === 'apidog'
+            ? importApidog(detected, { newId })
+            : importEchoApi(detected.data, { newId });
         const first = items.length;
         for (const env of imported.environments) {
           const name = env.environment.name.toLowerCase();
@@ -281,7 +288,7 @@ export function previewImportFiles(
             environment: env.environment,
             currentValues: env.currentValues,
             report: env.report,
-            apidog: env.source,
+            source: env.source,
             baseUrls: env.baseUrls,
             ...(collidesWith
               ? { collidesWith: { id: collidesWith.id, name: collidesWith.name } }
@@ -344,13 +351,13 @@ export function isValidVariableName(name: string): boolean {
 }
 
 /**
- * The items with Apidog base URLs (PIGN-048) under another variable name: `name` for the main
+ * The items with imported base URLs (Apidog, Echo API) under another variable name: `name` for the main
  * base URL and `name_<service>` for the others (the import dialog's "Base URL variable").
  */
 export function withBaseUrlVariable(items: readonly ImportItem[], name: string): ImportItem[] {
   return items.map((item) => {
-    if (item.kind !== 'environment' || !item.apidog) return item;
-    const built = buildApidogEnvironment(item.apidog, name);
+    if (item.kind !== 'environment' || !item.source) return item;
+    const built = buildImportedEnvironment(item.source, name);
     return {
       ...item,
       environment: { ...item.environment, values: built.values },

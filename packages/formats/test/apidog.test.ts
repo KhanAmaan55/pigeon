@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   APIDOG_FALLBACK_MESSAGE,
-  buildApidogEnvironment,
+  buildImportedEnvironment,
   detectFormat,
   importApidog,
 } from '../src/index';
@@ -120,6 +120,57 @@ describe('importing Apidog environments (PIGN-048)', () => {
     expect(project).toMatchSnapshot();
   });
 
+  it('maps the newer Airport Gap exports (base URL only on one service, variable options)', () => {
+    const env = importApidog(detectApidogFixture('airport-gap-environment.apidog.json'), {
+      newId: ids(),
+    });
+    const project = importApidog(detectApidogFixture('airport-gap-project.apidog.json'), {
+      newId: ids(),
+    });
+    expect(env).toMatchSnapshot();
+    const [fromEnv] = env.environments;
+    const [fromProject] = project.environments;
+    // The main `baseUrl` is empty: the one service with a URL becomes `{{baseUrl}}`.
+    expect(fromEnv!.baseUrls.map((b) => [b.key, b.url])).toEqual([
+      ['baseUrl', 'https://airportgap.com/api'],
+    ]);
+    expect(fromProject!.environment.values).toEqual(fromEnv!.environment.values);
+    const values = Object.fromEntries(fromEnv!.environment.values.map((v) => [v.key, v]));
+    expect(values['base_url']).toMatchObject({ value: 'https://airportgap.com/api' });
+    // Empty credentials are still typed as secrets, so a value typed later stays local.
+    expect(values['api_token']).toMatchObject({ type: 'secret', value: '' });
+    expect(values['account_password']).toMatchObject({ type: 'secret', value: '' });
+    expect(values['account_email']).toMatchObject({ type: 'default' });
+    // `isFixedValue` / `isBindInitial` (false) are known fields, not reported.
+    expect(fromEnv!.report.warnings.join('\n')).not.toContain('isFixedValue');
+    expect(fromEnv!.report.warnings).toContain(
+      '11 services without a base URL in this environment skipped.',
+    );
+    expect(project.format).toBe('Apidog project export (format 1.2.0)');
+  });
+
+  it('reports Apidog variable options it cannot honour', () => {
+    const [env] = importApidog(
+      {
+        variant: 'environments',
+        data: {
+          servers: [],
+          environments: [
+            {
+              name: 'Options',
+              baseUrl: '',
+              variables: [{ name: 'fixed', initialValue: '1', value: '1', isFixedValue: true }],
+            },
+          ],
+        },
+      },
+      { newId: ids() },
+    ).environments;
+    expect(env!.report.warnings).toContain(
+      'Apidog option isFixedValue is set on fixed: it has no Pigeon equivalent.',
+    );
+  });
+
   it('keeps secret-like values off files and every value as a current value', () => {
     const [env] = importApidog(detectApidogFixture('environment-export.apidog.json'), {
       newId: ids(),
@@ -162,7 +213,7 @@ describe('importing Apidog environments (PIGN-048)', () => {
       ['baseUrl_billing_api', 'https://billing.test', 'Billing API'],
       ['baseUrl_9', 'https://x.test', '9'],
     ]);
-    const renamed = buildApidogEnvironment(env!.source, 'api');
+    const renamed = buildImportedEnvironment(env!.source, 'api');
     expect(renamed.values.map((v) => v.key)).toEqual([
       'api',
       'api_billing_api',
@@ -170,7 +221,7 @@ describe('importing Apidog environments (PIGN-048)', () => {
       'api_billing',
     ]);
     expect(renamed.baseUrls.every((b) => !b.skipped)).toBe(true);
-    const clash = buildApidogEnvironment(
+    const clash = buildImportedEnvironment(
       { ...env!.source, baseUrls: [{ suffix: '_billing', url: 'https://b', service: 'Billing' }] },
       'api',
     );

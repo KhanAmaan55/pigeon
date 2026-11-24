@@ -15,6 +15,7 @@ import {
 
 const postman = join(import.meta.dirname, '../../fixtures/postman');
 const apidog = join(import.meta.dirname, '../../fixtures/apidog');
+const echoapi = join(import.meta.dirname, '../../fixtures/echoapi');
 const file = (path: string) => ({
   name: path.split('/').at(-1)!,
   bytes: new Uint8Array(readFileSync(join(postman, path))),
@@ -207,6 +208,49 @@ describe('importing Apidog environments (PIGN-048)', () => {
     expect(items[0]).toMatchObject({
       format: 'Apidog environment export',
       collidesWith: { id: 'mine', name: 'Wallet Local' },
+    });
+  });
+});
+
+describe('importing Echo API environments (PIGN-049)', () => {
+  it('previews every environment with content and writes them', async () => {
+    const { fs, session } = await emptySession();
+    const items = previewImportFiles(
+      [
+        {
+          name: 'Airport Gap - Complete API.json',
+          bytes: new Uint8Array(readFileSync(join(echoapi, 'airport-gap.echoapi.json'))),
+        },
+      ],
+      importContext(session.getWorkingModel()),
+    );
+    expect(items.map((item) => [item.kind, item.format])).toEqual([
+      ['environment', 'Echo API project export'],
+      ['environment', 'Echo API project export'],
+    ]);
+    expect(items[0]).toMatchObject({
+      fileWarnings: [
+        '“Default Environment” has no variables or base URL: not imported.',
+        expect.stringContaining('its APIs (2) are not'),
+      ],
+      baseUrls: [{ key: 'baseUrl', url: 'https://mock.echoapi.com/mock/373ff439780004' }],
+    });
+    const renamed = withBaseUrlVariable(items, 'mock_url');
+    const ids = applyImport(session, renamed, { useAsCurrentValues: true });
+    await session.saveForCommit(ids);
+    const mock = JSON.parse(
+      await fs.readText('environments/mock-environment.postman_environment.json'),
+    );
+    expect(mock.values[0]).toMatchObject({ key: 'mock_url' });
+    const airport = JSON.parse(
+      await fs.readText('environments/airport-gap-environment.postman_environment.json'),
+    );
+    expect(airport.values.find((v: { key: string }) => v.key === 'api_token')).toMatchObject({
+      type: 'secret',
+      value: '',
+    });
+    expect(airport.values.find((v: { key: string }) => v.key === 'base_url')).toMatchObject({
+      value: 'https://airportgap.com/api',
     });
   });
 });

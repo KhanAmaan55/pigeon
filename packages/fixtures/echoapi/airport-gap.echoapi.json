@@ -1,0 +1,629 @@
+{
+  "project_id": "373ff439780004",
+  "name": "Airport Gap - Complete API",
+  "intro": "Complete Postman collection based on the official Airport Gap API documentation. Includes airports, airport distance, token creation, favorites CRUD, and optional failure simulation. Set the environment variables before running authenticated requests. The Clear All Favorites request is destructive.",
+  "global": {
+    "envs": [
+      {
+        "env_id": "1",
+        "name": "Default Environment",
+        "is_private": -1,
+        "sort": 0,
+        "server_list": [
+          {
+            "server_id": "1",
+            "name": "Default Services",
+            "sort": 0,
+            "uri": ""
+          }
+        ],
+        "env_var_list": {}
+      },
+      {
+        "env_id": "2",
+        "name": "Mock Environment",
+        "is_private": -1,
+        "sort": 0,
+        "server_list": [
+          {
+            "server_id": "1",
+            "name": "Default Services",
+            "sort": 1000,
+            "uri": "https://mock.echoapi.com/mock/373ff439780004"
+          }
+        ],
+        "env_var_list": {}
+      },
+      {
+        "env_id": "37411271b80005",
+        "name": "Airport Gap - Environment",
+        "is_private": -1,
+        "sort": 0,
+        "server_list": [
+          {
+            "server_id": "1",
+            "name": "Default Services",
+            "sort": 0,
+            "uri": ""
+          }
+        ],
+        "env_var_list": {
+          "account_password": {
+            "value": "",
+            "current_value": "",
+            "description": ""
+          },
+          "airport_id": {
+            "value": "KIX",
+            "current_value": "KIX",
+            "description": ""
+          },
+          "favorite_note": {
+            "value": "My favorite airport",
+            "current_value": "My favorite airport",
+            "description": ""
+          },
+          "from_airport": {
+            "value": "KIX",
+            "current_value": "KIX",
+            "description": ""
+          },
+          "page": {
+            "value": "1",
+            "current_value": "1",
+            "description": ""
+          },
+          "account_email": {
+            "value": "",
+            "current_value": "",
+            "description": ""
+          },
+          "api_token": {
+            "value": "",
+            "current_value": "",
+            "description": ""
+          },
+          "base_url": {
+            "value": "https://airportgap.com/api",
+            "current_value": "https://airportgap.com/api",
+            "description": ""
+          },
+          "favorite_id": {
+            "value": "22",
+            "current_value": "22",
+            "description": ""
+          },
+          "to_airport": {
+            "value": "NRT",
+            "current_value": "NRT",
+            "description": ""
+          }
+        }
+      }
+    ],
+    "servers": [
+      {
+        "server_id": "1",
+        "name": "Default Services",
+        "sort": 1000
+      }
+    ],
+    "global_vars": {},
+    "global_param": {
+      "header": {
+        "parameter": []
+      },
+      "query": {
+        "parameter": []
+      },
+      "body": {
+        "parameter": []
+      },
+      "cookie": {
+        "parameter": []
+      },
+      "auth": {
+        "type": "noauth",
+        "kv": {
+          "key": "",
+          "value": "",
+          "in": ""
+        },
+        "bearer": {
+          "key": ""
+        },
+        "basic": {
+          "username": "",
+          "password": ""
+        },
+        "digest": {
+          "username": "",
+          "password": "",
+          "realm": "",
+          "nonce": "",
+          "algorithm": "",
+          "qop": "",
+          "nc": "",
+          "cnonce": "",
+          "opaque": ""
+        },
+        "hawk": {
+          "authId": "",
+          "authKey": "",
+          "algorithm": "",
+          "user": "",
+          "nonce": "",
+          "extraData": "",
+          "default": "",
+          "delegation": "",
+          "timestamp": "",
+          "includePayloadHash": false
+        },
+        "awsv4": {
+          "accessKey": "",
+          "secretKey": "",
+          "region": "",
+          "service": "",
+          "sessionToken": "",
+          "addAuthDataToQuery": false
+        },
+        "ntlm": {
+          "username": "",
+          "password": "",
+          "entity": "",
+          "workstation": "",
+          "disableRetryRequest": false
+        },
+        "edgegrid": {
+          "accessToken": "",
+          "clientToken": "",
+          "clientSecret": "",
+          "nonce": "",
+          "timestamp": "",
+          "baseURi": "",
+          "headersToSign": ""
+        },
+        "oauth1": {
+          "consumerKey": "",
+          "consumerSecret": "",
+          "signatureMethod": "",
+          "addEmptyParamsToSign": false,
+          "includeBodyHash": false,
+          "addParamsToHeader": false,
+          "disableHeaderEncoding": false,
+          "realm": "",
+          "version": "",
+          "nonce": "",
+          "timestamp": "",
+          "verifier": "",
+          "callback": "",
+          "tokenSecret": "",
+          "token": ""
+        },
+        "jwt": {
+          "addTokenTo": "",
+          "algorithm": "",
+          "secret": "",
+          "isSecretBase64Encoded": false,
+          "payload": "",
+          "headerPrefix": "",
+          "queryParamKey": "",
+          "header": ""
+        },
+        "asap": {
+          "alg": "",
+          "iss": "",
+          "aud": "",
+          "kid": "",
+          "privateKey": "",
+          "sub": "",
+          "claims": "",
+          "exp": ""
+        }
+      },
+      "pre_tasks": [],
+      "post_tasks": []
+    },
+    "codes": [],
+    "marks": [
+      {
+        "mark_id": "1",
+        "project_id": "0",
+        "name": "In Progress",
+        "color": "#2857FF",
+        "is_sys_default": 1,
+        "is_default_mark": 1
+      },
+      {
+        "mark_id": "2",
+        "project_id": "0",
+        "name": "Completed",
+        "color": "#26CEA4",
+        "is_sys_default": 1,
+        "is_default_mark": -1
+      },
+      {
+        "mark_id": "3",
+        "project_id": "0",
+        "name": "To Revise",
+        "color": "#FFC01E",
+        "is_sys_default": 1,
+        "is_default_mark": -1
+      },
+      {
+        "mark_id": "4",
+        "project_id": "0",
+        "name": "Discarded",
+        "color": "#FF2200",
+        "is_sys_default": 1,
+        "is_default_mark": -1
+      }
+    ],
+    "attributes": [],
+    "mock_custom_rules": [],
+    "db_link": [],
+    "describe_library": [],
+    "custom_func": []
+  },
+  "models": [],
+  "apis": [
+    {
+      "target_id": "373ff0ea78004c",
+      "project_id": "373ff439780004",
+      "parent_id": "0",
+      "target_type": "folder",
+      "name": "Airports",
+      "version": 1,
+      "sort": 1000,
+      "server_id": "0",
+      "description": "",
+      "request": {
+        "auth": {
+          "type": "inherit",
+          "kv": {
+            "key": "",
+            "value": "",
+            "in": "header"
+          },
+          "bearer": {
+            "key": ""
+          },
+          "basic": {
+            "username": "",
+            "password": ""
+          },
+          "digest": {
+            "username": "",
+            "password": "",
+            "realm": "",
+            "nonce": "",
+            "algorithm": "",
+            "qop": "",
+            "nc": "",
+            "cnonce": "",
+            "opaque": ""
+          },
+          "hawk": {
+            "authId": "",
+            "authKey": "",
+            "algorithm": "",
+            "user": "",
+            "nonce": "",
+            "extraData": "",
+            "default": "",
+            "delegation": "",
+            "timestamp": "",
+            "includePayloadHash": false
+          },
+          "awsv4": {
+            "accessKey": "",
+            "secretKey": "",
+            "region": "",
+            "service": "",
+            "sessionToken": "",
+            "addAuthDataToQuery": false
+          },
+          "ntlm": {
+            "username": "",
+            "password": "",
+            "entity": "",
+            "workstation": "",
+            "disableRetryRequest": false
+          },
+          "edgegrid": {
+            "accessToken": "",
+            "clientToken": "",
+            "clientSecret": "",
+            "nonce": "",
+            "timestamp": "",
+            "baseURi": "",
+            "headersToSign": ""
+          },
+          "oauth1": {
+            "consumerKey": "",
+            "consumerSecret": "",
+            "signatureMethod": "HMAC-SHA1",
+            "addEmptyParamsToSign": true,
+            "includeBodyHash": true,
+            "addParamsToHeader": false,
+            "disableHeaderEncoding": false,
+            "realm": "",
+            "version": "1.0",
+            "nonce": "",
+            "timestamp": "",
+            "verifier": "",
+            "callback": "",
+            "tokenSecret": "",
+            "token": ""
+          },
+          "jwt": {
+            "addTokenTo": "header",
+            "algorithm": "HS256",
+            "secret": "",
+            "isSecretBase64Encoded": false,
+            "payload": "",
+            "headerPrefix": "Bearer",
+            "queryParamKey": "token",
+            "header": ""
+          },
+          "asap": {
+            "alg": "HS256",
+            "iss": "",
+            "aud": "",
+            "kid": "",
+            "privateKey": "",
+            "sub": "",
+            "claims": "",
+            "exp": ""
+          }
+        },
+        "pre_tasks": [],
+        "post_tasks": [],
+        "body": {
+          "parameter": []
+        },
+        "header": {
+          "parameter": []
+        },
+        "query": {
+          "parameter": []
+        },
+        "cookie": {
+          "parameter": []
+        }
+      }
+    },
+    {
+      "target_id": "373ff0ea78004d",
+      "project_id": "373ff439780004",
+      "parent_id": "373ff0ea78004c",
+      "target_type": "api",
+      "name": "Get all airports",
+      "version": 1,
+      "sort": 1000,
+      "method": "GET",
+      "url": "{{base_url}}/airports?page={{page}}",
+      "protocol": "http/1.1",
+      "mark_id": "1",
+      "description": "",
+      "request": {
+        "auth": {
+          "type": "inherit",
+          "kv": {
+            "key": "",
+            "value": "",
+            "in": "header"
+          },
+          "bearer": {
+            "key": ""
+          },
+          "basic": {
+            "username": "",
+            "password": ""
+          },
+          "digest": {
+            "username": "",
+            "password": "",
+            "realm": "",
+            "nonce": "",
+            "algorithm": "",
+            "qop": "",
+            "nc": "",
+            "cnonce": "",
+            "opaque": ""
+          },
+          "hawk": {
+            "authId": "",
+            "authKey": "",
+            "algorithm": "",
+            "user": "",
+            "nonce": "",
+            "extraData": "",
+            "default": "",
+            "delegation": "",
+            "timestamp": "",
+            "includePayloadHash": false
+          },
+          "awsv4": {
+            "accessKey": "",
+            "secretKey": "",
+            "region": "",
+            "service": "",
+            "sessionToken": "",
+            "addAuthDataToQuery": false
+          },
+          "ntlm": {
+            "username": "",
+            "password": "",
+            "entity": "",
+            "workstation": "",
+            "disableRetryRequest": false
+          },
+          "edgegrid": {
+            "accessToken": "",
+            "clientToken": "",
+            "clientSecret": "",
+            "nonce": "",
+            "timestamp": "",
+            "baseURi": "",
+            "headersToSign": ""
+          },
+          "oauth1": {
+            "consumerKey": "",
+            "consumerSecret": "",
+            "signatureMethod": "HMAC-SHA1",
+            "addEmptyParamsToSign": true,
+            "includeBodyHash": true,
+            "addParamsToHeader": false,
+            "disableHeaderEncoding": false,
+            "realm": "",
+            "version": "1.0",
+            "nonce": "",
+            "timestamp": "",
+            "verifier": "",
+            "callback": "",
+            "tokenSecret": "",
+            "token": ""
+          },
+          "jwt": {
+            "addTokenTo": "header",
+            "algorithm": "HS256",
+            "secret": "",
+            "isSecretBase64Encoded": false,
+            "payload": "",
+            "headerPrefix": "Bearer",
+            "queryParamKey": "token",
+            "header": ""
+          },
+          "asap": {
+            "alg": "HS256",
+            "iss": "",
+            "aud": "",
+            "kid": "",
+            "privateKey": "",
+            "sub": "",
+            "claims": "",
+            "exp": ""
+          }
+        },
+        "body": {
+          "mode": "none",
+          "parameter": [],
+          "raw": "",
+          "raw_parameter": [],
+          "raw_schema": {
+            "type": "object",
+            "properties": {}
+          },
+          "binary": {}
+        },
+        "pre_tasks": [],
+        "post_tasks": [
+          {
+            "type": "customScript",
+            "enabled": 1,
+            "data": "pm.test('HTTP status is 200', function () { pm.response.to.have.status(200); });\npm.test('Response is JSON', function () { pm.response.to.be.json; });\nconst body = pm.response.json();\npm.test('Response contains data array', function () { pm.expect(body.data).to.be.an('array'); });\npm.test('Pagination links are present', function () { pm.expect(body.links).to.be.an('object'); pm.expect(body.links).to.have.property('self'); });\npm.test('Airport records contain expected attributes', function () { if (body.data.length) { const a = body.data[0]; pm.expect(a.type).to.eql('airport'); pm.expect(a.attributes).to.have.property('iata'); pm.expect(a.attributes).to.have.property('name'); pm.expect(a.attributes).to.have.property('country'); } });",
+            "name": "Custom Script",
+            "id": "373ff0ea78004e"
+          }
+        ],
+        "header": {
+          "parameter": [
+            {
+              "param_id": "373ff0eab80050",
+              "description": "",
+              "field_type": "string",
+              "is_checked": 1,
+              "key": "Accept",
+              "not_null": 1,
+              "value": "application/json",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "query": {
+          "query_add_equal": 1,
+          "parameter": [
+            {
+              "param_id": "373ff0eab8004f",
+              "description": "Page number",
+              "field_type": "string",
+              "is_checked": 1,
+              "key": "page",
+              "not_null": 1,
+              "value": "{{page}}",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "cookie": {
+          "cookie_encode": 1,
+          "parameter": []
+        },
+        "restful": {
+          "parameter": []
+        }
+      },
+      "response": {
+        "example": [
+          {
+            "example_id": "1",
+            "raw": "",
+            "raw_parameter": [],
+            "headers": [],
+            "expect": {
+              "code": "200",
+              "content_type": "json",
+              "is_default": 1,
+              "mock": "",
+              "name": "成功",
+              "schema": {
+                "type": "object",
+                "properties": {}
+              },
+              "verify_type": "schema",
+              "sleep": 0
+            }
+          },
+          {
+            "example_id": "2",
+            "raw": "",
+            "raw_parameter": [],
+            "headers": [],
+            "expect": {
+              "code": "404",
+              "content_type": "json",
+              "is_default": -1,
+              "mock": "",
+              "name": "失败",
+              "schema": {
+                "type": "object",
+                "properties": {}
+              },
+              "verify_type": "schema",
+              "sleep": 0
+            }
+          }
+        ],
+        "is_check_result": 1
+      },
+      "ai_expect": {
+        "list": [],
+        "none_math_expect_id": "",
+        "none_math_example": null
+      },
+      "mock_server_enable": 1,
+      "mock_ip_white_list_enable": -1,
+      "mock_ip_white_list": "",
+      "mock_show_target_id": 0,
+      "attribute_info": {},
+      "tags": []
+    }
+  ],
+  "samples": [],
+  "automated_testings": []
+}

@@ -22,7 +22,7 @@ import { runImportPreview } from './run-import';
  * `AppState.pendingImport`, combined into one confirmation: per file the detected format,
  * counts, warnings and id regenerations; editable collection names; what to do with an
  * environment named like an existing one; "also use imported values as my current values"; the
- * variable name for Apidog base URLs (PIGN-048).
+ * variable name for Apidog / Echo API base URLs (PIGN-048/049).
  * **Import & write files** commits just the imported entities; **Import as local drafts** saves.
  */
 export function ImportDialog() {
@@ -194,7 +194,7 @@ function ImportPreviewPanel({
               <span className="text-xs text-fg-muted">
                 Base URL variable{' '}
                 <span className="font-mono">{`{{${baseUrlName.trim() || '…'}}}`}</span> (other
-                Apidog services get a suffix)
+                services get a suffix)
               </span>
               <input
                 data-testid="import-base-url-name"

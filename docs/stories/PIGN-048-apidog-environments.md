@@ -42,7 +42,7 @@ Fixture-based snapshot tests; detection matrix across all fixtures.
 Standard DoD.
 
 ## Status: Done (2026-11-24)
-Unblocked by two real Apidog exports from the user (one environment export and one project export in Apidog format 1.2.0), both from the same Apidog version. The scope asked for at least three samples. Only these two shapes exist so far; unit tests cover the rest with synthetic data labelled as such. The earlier "Blocked" note is kept in git history.
+Unblocked by real Apidog exports from the user: first one environment export and one project export (Apidog format 1.2.0), then a second pair (Airport Gap) from a newer build. These four samples cover the scope's "at least three". The newer exports add the variable options `isFixedValue`/`isBindInitial`, leave out `description`/`isSync`, and keep the base URL only on one service with an empty main `baseUrl`. Unit tests cover what no sample shows, using synthetic data labelled as such. The earlier "Blocked" note is kept in git history.
 
 ## Implementation notes
 - **Fixtures** (`packages/fixtures/apidog/`):
@@ -62,10 +62,11 @@ Unblocked by two real Apidog exports from the user (one environment export and o
   - Values go through the shared `splitSecrets`. It now takes separate current values, so the initial value goes to files and the current value to "use as my current values".
 - **Secret-like names:**
   - The real sample had API keys and a webhook secret saved as plain variables.
-  - Names ending in secret, password, token, apiKey, privateKey or credentials (and holding a value) are imported as secrets, so those values never reach project files.
+  - Names ending in secret, password, token, apiKey, privateKey or credentials are imported as secrets, even when empty (the Airport Gap sample has an empty `api_token` and `account_password`), so those values never reach project files.
   - The report names them and says how to change them back.
   - Unknown `securityType` values and `isSync: false` (neither seen in the samples) also keep values off files.
 - **Report:** unsupported data is listed, not silently dropped. This covers non-empty environment parameters, socket base URLs, registration centers, non-default proxy settings, unknown environment types and unknown environment or variable fields. For a project export it also says that APIs, docs and schemas are not imported, and to export them as OpenAPI or Postman instead. Apidog bookkeeping (`id`, `ordering`, `tags`, `visibility`, `projectType`) is ignored, as documented in §B.2.
+- **Shared with Echo API (PIGN-049):** base URL variables, the secret-name rule and report wording live in `formats/src/environments/imported.ts` (`EnvironmentSource`, `buildImportedEnvironment`); the import item's `source` carries the tool name for the base URL descriptions.
 - **Core and UI:**
   - `previewImportFiles` turns one Apidog file into several environment items, plus a globals item when globals are present. Each carries `apidog` (its source) and `baseUrls`; file-level notes go in `fileWarnings`.
   - `withBaseUrlVariable(items, name)` rebuilds them under another variable name.

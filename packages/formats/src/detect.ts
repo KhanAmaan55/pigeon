@@ -1,12 +1,18 @@
 /**
  * What an imported file is (compatibility.md §A.1, §B.4), from its structure: Postman
  * collections (v2.1, v2.0; v1 rejected), environments, globals, Apidog environment and project
- * exports (PIGN-048) and cURL commands.
+ * exports (PIGN-048), Echo API project exports (PIGN-049) and cURL commands.
  */
 
 import type { ApidogVariant } from './apidog/environments';
 import { APIDOG_FALLBACK_MESSAGE, apidogFormatName, detectApidog } from './apidog/environments';
 import type { CurlRequest } from './curl/parse';
+import {
+  detectEchoApi,
+  ECHOAPI_FALLBACK_MESSAGE,
+  ECHOAPI_FORMAT,
+  echoApiHasVariables,
+} from './echoapi/environments';
 import { isCurlCommand, parseCurl } from './curl/parse';
 import { isObject } from './postman/json';
 
@@ -16,6 +22,8 @@ export type DetectedFormat =
   | { kind: 'postman-globals'; data: Record<string, unknown> }
   /** Apidog environments (and globals), PIGN-048. */
   | { kind: 'apidog'; variant: ApidogVariant; version?: string; data: Record<string, unknown> }
+  /** Echo API environments (and global variables), PIGN-049. */
+  | { kind: 'echoapi'; data: Record<string, unknown> }
   /** A cURL command (PIGN-050), parsed. */
   | { kind: 'curl'; request: CurlRequest }
   | { kind: 'rejected'; format: string; message: string }
@@ -99,6 +107,21 @@ export function detectFormat(input: string | Uint8Array | unknown): DetectedForm
   }
   if (apidog?.kind === 'apidog-unrecognized') {
     return { kind: 'rejected', format: 'Apidog export', message: APIDOG_FALLBACK_MESSAGE };
+  }
+  const echo = detectEchoApi(data);
+  if (echo?.kind === 'echoapi') {
+    if (!echoApiHasVariables(data)) {
+      return {
+        kind: 'rejected',
+        format: ECHOAPI_FORMAT,
+        message:
+          'This Echo API export has no environment variables, base URLs or global variables. Export the project from Echo API in Postman format to import its APIs.',
+      };
+    }
+    return echo;
+  }
+  if (echo?.kind === 'echoapi-unrecognized') {
+    return { kind: 'rejected', format: 'Echo API export', message: ECHOAPI_FALLBACK_MESSAGE };
   }
   return {
     kind: 'unknown',

@@ -5,19 +5,17 @@ export type { CanonicalJsonOptions, KeyOrderPath, KeyOrderSpec } from './canonic
 export { contentHash, sha256Hex } from './hash';
 export { beautifyJson } from './json-format';
 export type { DetectedFormat } from './detect';
+export type { ApidogImport, ApidogVariant } from './apidog/environments';
+export { APIDOG_FALLBACK_MESSAGE, importApidog } from './apidog/environments';
+export type { EchoApiImport } from './echoapi/environments';
+export { ECHOAPI_FALLBACK_MESSAGE, importEchoApi } from './echoapi/environments';
 export type {
-  ApidogBaseUrl,
-  ApidogEnvironmentSource,
-  ApidogImport,
-  ApidogImportedEnvironment,
-  ApidogVariant,
-} from './apidog/environments';
-export {
-  APIDOG_FALLBACK_MESSAGE,
-  buildApidogEnvironment,
-  DEFAULT_BASE_URL_VARIABLE,
-  importApidog,
-} from './apidog/environments';
+  BaseUrl,
+  BaseUrlSource,
+  EnvironmentSource,
+  ImportedEnvironment,
+} from './environments/imported';
+export { buildImportedEnvironment, DEFAULT_BASE_URL_VARIABLE } from './environments/imported';
 export { detectFormat } from './detect';
 export type { ImportOptions, ImportReport } from './postman/import';
 export { importPostmanCollection } from './postman/import';

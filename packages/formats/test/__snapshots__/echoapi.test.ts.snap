@@ -1,0 +1,288 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`importing Echo API environments (PIGN-049) > maps the Airport Gap project export 1`] = `
+{
+  "environments": [
+    {
+      "baseUrls": [
+        {
+          "key": "baseUrl",
+          "service": "Default Services",
+          "skipped": false,
+          "suffix": "",
+          "url": "https://mock.echoapi.com/mock/373ff439780004",
+        },
+      ],
+      "currentValues": {
+        "baseUrl": "https://mock.echoapi.com/mock/373ff439780004",
+      },
+      "environment": {
+        "extra": {},
+        "fileKey": "mock-environment",
+        "id": "id-1",
+        "name": "Mock Environment",
+        "values": [
+          {
+            "description": "Base URL from Echo API",
+            "enabled": true,
+            "key": "baseUrl",
+            "type": "default",
+            "value": "https://mock.echoapi.com/mock/373ff439780004",
+          },
+        ],
+      },
+      "report": {
+        "secrets": 0,
+        "variables": 1,
+        "warnings": [],
+      },
+      "source": {
+        "baseUrls": [
+          {
+            "service": "Default Services",
+            "suffix": "",
+            "url": "https://mock.echoapi.com/mock/373ff439780004",
+          },
+        ],
+        "current": {},
+        "origin": "Echo API",
+        "variables": [],
+        "warnings": [],
+      },
+      "values": [
+        {
+          "description": "Base URL from Echo API",
+          "enabled": true,
+          "key": "baseUrl",
+          "type": "default",
+          "value": "https://mock.echoapi.com/mock/373ff439780004",
+        },
+      ],
+    },
+    {
+      "baseUrls": [],
+      "currentValues": {
+        "airport_id": "KIX",
+        "base_url": "https://airportgap.com/api",
+        "favorite_id": "22",
+        "favorite_note": "My favorite airport",
+        "from_airport": "KIX",
+        "page": "1",
+        "to_airport": "NRT",
+      },
+      "environment": {
+        "extra": {},
+        "fileKey": "airport-gap-environment",
+        "id": "id-2",
+        "name": "Airport Gap - Environment",
+        "values": [
+          {
+            "enabled": true,
+            "key": "account_password",
+            "type": "secret",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "airport_id",
+            "type": "default",
+            "value": "KIX",
+          },
+          {
+            "enabled": true,
+            "key": "favorite_note",
+            "type": "default",
+            "value": "My favorite airport",
+          },
+          {
+            "enabled": true,
+            "key": "from_airport",
+            "type": "default",
+            "value": "KIX",
+          },
+          {
+            "enabled": true,
+            "key": "page",
+            "type": "default",
+            "value": "1",
+          },
+          {
+            "enabled": true,
+            "key": "account_email",
+            "type": "default",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "api_token",
+            "type": "secret",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "base_url",
+            "type": "default",
+            "value": "https://airportgap.com/api",
+          },
+          {
+            "enabled": true,
+            "key": "favorite_id",
+            "type": "default",
+            "value": "22",
+          },
+          {
+            "enabled": true,
+            "key": "to_airport",
+            "type": "default",
+            "value": "NRT",
+          },
+        ],
+      },
+      "report": {
+        "secrets": 2,
+        "variables": 10,
+        "warnings": [
+          "account_password, api_token look like secrets: imported as secret, so the value stays off files. Change the type in the environment editor if not.",
+        ],
+      },
+      "source": {
+        "baseUrls": [],
+        "current": {},
+        "origin": "Echo API",
+        "variables": [
+          {
+            "enabled": true,
+            "key": "account_password",
+            "type": "secret",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "airport_id",
+            "type": "default",
+            "value": "KIX",
+          },
+          {
+            "enabled": true,
+            "key": "favorite_note",
+            "type": "default",
+            "value": "My favorite airport",
+          },
+          {
+            "enabled": true,
+            "key": "from_airport",
+            "type": "default",
+            "value": "KIX",
+          },
+          {
+            "enabled": true,
+            "key": "page",
+            "type": "default",
+            "value": "1",
+          },
+          {
+            "enabled": true,
+            "key": "account_email",
+            "type": "default",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "api_token",
+            "type": "secret",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "base_url",
+            "type": "default",
+            "value": "https://airportgap.com/api",
+          },
+          {
+            "enabled": true,
+            "key": "favorite_id",
+            "type": "default",
+            "value": "22",
+          },
+          {
+            "enabled": true,
+            "key": "to_airport",
+            "type": "default",
+            "value": "NRT",
+          },
+        ],
+        "warnings": [
+          "account_password, api_token look like secrets: imported as secret, so the value stays off files. Change the type in the environment editor if not.",
+        ],
+      },
+      "values": [
+        {
+          "enabled": true,
+          "key": "account_password",
+          "type": "secret",
+          "value": "",
+        },
+        {
+          "enabled": true,
+          "key": "airport_id",
+          "type": "default",
+          "value": "KIX",
+        },
+        {
+          "enabled": true,
+          "key": "favorite_note",
+          "type": "default",
+          "value": "My favorite airport",
+        },
+        {
+          "enabled": true,
+          "key": "from_airport",
+          "type": "default",
+          "value": "KIX",
+        },
+        {
+          "enabled": true,
+          "key": "page",
+          "type": "default",
+          "value": "1",
+        },
+        {
+          "enabled": true,
+          "key": "account_email",
+          "type": "default",
+          "value": "",
+        },
+        {
+          "enabled": true,
+          "key": "api_token",
+          "type": "secret",
+          "value": "",
+        },
+        {
+          "enabled": true,
+          "key": "base_url",
+          "type": "default",
+          "value": "https://airportgap.com/api",
+        },
+        {
+          "enabled": true,
+          "key": "favorite_id",
+          "type": "default",
+          "value": "22",
+        },
+        {
+          "enabled": true,
+          "key": "to_airport",
+          "type": "default",
+          "value": "NRT",
+        },
+      ],
+    },
+  ],
+  "format": "Echo API project export",
+  "warnings": [
+    "“Default Environment” has no variables or base URL: not imported.",
+    "Only environments and global variables are imported from an Echo API project; its APIs (2) are not. Export the project from Echo API in Postman format to bring the APIs in.",
+  ],
+}
+`;

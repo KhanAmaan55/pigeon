@@ -1,0 +1,232 @@
+{
+  "environments": [
+    {
+      "baseUrl": "",
+      "baseUrls": {
+        "1272977": "",
+        "1306856": "",
+        "1308921": "",
+        "1316552": "",
+        "1394171": "",
+        "1427747": "",
+        "1478748": "",
+        "1478751": "",
+        "1515738": "",
+        "1523599": "",
+        "1531178": "https://airportgap.com/api",
+        "default": ""
+      },
+      "websocketBaseUrls": {},
+      "socketioBaseUrls": {},
+      "registrationCenters": [],
+      "advancedSettings": {
+        "1272977": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1306856": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1308921": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1316552": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1394171": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1427747": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1478748": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1478751": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1515738": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1523599": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1531178": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "default": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        }
+      },
+      "parameters": {
+        "cookie": [],
+        "query": [],
+        "header": [],
+        "body": []
+      },
+      "variables": [
+        {
+          "name": "base_url",
+          "value": "https://airportgap.com/api",
+          "initialValue": "https://airportgap.com/api",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "page",
+          "value": "1",
+          "initialValue": "1",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "api_token",
+          "value": "",
+          "initialValue": "",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "account_email",
+          "value": "",
+          "initialValue": "",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "account_password",
+          "value": "",
+          "initialValue": "",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "airport_id",
+          "value": "KIX",
+          "initialValue": "KIX",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "from_airport",
+          "value": "KIX",
+          "initialValue": "KIX",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "to_airport",
+          "value": "NRT",
+          "initialValue": "NRT",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "favorite_id",
+          "value": "22",
+          "initialValue": "22",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "favorite_note",
+          "value": "My favorite airport",
+          "initialValue": "My favorite airport",
+          "isFixedValue": false,
+          "isBindInitial": false
+        }
+      ],
+      "name": "Airport Gap - Environment",
+      "type": "normal",
+      "ordering": 0,
+      "projectType": "HTTP"
+    }
+  ],
+  "servers": [
+    {
+      "id": "default",
+      "name": "Default Server",
+      "importSourceServerId": "1394171"
+    },
+    {
+      "id": "1272977",
+      "name": "Default Server"
+    },
+    {
+      "id": "1306856",
+      "name": "Default Server"
+    },
+    {
+      "id": "1308921",
+      "name": "Default Server",
+      "importSourceServerId": "1400363"
+    },
+    {
+      "id": "1316552",
+      "name": "Default Server"
+    },
+    {
+      "id": "1394171",
+      "name": "Default Server"
+    },
+    {
+      "id": "1427747",
+      "name": "Default Server"
+    },
+    {
+      "id": "1478748",
+      "name": "Default Server"
+    },
+    {
+      "id": "1478751",
+      "name": "Default Server"
+    },
+    {
+      "id": "1515738",
+      "name": "Default Server"
+    },
+    {
+      "id": "1523599",
+      "name": "Default Server"
+    },
+    {
+      "id": "1531178",
+      "name": "Default Server"
+    }
+  ]
+}

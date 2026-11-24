@@ -1,0 +1,380 @@
+{
+  "apidogProject": "1.0.0",
+  "$schema": {
+    "app": "apidog",
+    "type": "project",
+    "version": "1.2.0"
+  },
+  "info": {
+    "name": "Example Project",
+    "description": "",
+    "mockRule": {
+      "rules": [],
+      "enableSystemRule": true
+    }
+  },
+  "projectSetting": {
+    "id": "1204290",
+    "auth": {},
+    "securityScheme": {},
+    "gateway": [],
+    "language": "en-US",
+    "apiStatuses": ["developing", "testing", "released", "deprecated"],
+    "mockSettings": {},
+    "preProcessors": [],
+    "postProcessors": [],
+    "advancedSettings": {
+      "enableJsonc": true,
+      "enableBigint": false,
+      "responseValidate": true,
+      "enableTestScenarioSetting": false,
+      "enableYAPICompatScript": false,
+      "isDefaultUrlEncoding": 3,
+      "publishedDocUrlRules": {
+        "defaultRule": "SLUGIFY_WITH_RESOURCE_KEY",
+        "resourceKeyStandard": "NEW"
+      }
+    },
+    "initialDisabledMockIds": [],
+    "servers": [
+      {
+        "id": "default",
+        "name": "Default Server",
+        "importSourceServerId": "1394171",
+        "moduleId": 1083822
+      },
+      {
+        "id": "1272977",
+        "name": "Default Server",
+        "moduleId": 1272977
+      },
+      {
+        "id": "1306856",
+        "name": "Default Server",
+        "moduleId": 1306856
+      },
+      {
+        "id": "1308921",
+        "name": "Default Server",
+        "moduleId": 1308921,
+        "importSourceServerId": "1400363"
+      },
+      {
+        "id": "1316552",
+        "name": "Default Server",
+        "moduleId": 1316552
+      },
+      {
+        "id": "1394171",
+        "name": "Default Server",
+        "moduleId": 1394171
+      },
+      {
+        "id": "1427747",
+        "name": "Default Server",
+        "moduleId": 1427747
+      },
+      {
+        "id": "1478748",
+        "name": "Default Server",
+        "moduleId": 1478748
+      },
+      {
+        "id": "1478751",
+        "name": "Default Server",
+        "moduleId": 1478751
+      },
+      {
+        "id": "1515738",
+        "name": "Default Server",
+        "moduleId": 1515738
+      },
+      {
+        "id": "1523599",
+        "name": "Default Server",
+        "moduleId": 1523599
+      },
+      {
+        "id": "1531178",
+        "name": "Default Server",
+        "moduleId": 1531178
+      }
+    ],
+    "cloudMock": {
+      "enable": false,
+      "security": "free",
+      "tokenKey": "apidogToken",
+      "isCreatedAutomaticallyByDefaultConfigFromAdmin": true
+    }
+  },
+  "apiCollection": [
+    {
+      "name": "Root",
+      "id": 11590217,
+      "auth": {
+        "type": "noauth"
+      },
+      "securityScheme": {},
+      "parentId": 0,
+      "serverId": "",
+      "description": "",
+      "identityPattern": {
+        "httpApi": {
+          "type": "methodAndPath",
+          "bodyType": "",
+          "fields": []
+        }
+      },
+      "shareSettings": {},
+      "visibility": "SHARED",
+      "moduleId": 1531178,
+      "preProcessors": [
+        {
+          "id": "inheritProcessors",
+          "type": "inheritProcessors",
+          "data": {}
+        }
+      ],
+      "postProcessors": [
+        {
+          "id": "inheritProcessors",
+          "type": "inheritProcessors",
+          "data": {}
+        }
+      ],
+      "inheritPostProcessors": {},
+      "inheritPreProcessors": {},
+      "items": [
+        {
+          "name": "Airports",
+          "id": 11590218,
+          "auth": {},
+          "securityScheme": {},
+          "parentId": 0,
+          "serverId": "",
+          "description": "",
+          "identityPattern": {
+            "httpApi": {
+              "type": "inherit",
+              "bodyType": "",
+              "fields": []
+            }
+          },
+          "shareSettings": {},
+          "visibility": "INHERITED",
+          "moduleId": 1531178,
+          "preProcessors": [
+            {
+              "id": "inheritProcessors",
+              "type": "inheritProcessors",
+              "data": {}
+            }
+          ],
+          "postProcessors": [
+            {
+              "id": "inheritProcessors",
+              "type": "inheritProcessors",
+              "data": {}
+            }
+          ],
+          "inheritPostProcessors": {},
+          "inheritPreProcessors": {},
+          "items": []
+        }
+      ]
+    }
+  ],
+  "socketCollection": [],
+  "docCollection": [],
+  "webSocketCollection": [],
+  "socketIOCollection": [],
+  "mcpClientCollection": [],
+  "responseCollection": [],
+  "schemaCollection": [],
+  "securitySchemeCollection": [],
+  "oasComponentCollection": [],
+  "requestCollection": [
+    {
+      "name": "Root",
+      "children": [],
+      "ordering": ["requestFolder.9207375", "requestFolder.11095593"],
+      "items": []
+    }
+  ],
+  "environments": [
+    {
+      "name": "Airport Gap - Environment",
+      "requestProxyAgentSettings": {},
+      "variables": [
+        {
+          "name": "base_url",
+          "value": "https://airportgap.com/api",
+          "initialValue": "https://airportgap.com/api",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "page",
+          "value": "1",
+          "initialValue": "1",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "api_token",
+          "value": "",
+          "initialValue": "",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "account_email",
+          "value": "",
+          "initialValue": "",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "account_password",
+          "value": "",
+          "initialValue": "",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "airport_id",
+          "value": "KIX",
+          "initialValue": "KIX",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "from_airport",
+          "value": "KIX",
+          "initialValue": "KIX",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "to_airport",
+          "value": "NRT",
+          "initialValue": "NRT",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "favorite_id",
+          "value": "22",
+          "initialValue": "22",
+          "isFixedValue": false,
+          "isBindInitial": false
+        },
+        {
+          "name": "favorite_note",
+          "value": "My favorite airport",
+          "initialValue": "My favorite airport",
+          "isFixedValue": false,
+          "isBindInitial": false
+        }
+      ],
+      "parameters": {
+        "cookie": [],
+        "query": [],
+        "header": [],
+        "body": []
+      },
+      "type": "normal",
+      "visibility": "protected",
+      "ordering": 0,
+      "tags": [],
+      "advancedSettings": {},
+      "id": "7015958",
+      "baseUrl": "",
+      "baseUrls": {
+        "1083822": "",
+        "1272977": "",
+        "1306856": "",
+        "1308921": "",
+        "1316552": "",
+        "1394171": "",
+        "1427747": "",
+        "1478748": "",
+        "1478751": "",
+        "1515738": "",
+        "1523599": "",
+        "1531178": "https://airportgap.com/api"
+      },
+      "socketioBaseUrls": {},
+      "websocketBaseUrls": {}
+    }
+  ],
+  "commonScripts": [],
+  "globalVariables": [
+    {
+      "id": "1204233",
+      "variables": []
+    }
+  ],
+  "commonParameters": null,
+  "customFunctions": [],
+  "projectTestCaseCategories": [
+    {
+      "id": 927982,
+      "name": "Positive",
+      "description": "Valid inputs and correct expected results, representing typical usage."
+    }
+  ],
+  "projectTestCaseTags": [
+    {
+      "id": 3474698,
+      "name": "Required Fields Only",
+      "description": "Send only the required fields with valid values, omitting all optional fields, to test minimal valid requests."
+    }
+  ],
+  "projectAssociations": [],
+  "moduleSettings": [
+    {
+      "id": "1531178",
+      "name": "Airport Gap - Airports API",
+      "description": "Example module.",
+      "moduleVariables": [
+        {
+          "name": "base_url",
+          "value": "https://airportgap.com/api",
+          "initialValue": "https://airportgap.com/api"
+        },
+        {
+          "name": "page",
+          "value": "1",
+          "initialValue": "1"
+        },
+        {
+          "name": "airport_id",
+          "value": "KIX",
+          "initialValue": "KIX"
+        },
+        {
+          "name": "from_airport",
+          "value": "KIX",
+          "initialValue": "KIX"
+        },
+        {
+          "name": "to_airport",
+          "value": "NRT",
+          "initialValue": "NRT"
+        },
+        {
+          "name": "favorite_id",
+          "value": "22",
+          "initialValue": "22"
+        },
+        {
+          "name": "favorite_note",
+          "value": "My favorite airport",
+          "initialValue": "My favorite airport"
+        }
+      ],
+      "openApiInfo": {}
+    }
+  ]
+}

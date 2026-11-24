@@ -11,8 +11,21 @@
  * one in `baseUrl`. Only environments and globals are imported; everything else is reported.
  */
 
-import { slugify } from '../slug';
-import type { ProjectEnvironment, ProjectEnvVariable, ProjectGlobals } from '../project/types';
+import type {
+  BaseUrlSource,
+  EnvironmentSource,
+  ImportedEnvironment,
+} from '../environments/imported';
+import {
+  importedEnvironment,
+  list,
+  looksSecret,
+  plural,
+  secretNamesWarning,
+  suffixFor,
+  text,
+} from '../environments/imported';
+import type { ProjectEnvVariable, ProjectGlobals } from '../project/types';
 import type { ImportedVariables } from '../postman/environment-io';
 import { splitSecrets } from '../postman/environment-io';
 import type { JsonObject } from '../postman/json';
@@ -21,8 +34,6 @@ import { asArray, asObject, asString, isObject } from '../postman/json';
 /** compatibility.md §B.2: what an Apidog-looking file that can't be read shows. */
 export const APIDOG_FALLBACK_MESSAGE =
   'Unrecognized Apidog export. Export environments from Apidog in Postman format, or share a sample to add support.';
-
-export const DEFAULT_BASE_URL_VARIABLE = 'baseUrl';
 
 export type ApidogVariant = 'project' | 'environments';
 
@@ -76,25 +87,10 @@ const VARIABLE_KEYS = new Set([
   'description',
   'isSync',
   'securityType',
+  // Variable options of newer Apidog versions; only `false` has been observed.
+  'isFixedValue',
+  'isBindInitial',
 ]);
-
-/** Names that end like a credential: imported as secrets so their values stay off files. */
-const SECRET_NAME = /(secret|passw(or)?d|token|api[-_]?key|private[-_]?key|credentials?)$/i;
-
-function text(value: unknown): string | undefined {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  return undefined;
-}
-
-function list(names: readonly string[]): string {
-  const shown = names.slice(0, 5).join(', ');
-  return names.length > 5 ? `${shown} and ${names.length - 5} more` : shown;
-}
-
-function plural(count: number, one: string, many = `${one}s`): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
 
 interface MappedVariables {
   variables: ProjectEnvVariable[];
@@ -110,6 +106,7 @@ function mapVariables(raw: readonly unknown[]): MappedVariables {
   const localOnly: string[] = [];
   const unknownSecurity = new Set<string>();
   const unknownFields = new Set<string>();
+  const options = new Map<string, string[]>();
   let differing = 0;
   let unnamed = 0;
   for (const entry of raw) {
@@ -121,6 +118,9 @@ function mapVariables(raw: readonly unknown[]): MappedVariables {
     }
     for (const field of Object.keys(variable))
       if (!VARIABLE_KEYS.has(field)) unknownFields.add(field);
+    for (const option of ['isFixedValue', 'isBindInitial']) {
+      if (variable[option] === true) options.set(option, [...(options.get(option) ?? []), key]);
+    }
     const initial = text(variable['initialValue']) ?? text(variable['value']) ?? '';
     const value = text(variable['value']) ?? initial;
     const synced = variable['isSync'] !== false;
@@ -131,7 +131,7 @@ function mapVariables(raw: readonly unknown[]): MappedVariables {
     if (security !== undefined && security !== 'default') {
       type = 'secret';
       unknownSecurity.add(String(security));
-    } else if (SECRET_NAME.test(key) && (initial !== '' || value !== '')) {
+    } else if (looksSecret(key)) {
       type = 'secret';
       byName.push(key);
     }
@@ -149,11 +149,7 @@ function mapVariables(raw: readonly unknown[]): MappedVariables {
     });
   }
   const warnings: string[] = [];
-  if (byName.length > 0) {
-    warnings.push(
-      `${list(byName)} look${byName.length === 1 ? 's' : ''} like ${byName.length === 1 ? 'a secret' : 'secrets'}: imported as secret, so the value stays off files. Change the type in the environment editor if not.`,
-    );
-  }
+  warnings.push(...secretNamesWarning(byName));
   if (unknownSecurity.size > 0) {
     warnings.push(
       `Apidog security type ${[...unknownSecurity].map((s) => `“${s}”`).join(', ')} is not known: those variables are imported as secrets.`,
@@ -170,6 +166,9 @@ function mapVariables(raw: readonly unknown[]): MappedVariables {
     );
   }
   if (unnamed > 0) warnings.push(`${plural(unnamed, 'variable')} without a name skipped.`);
+  for (const [option, names] of options) {
+    warnings.push(`Apidog option ${option} is set on ${list(names)}: it has no Pigeon equivalent.`);
+  }
   if (unknownFields.size > 0) {
     warnings.push(`Variable fields not imported: ${[...unknownFields].join(', ')}.`);
   }
@@ -177,28 +176,6 @@ function mapVariables(raw: readonly unknown[]): MappedVariables {
 }
 
 // --- Environments ------------------------------------------------------------------------------
-
-/** A base URL found in the export; `suffix` is appended to the chosen variable name. */
-export interface ApidogBaseUrlSource {
-  suffix: string;
-  url: string;
-  /** The module name, or the service id when the export has no name for it. */
-  service: string;
-}
-
-export interface ApidogBaseUrl extends ApidogBaseUrlSource {
-  key: string;
-  /** A variable from the export already has this name: the base URL is not added. */
-  skipped: boolean;
-}
-
-/** What an Apidog environment maps to before the base URL variable name is chosen. */
-export interface ApidogEnvironmentSource {
-  variables: ProjectEnvVariable[];
-  current: Record<string, string>;
-  baseUrls: ApidogBaseUrlSource[];
-  warnings: string[];
-}
 
 const ENVIRONMENT_KEYS = new Set([
   'name',
@@ -252,22 +229,7 @@ function servicesOf(data: JsonObject): Services {
   };
 }
 
-function suffixFor(service: string, taken: Set<string>): string {
-  const base = `_${
-    service
-      .normalize('NFKD')
-      .replace(/\p{M}/gu, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '') || 'service'
-  }`;
-  let suffix = base;
-  for (let i = 2; taken.has(suffix); i++) suffix = `${base}_${i}`;
-  taken.add(suffix);
-  return suffix;
-}
-
-function environmentSource(raw: JsonObject, services: Services): ApidogEnvironmentSource {
+function environmentSource(raw: JsonObject, services: Services): EnvironmentSource {
   const mapped = mapVariables(asArray(raw['variables']));
   const warnings = [...mapped.warnings];
   const baseUrls = Object.entries(asObject(raw['baseUrls'])).flatMap(([key, url]) =>
@@ -280,8 +242,7 @@ function environmentSource(raw: JsonObject, services: Services): ApidogEnvironme
       .find(Boolean) ||
     baseUrls.find((b) => b.url !== '')?.url ||
     '';
-  const sources: ApidogBaseUrlSource[] =
-    main === '' ? [] : [{ suffix: '', url: main, service: 'main' }];
+  const sources: BaseUrlSource[] = main === '' ? [] : [{ suffix: '', url: main, service: 'main' }];
   const taken = new Set<string>(['']);
   let empty = 0;
   for (const { key, url } of baseUrls) {
@@ -326,60 +287,18 @@ function environmentSource(raw: JsonObject, services: Services): ApidogEnvironme
   }
   const unknown = Object.keys(raw).filter((key) => !ENVIRONMENT_KEYS.has(key));
   if (unknown.length > 0) warnings.push(`Environment fields not imported: ${unknown.join(', ')}.`);
-  return { variables: mapped.variables, current: mapped.current, baseUrls: sources, warnings };
-}
-
-/**
- * The variables of an Apidog environment with its base URLs as `<name>` and `<name>_<service>`
- * (first, in that order), secrets emptied for files, and the report.
- */
-export function buildApidogEnvironment(
-  source: ApidogEnvironmentSource,
-  baseUrlVariable: string = DEFAULT_BASE_URL_VARIABLE,
-): ImportedVariables & { baseUrls: ApidogBaseUrl[] } {
-  const own = new Set(source.variables.map((v) => v.key));
-  const baseUrls = source.baseUrls.map((b) => {
-    const key = `${baseUrlVariable}${b.suffix}`;
-    return { ...b, key, skipped: own.has(key) };
-  });
-  const added = baseUrls
-    .filter((b) => !b.skipped)
-    .map((b): ProjectEnvVariable => ({
-      key: b.key,
-      value: b.url,
-      type: 'default',
-      enabled: true,
-      description:
-        b.suffix === '' ? 'Base URL from Apidog' : `Base URL of the Apidog service “${b.service}”`,
-    }));
-  const split = splitSecrets([...added, ...source.variables], source.current);
-  const skipped = baseUrls.filter((b) => b.skipped);
   return {
-    ...split,
-    baseUrls,
-    report: {
-      ...split.report,
-      warnings: [
-        ...skipped.map(
-          (b) =>
-            `The export already has a variable “${b.key}”: the base URL ${b.url} is not added under that name.`,
-        ),
-        ...split.report.warnings,
-        ...source.warnings,
-      ],
-    },
+    origin: 'Apidog',
+    variables: mapped.variables,
+    current: mapped.current,
+    baseUrls: sources,
+    warnings,
   };
-}
-
-export interface ApidogImportedEnvironment extends ImportedVariables {
-  environment: ProjectEnvironment;
-  source: ApidogEnvironmentSource;
-  baseUrls: ApidogBaseUrl[];
 }
 
 export interface ApidogImport {
   format: string;
-  environments: ApidogImportedEnvironment[];
+  environments: ImportedEnvironment[];
   globals?: ImportedVariables & { globals: ProjectGlobals };
   /** About the file as a whole (what else it holds that is not imported). */
   warnings: string[];
@@ -423,21 +342,10 @@ export function importApidog(
   const services = servicesOf(data);
   const environments = asArray(data['environments']).map((entry) => {
     const raw = asObject(entry);
-    const source = environmentSource(raw, services);
-    const built = buildApidogEnvironment(source, options.baseUrlVariable);
-    const id = newId();
-    const name = asString(raw['name']).trim() || 'Imported environment';
-    return {
-      ...built,
-      source,
-      environment: {
-        id,
-        fileKey: slugify(name, { kind: 'environment', id }),
-        name,
-        values: built.values,
-        extra: {},
-      },
-    };
+    return importedEnvironment(environmentSource(raw, services), asString(raw['name']), {
+      newId,
+      baseUrlVariable: options.baseUrlVariable,
+    });
   });
 
   const globalVariables = asArray(data['globalVariables']).flatMap((entry) =>

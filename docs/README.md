@@ -119,6 +119,5 @@ If a story turns out too large, split it into `PIGN-0XXa/b` entries in the index
 | D-11 | App identifier, code signing, auto-update policy | PIGN-041 |
 | D-12 | Web hosting target/domain | PIGN-039 |
 | D-13 | License | public release |
-| D-14 | Real Echo API export samples (Apidog done) | PIGN-049 |
 
 All decisions, including the proposed defaults: [architecture.md §11](architecture.md#11-technical-decisions).

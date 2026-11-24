@@ -156,6 +156,7 @@ exports[`importing Apidog environments (PIGN-048) > maps the environment export 
           },
         ],
         "current": {},
+        "origin": "Apidog",
         "variables": [
           {
             "enabled": true,
@@ -342,6 +343,265 @@ exports[`importing Apidog environments (PIGN-048) > maps the environment export 
 }
 `;
 
+exports[`importing Apidog environments (PIGN-048) > maps the newer Airport Gap exports (base URL only on one service, variable options) 1`] = `
+{
+  "environments": [
+    {
+      "baseUrls": [
+        {
+          "key": "baseUrl",
+          "service": "main",
+          "skipped": false,
+          "suffix": "",
+          "url": "https://airportgap.com/api",
+        },
+      ],
+      "currentValues": {
+        "airport_id": "KIX",
+        "baseUrl": "https://airportgap.com/api",
+        "base_url": "https://airportgap.com/api",
+        "favorite_id": "22",
+        "favorite_note": "My favorite airport",
+        "from_airport": "KIX",
+        "page": "1",
+        "to_airport": "NRT",
+      },
+      "environment": {
+        "extra": {},
+        "fileKey": "airport-gap-environment",
+        "id": "id-1",
+        "name": "Airport Gap - Environment",
+        "values": [
+          {
+            "description": "Base URL from Apidog",
+            "enabled": true,
+            "key": "baseUrl",
+            "type": "default",
+            "value": "https://airportgap.com/api",
+          },
+          {
+            "enabled": true,
+            "key": "base_url",
+            "type": "default",
+            "value": "https://airportgap.com/api",
+          },
+          {
+            "enabled": true,
+            "key": "page",
+            "type": "default",
+            "value": "1",
+          },
+          {
+            "enabled": true,
+            "key": "api_token",
+            "type": "secret",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "account_email",
+            "type": "default",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "account_password",
+            "type": "secret",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "airport_id",
+            "type": "default",
+            "value": "KIX",
+          },
+          {
+            "enabled": true,
+            "key": "from_airport",
+            "type": "default",
+            "value": "KIX",
+          },
+          {
+            "enabled": true,
+            "key": "to_airport",
+            "type": "default",
+            "value": "NRT",
+          },
+          {
+            "enabled": true,
+            "key": "favorite_id",
+            "type": "default",
+            "value": "22",
+          },
+          {
+            "enabled": true,
+            "key": "favorite_note",
+            "type": "default",
+            "value": "My favorite airport",
+          },
+        ],
+      },
+      "report": {
+        "secrets": 2,
+        "variables": 11,
+        "warnings": [
+          "api_token, account_password look like secrets: imported as secret, so the value stays off files. Change the type in the environment editor if not.",
+          "11 services without a base URL in this environment skipped.",
+        ],
+      },
+      "source": {
+        "baseUrls": [
+          {
+            "service": "main",
+            "suffix": "",
+            "url": "https://airportgap.com/api",
+          },
+        ],
+        "current": {},
+        "origin": "Apidog",
+        "variables": [
+          {
+            "enabled": true,
+            "key": "base_url",
+            "type": "default",
+            "value": "https://airportgap.com/api",
+          },
+          {
+            "enabled": true,
+            "key": "page",
+            "type": "default",
+            "value": "1",
+          },
+          {
+            "enabled": true,
+            "key": "api_token",
+            "type": "secret",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "account_email",
+            "type": "default",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "account_password",
+            "type": "secret",
+            "value": "",
+          },
+          {
+            "enabled": true,
+            "key": "airport_id",
+            "type": "default",
+            "value": "KIX",
+          },
+          {
+            "enabled": true,
+            "key": "from_airport",
+            "type": "default",
+            "value": "KIX",
+          },
+          {
+            "enabled": true,
+            "key": "to_airport",
+            "type": "default",
+            "value": "NRT",
+          },
+          {
+            "enabled": true,
+            "key": "favorite_id",
+            "type": "default",
+            "value": "22",
+          },
+          {
+            "enabled": true,
+            "key": "favorite_note",
+            "type": "default",
+            "value": "My favorite airport",
+          },
+        ],
+        "warnings": [
+          "api_token, account_password look like secrets: imported as secret, so the value stays off files. Change the type in the environment editor if not.",
+          "11 services without a base URL in this environment skipped.",
+        ],
+      },
+      "values": [
+        {
+          "description": "Base URL from Apidog",
+          "enabled": true,
+          "key": "baseUrl",
+          "type": "default",
+          "value": "https://airportgap.com/api",
+        },
+        {
+          "enabled": true,
+          "key": "base_url",
+          "type": "default",
+          "value": "https://airportgap.com/api",
+        },
+        {
+          "enabled": true,
+          "key": "page",
+          "type": "default",
+          "value": "1",
+        },
+        {
+          "enabled": true,
+          "key": "api_token",
+          "type": "secret",
+          "value": "",
+        },
+        {
+          "enabled": true,
+          "key": "account_email",
+          "type": "default",
+          "value": "",
+        },
+        {
+          "enabled": true,
+          "key": "account_password",
+          "type": "secret",
+          "value": "",
+        },
+        {
+          "enabled": true,
+          "key": "airport_id",
+          "type": "default",
+          "value": "KIX",
+        },
+        {
+          "enabled": true,
+          "key": "from_airport",
+          "type": "default",
+          "value": "KIX",
+        },
+        {
+          "enabled": true,
+          "key": "to_airport",
+          "type": "default",
+          "value": "NRT",
+        },
+        {
+          "enabled": true,
+          "key": "favorite_id",
+          "type": "default",
+          "value": "22",
+        },
+        {
+          "enabled": true,
+          "key": "favorite_note",
+          "type": "default",
+          "value": "My favorite airport",
+        },
+      ],
+    },
+  ],
+  "format": "Apidog environment export",
+  "warnings": [],
+}
+`;
+
 exports[`importing Apidog environments (PIGN-048) > maps the project export the same way and reports what else it holds 1`] = `
 {
   "environments": [
@@ -498,6 +758,7 @@ exports[`importing Apidog environments (PIGN-048) > maps the project export the 
           },
         ],
         "current": {},
+        "origin": "Apidog",
         "variables": [
           {
             "enabled": true,

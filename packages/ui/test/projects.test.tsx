@@ -1879,6 +1879,42 @@ describe('Apidog environment import (PIGN-048)', () => {
     );
   });
 
+  it('imports the environments of an Echo API project export (PIGN-049)', async () => {
+    const { platform, fs } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    const bytes = new Uint8Array(
+      await readFile(join(import.meta.dirname, '../../fixtures/echoapi/airport-gap.echoapi.json')),
+    );
+    platform.files.queuePick([{ name: 'Airport Gap - Complete API.json', bytes }]);
+    await user.click(screen.getByTestId('explorer-import'));
+    const dialog = await screen.findByTestId('import-dialog');
+    await within(dialog).findAllByTestId('import-item');
+    expect(
+      within(dialog)
+        .getAllByTestId('import-env-name')
+        .map((n) => n.textContent),
+    ).toEqual(['Mock Environment', 'Airport Gap - Environment']);
+    expect(
+      within(dialog)
+        .getAllByTestId('import-format')
+        .map((f) => f.textContent),
+    ).toEqual(['Detected: Echo API project export', 'Detected: Echo API project export']);
+    expect(
+      within(dialog)
+        .getAllByTestId('import-base-url')
+        .map((r) => r.textContent),
+    ).toEqual(['{{baseUrl}}https://mock.echoapi.com/mock/373ff439780004']);
+    await user.click(within(dialog).getByTestId('import-write'));
+    await waitFor(() => expect(screen.queryByTestId('import-dialog')).toBeNull());
+    expect(screen.getByTestId('toast').textContent).toMatch(/^Imported 2 environments; wrote/);
+    expect(
+      await fs.readText('environments/airport-gap-environment.postman_environment.json'),
+    ).toContain('https://airportgap.com/api');
+  });
+
   it('shows the fallback message for an Apidog file it cannot read', async () => {
     const { platform } = await fixturePlatform();
     render(<PigeonApp platform={platform} />);
