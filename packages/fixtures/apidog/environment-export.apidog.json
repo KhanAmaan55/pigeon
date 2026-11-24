@@ -1,0 +1,287 @@
+{
+  "environments": [
+    {
+      "baseUrl": "http://localhost:3000",
+      "baseUrls": {
+        "1272977": "",
+        "1306856": "http://localhost:3000",
+        "1308921": "http://localhost:3000",
+        "1316552": "",
+        "1394171": "",
+        "1427747": "http://localhost:3000",
+        "1478748": "http://localhost:3000",
+        "1478751": "http://localhost:3000",
+        "1515738": "",
+        "1523599": "http://localhost:3100",
+        "default": "http://localhost:3000"
+      },
+      "websocketBaseUrls": {},
+      "socketioBaseUrls": {},
+      "registrationCenters": [],
+      "advancedSettings": {
+        "1272977": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1284239": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1285894": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1285903": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1306856": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1308921": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1314954": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1316552": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1349534": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1394171": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1400363": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1405866": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1414866": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1414867": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1427603": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1427747": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "1478748": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        },
+        "default": {
+          "requestProxySetting": {
+            "type": "default",
+            "agentId": 2
+          }
+        }
+      },
+      "parameters": {
+        "cookie": [],
+        "query": [],
+        "header": [],
+        "body": []
+      },
+      "variables": [
+        {
+          "name": "apiKey",
+          "value": "example-api-key-1111",
+          "description": "",
+          "initialValue": "example-api-key-1111",
+          "isSync": true
+        },
+        {
+          "name": "adminApiKey",
+          "value": "example-admin-key-2222",
+          "description": "",
+          "initialValue": "example-admin-key-2222",
+          "isSync": true
+        },
+        {
+          "name": "webhookSecret",
+          "value": "example-webhook-secret-3333",
+          "description": "",
+          "initialValue": "example-webhook-secret-3333",
+          "isSync": true
+        },
+        {
+          "name": "partnerId",
+          "value": "00000000-0000-4000-8000-000000000001",
+          "description": "",
+          "initialValue": "00000000-0000-4000-8000-000000000001",
+          "isSync": true
+        },
+        {
+          "name": "partnerWalletId",
+          "value": " 00000000-0000-4000-8000-000000000002",
+          "description": "",
+          "initialValue": " 00000000-0000-4000-8000-000000000002",
+          "isSync": true
+        },
+        {
+          "name": "customerId",
+          "value": "",
+          "description": "",
+          "initialValue": "",
+          "isSync": true
+        },
+        {
+          "name": "customerWalletId",
+          "value": "",
+          "description": "",
+          "initialValue": "",
+          "isSync": true
+        },
+        {
+          "name": "ruleId",
+          "value": "",
+          "description": "",
+          "initialValue": "",
+          "isSync": true
+        },
+        {
+          "name": "holdId",
+          "value": "00000000-0000-4000-8000-000000000003",
+          "description": "",
+          "initialValue": "00000000-0000-4000-8000-000000000003",
+          "isSync": true
+        },
+        {
+          "name": "actorId",
+          "securityType": "default",
+          "value": "00000000-0000-4000-8000-000000000004",
+          "description": "",
+          "initialValue": "00000000-0000-4000-8000-000000000004",
+          "isSync": true
+        },
+        {
+          "name": "_webhookSig",
+          "securityType": "default",
+          "value": "example-signature-4444",
+          "description": "",
+          "initialValue": "example-signature-4444",
+          "isSync": true
+        },
+        {
+          "name": "_webhookBody",
+          "securityType": "default",
+          "value": "{\"partnerId\": \"{{partnerId}}\",\"amount\": 1500000,\"paymentRef\": \"PAY-0001\",\"idempotencyKey\": \"topup-example-0001\",\"timestamp\": \"2026-07-01T14:20:46.000Z\"}",
+          "description": "",
+          "initialValue": "{\"partnerId\": \"{{partnerId}}\",\"amount\": 1500000,\"paymentRef\": \"PAY-0001\",\"idempotencyKey\": \"topup-example-0001\",\"timestamp\": \"2026-07-01T14:20:46.000Z\"}",
+          "isSync": true
+        },
+        {
+          "name": "timestamp",
+          "value": "",
+          "description": "",
+          "initialValue": "",
+          "isSync": true
+        }
+      ],
+      "name": "Wallet Local",
+      "type": "normal",
+      "ordering": 36,
+      "projectType": "HTTP"
+    }
+  ],
+  "servers": [
+    {
+      "id": "default",
+      "name": "Default Server",
+      "importSourceServerId": "1394171"
+    },
+    {
+      "id": "1272977",
+      "name": "Default Server"
+    },
+    {
+      "id": "1306856",
+      "name": "Default Server"
+    },
+    {
+      "id": "1308921",
+      "name": "Default Server",
+      "importSourceServerId": "1400363"
+    },
+    {
+      "id": "1316552",
+      "name": "Default Server"
+    },
+    {
+      "id": "1394171",
+      "name": "Default Server"
+    },
+    {
+      "id": "1427747",
+      "name": "Default Server"
+    },
+    {
+      "id": "1478748",
+      "name": "Default Server"
+    },
+    {
+      "id": "1478751",
+      "name": "Default Server"
+    },
+    {
+      "id": "1515738",
+      "name": "Default Server"
+    },
+    {
+      "id": "1523599",
+      "name": "Default Server"
+    }
+  ]
+}

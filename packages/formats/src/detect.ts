@@ -1,8 +1,11 @@
 /**
  * What an imported file is (compatibility.md §A.1, §B.4), from its structure: Postman
- * collections (v2.1, v2.0; v1 rejected), environments, globals and cURL commands.
+ * collections (v2.1, v2.0; v1 rejected), environments, globals, Apidog environment and project
+ * exports (PIGN-048) and cURL commands.
  */
 
+import type { ApidogVariant } from './apidog/environments';
+import { APIDOG_FALLBACK_MESSAGE, apidogFormatName, detectApidog } from './apidog/environments';
 import type { CurlRequest } from './curl/parse';
 import { isCurlCommand, parseCurl } from './curl/parse';
 import { isObject } from './postman/json';
@@ -11,6 +14,8 @@ export type DetectedFormat =
   | { kind: 'postman-collection'; version: '2.1' | '2.0'; data: Record<string, unknown> }
   | { kind: 'postman-environment'; data: Record<string, unknown> }
   | { kind: 'postman-globals'; data: Record<string, unknown> }
+  /** Apidog environments (and globals), PIGN-048. */
+  | { kind: 'apidog'; variant: ApidogVariant; version?: string; data: Record<string, unknown> }
   /** A cURL command (PIGN-050), parsed. */
   | { kind: 'curl'; request: CurlRequest }
   | { kind: 'rejected'; format: string; message: string }
@@ -20,10 +25,11 @@ const strictUtf8 = new TextDecoder('utf-8', { fatal: true });
 
 export function detectFormat(input: string | Uint8Array | unknown): DetectedFormat {
   let data: unknown = input;
-  if (typeof input === 'string' || input instanceof Uint8Array) {
+  // `ArrayBuffer.isView`, not `instanceof`: bytes may come from another realm (a worker, jsdom).
+  if (typeof input === 'string' || input instanceof Uint8Array || ArrayBuffer.isView(input)) {
     let text: string;
     try {
-      text = typeof input === 'string' ? input : strictUtf8.decode(input);
+      text = typeof input === 'string' ? input : strictUtf8.decode(input as Uint8Array);
     } catch {
       return { kind: 'unknown', message: 'The file is not UTF-8 text.' };
     }
@@ -71,6 +77,28 @@ export function detectFormat(input: string | Uint8Array | unknown): DetectedForm
     if (scope === 'environment' || typeof data['name'] === 'string') {
       return { kind: 'postman-environment', data };
     }
+  }
+  const apidog = detectApidog(data);
+  if (apidog?.kind === 'apidog') {
+    const hasAny =
+      Array.isArray(data['environments']) && data['environments'].length > 0
+        ? true
+        : Array.isArray(data['globalVariables']) &&
+          data['globalVariables'].some(
+            (g) => isObject(g) && Array.isArray(g['variables']) && g['variables'].length > 0,
+          );
+    if (!hasAny) {
+      return {
+        kind: 'rejected',
+        format: apidogFormatName(apidog.variant, apidog.version),
+        message:
+          'This Apidog export has no environments or global variables. Export the APIs from Apidog as OpenAPI or Postman to import them.',
+      };
+    }
+    return apidog;
+  }
+  if (apidog?.kind === 'apidog-unrecognized') {
+    return { kind: 'rejected', format: 'Apidog export', message: APIDOG_FALLBACK_MESSAGE };
   }
   return {
     kind: 'unknown',

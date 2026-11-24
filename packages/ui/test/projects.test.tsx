@@ -1812,6 +1812,95 @@ describe('Postman collection export (PIGN-029)', () => {
   });
 });
 
+describe('Apidog environment import (PIGN-048)', () => {
+  it('previews base URLs under the chosen variable name and imports the environment', async () => {
+    const { platform, fs } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    const bytes = new Uint8Array(
+      await readFile(
+        join(import.meta.dirname, '../../fixtures/apidog/environment-export.apidog.json'),
+      ),
+    );
+    platform.files.queuePick([{ name: 'Wallet Local.json', bytes }]);
+    await user.click(screen.getByTestId('explorer-import'));
+    const dialog = await screen.findByTestId('import-dialog');
+    await within(dialog).findAllByTestId('import-item');
+    expect(within(dialog).getByTestId('import-format').textContent).toBe(
+      'Detected: Apidog environment export',
+    );
+    expect(within(dialog).getByTestId('import-count-secrets').textContent).toBe('3');
+    const baseUrls = () =>
+      within(dialog)
+        .getAllByTestId('import-base-url')
+        .map((row) => row.textContent);
+    expect(baseUrls()).toEqual([
+      '{{baseUrl}}http://localhost:3000',
+      '{{baseUrl_1523599}}http://localhost:3100service 1523599',
+    ]);
+    expect(
+      within(dialog)
+        .getAllByTestId('import-warning')
+        .map((w) => w.textContent),
+    ).toContain(
+      'apiKey, adminApiKey, webhookSecret look like secrets: imported as secret, so the value stays off files. Change the type in the environment editor if not.',
+    );
+
+    const name = within(dialog).getByTestId('import-base-url-name');
+    await user.clear(name);
+    await user.type(name, 'my host');
+    expect(within(dialog).getByRole('alert').textContent).toBe(
+      'Use a name without spaces or braces.',
+    );
+    expect((within(dialog).getByTestId('import-write') as HTMLButtonElement).disabled).toBe(true);
+    await user.clear(name);
+    await user.type(name, 'host');
+    expect(baseUrls()[0]).toBe('{{host}}http://localhost:3000');
+
+    fireEvent.click(within(dialog).getByTestId('import-use-current'));
+    await user.click(within(dialog).getByTestId('import-write'));
+    await waitFor(() => expect(screen.queryByTestId('import-dialog')).toBeNull());
+    expect(screen.getByTestId('toast').textContent).toMatch(
+      /^Imported 1 environment; wrote \d+ files?\.$/,
+    );
+    const written = JSON.parse(
+      await fs.readText('environments/wallet-local.postman_environment.json'),
+    );
+    expect(written.values.map((v: { key: string }) => v.key).slice(0, 3)).toEqual([
+      'host',
+      'host_1523599',
+      'apiKey',
+    ]);
+    expect(JSON.stringify(written)).not.toContain('example-api-key-1111');
+    expect(Object.values(await platform.secrets.getAll('project-basic'))).toContain(
+      'example-api-key-1111',
+    );
+  });
+
+  it('shows the fallback message for an Apidog file it cannot read', async () => {
+    const { platform } = await fixturePlatform();
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    await screen.findByTestId('explorer');
+    platform.files.queuePick([
+      {
+        name: 'odd.json',
+        bytes: new TextEncoder().encode(
+          JSON.stringify({ $schema: { app: 'apidog' }, environments: 'none' }),
+        ),
+      },
+    ]);
+    await user.click(screen.getByTestId('explorer-import'));
+    const dialog = await screen.findByTestId('import-dialog');
+    expect((await within(dialog).findByTestId('import-rejected')).textContent).toBe(
+      'Unrecognized Apidog export. Export environments from Apidog in Postman format, or share a sample to add support.',
+    );
+  });
+});
+
 describe('Postman environments import/export (PIGN-030)', () => {
   const postman = (name: string) =>
     readFile(join(import.meta.dirname, '../../fixtures/postman', name)).then(

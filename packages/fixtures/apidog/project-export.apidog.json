@@ -1,0 +1,480 @@
+{
+  "apidogProject": "1.0.0",
+  "$schema": {
+    "app": "apidog",
+    "type": "project",
+    "version": "1.2.0"
+  },
+  "info": {
+    "name": "Example Project",
+    "description": "",
+    "mockRule": {
+      "rules": [],
+      "enableSystemRule": true
+    }
+  },
+  "projectSetting": {
+    "id": "1204290",
+    "auth": {},
+    "securityScheme": {},
+    "gateway": [],
+    "language": "en-US",
+    "apiStatuses": ["developing", "testing", "released", "deprecated"],
+    "mockSettings": {},
+    "preProcessors": [],
+    "postProcessors": [],
+    "advancedSettings": {
+      "enableJsonc": true,
+      "enableBigint": false,
+      "responseValidate": true,
+      "enableTestScenarioSetting": false,
+      "enableYAPICompatScript": false,
+      "isDefaultUrlEncoding": 3,
+      "publishedDocUrlRules": {
+        "defaultRule": "SLUGIFY_WITH_RESOURCE_KEY",
+        "resourceKeyStandard": "NEW"
+      }
+    },
+    "initialDisabledMockIds": [],
+    "servers": [
+      {
+        "id": "default",
+        "name": "Default Server",
+        "importSourceServerId": "1394171",
+        "moduleId": 1083822
+      },
+      {
+        "id": "1272977",
+        "name": "Default Server",
+        "moduleId": 1272977
+      },
+      {
+        "id": "1306856",
+        "name": "Default Server",
+        "moduleId": 1306856
+      },
+      {
+        "id": "1308921",
+        "name": "Default Server",
+        "moduleId": 1308921,
+        "importSourceServerId": "1400363"
+      },
+      {
+        "id": "1316552",
+        "name": "Default Server",
+        "moduleId": 1316552
+      },
+      {
+        "id": "1394171",
+        "name": "Default Server",
+        "moduleId": 1394171
+      },
+      {
+        "id": "1427747",
+        "name": "Default Server",
+        "moduleId": 1427747
+      },
+      {
+        "id": "1478748",
+        "name": "Default Server",
+        "moduleId": 1478748
+      },
+      {
+        "id": "1478751",
+        "name": "Default Server",
+        "moduleId": 1478751
+      },
+      {
+        "id": "1515738",
+        "name": "Default Server",
+        "moduleId": 1515738
+      },
+      {
+        "id": "1523599",
+        "name": "Default Server",
+        "moduleId": 1523599
+      }
+    ],
+    "cloudMock": {
+      "enable": false,
+      "security": "free",
+      "tokenKey": "apidogToken",
+      "isCreatedAutomaticallyByDefaultConfigFromAdmin": true
+    }
+  },
+  "apiCollection": [
+    {
+      "name": "Root",
+      "id": 11012793,
+      "auth": {
+        "type": "noauth"
+      },
+      "securityScheme": {},
+      "parentId": 0,
+      "serverId": "",
+      "description": "",
+      "identityPattern": {
+        "httpApi": {
+          "type": "methodAndPath",
+          "bodyType": "",
+          "fields": []
+        }
+      },
+      "shareSettings": {},
+      "visibility": "SHARED",
+      "moduleId": 1478751,
+      "preProcessors": [
+        {
+          "id": "inheritProcessors",
+          "type": "inheritProcessors",
+          "data": {}
+        }
+      ],
+      "postProcessors": [
+        {
+          "id": "inheritProcessors",
+          "type": "inheritProcessors",
+          "data": {}
+        }
+      ],
+      "inheritPostProcessors": {},
+      "inheritPreProcessors": {},
+      "items": [
+        {
+          "name": "Health",
+          "id": 11012794,
+          "auth": {},
+          "securityScheme": {},
+          "parentId": 0,
+          "serverId": "",
+          "description": "",
+          "identityPattern": {
+            "httpApi": {
+              "type": "inherit",
+              "bodyType": "",
+              "fields": []
+            }
+          },
+          "shareSettings": {},
+          "visibility": "INHERITED",
+          "moduleId": 1478751,
+          "preProcessors": [
+            {
+              "id": "inheritProcessors",
+              "type": "inheritProcessors",
+              "data": {}
+            }
+          ],
+          "postProcessors": [
+            {
+              "id": "inheritProcessors",
+              "type": "inheritProcessors",
+              "data": {}
+            }
+          ],
+          "inheritPostProcessors": {},
+          "inheritPreProcessors": {},
+          "items": []
+        }
+      ]
+    }
+  ],
+  "socketCollection": [],
+  "docCollection": [],
+  "webSocketCollection": [],
+  "socketIOCollection": [],
+  "mcpClientCollection": [],
+  "responseCollection": [],
+  "schemaCollection": [],
+  "securitySchemeCollection": [],
+  "oasComponentCollection": [],
+  "requestCollection": [
+    {
+      "name": "Root",
+      "children": [],
+      "ordering": ["requestFolder.9207375", "requestFolder.11095593"],
+      "items": []
+    }
+  ],
+  "environments": [
+    {
+      "name": "Wallet Local",
+      "requestProxyAgentSettings": {},
+      "variables": [
+        {
+          "name": "apiKey",
+          "value": "example-api-key-1111",
+          "description": "",
+          "initialValue": "example-api-key-1111",
+          "isSync": true
+        },
+        {
+          "name": "adminApiKey",
+          "value": "example-admin-key-2222",
+          "description": "",
+          "initialValue": "example-admin-key-2222",
+          "isSync": true
+        },
+        {
+          "name": "webhookSecret",
+          "value": "example-webhook-secret-3333",
+          "description": "",
+          "initialValue": "example-webhook-secret-3333",
+          "isSync": true
+        },
+        {
+          "name": "partnerId",
+          "value": "00000000-0000-4000-8000-000000000001",
+          "description": "",
+          "initialValue": "00000000-0000-4000-8000-000000000001",
+          "isSync": true
+        },
+        {
+          "name": "partnerWalletId",
+          "value": " 00000000-0000-4000-8000-000000000002",
+          "description": "",
+          "initialValue": " 00000000-0000-4000-8000-000000000002",
+          "isSync": true
+        },
+        {
+          "name": "customerId",
+          "value": "",
+          "description": "",
+          "initialValue": "",
+          "isSync": true
+        },
+        {
+          "name": "customerWalletId",
+          "value": "",
+          "description": "",
+          "initialValue": "",
+          "isSync": true
+        },
+        {
+          "name": "ruleId",
+          "value": "",
+          "description": "",
+          "initialValue": "",
+          "isSync": true
+        },
+        {
+          "name": "holdId",
+          "value": "00000000-0000-4000-8000-000000000003",
+          "description": "",
+          "initialValue": "00000000-0000-4000-8000-000000000003",
+          "isSync": true
+        },
+        {
+          "name": "actorId",
+          "securityType": "default",
+          "value": "00000000-0000-4000-8000-000000000004",
+          "description": "",
+          "initialValue": "00000000-0000-4000-8000-000000000004",
+          "isSync": true
+        },
+        {
+          "name": "_webhookSig",
+          "securityType": "default",
+          "value": "example-signature-4444",
+          "description": "",
+          "initialValue": "example-signature-4444",
+          "isSync": true
+        },
+        {
+          "name": "_webhookBody",
+          "securityType": "default",
+          "value": "{\"partnerId\": \"{{partnerId}}\",\"amount\": 1500000,\"paymentRef\": \"PAY-0001\",\"idempotencyKey\": \"topup-example-0001\",\"timestamp\": \"2026-07-01T14:20:46.000Z\"}",
+          "description": "",
+          "initialValue": "{\"partnerId\": \"{{partnerId}}\",\"amount\": 1500000,\"paymentRef\": \"PAY-0001\",\"idempotencyKey\": \"topup-example-0001\",\"timestamp\": \"2026-07-01T14:20:46.000Z\"}",
+          "isSync": true
+        },
+        {
+          "name": "timestamp",
+          "value": "",
+          "description": "",
+          "initialValue": "",
+          "isSync": true
+        }
+      ],
+      "parameters": {
+        "cookie": [],
+        "query": [],
+        "header": [],
+        "body": []
+      },
+      "type": "normal",
+      "visibility": "protected",
+      "ordering": 36,
+      "tags": [
+        {
+          "name": "",
+          "color": "#9373EE"
+        }
+      ],
+      "advancedSettings": {},
+      "id": "6312561",
+      "baseUrl": "http://localhost:3000",
+      "baseUrls": {
+        "1083822": "http://localhost:3000",
+        "1272977": "",
+        "1306856": "http://localhost:3000",
+        "1308921": "http://localhost:3000",
+        "1316552": "",
+        "1394171": "",
+        "1427747": "http://localhost:3000",
+        "1478748": "http://localhost:3000",
+        "1478751": "http://localhost:3000",
+        "1515738": "",
+        "1523599": "http://localhost:3100"
+      },
+      "socketioBaseUrls": {},
+      "websocketBaseUrls": {}
+    }
+  ],
+  "commonScripts": [],
+  "globalVariables": [
+    {
+      "id": "1204233",
+      "variables": []
+    }
+  ],
+  "commonParameters": null,
+  "customFunctions": [],
+  "projectTestCaseCategories": [
+    {
+      "id": 927982,
+      "name": "Positive",
+      "description": "Valid inputs and correct expected results, representing typical usage."
+    }
+  ],
+  "projectTestCaseTags": [
+    {
+      "id": 3474698,
+      "name": "Required Fields Only",
+      "description": "Send only the required fields with valid values, omitting all optional fields, to test minimal valid requests."
+    }
+  ],
+  "projectAssociations": [],
+  "moduleSettings": [
+    {
+      "id": "1478751",
+      "name": "Wallet API",
+      "description": "Example module.",
+      "moduleVariables": [
+        {
+          "name": "baseUrl",
+          "value": "http://localhost:3000",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": "http://localhost:3000"
+        },
+        {
+          "name": "apiKey",
+          "value": "",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "adminApiKey",
+          "value": "",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "webhookSecret",
+          "value": "",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "actorId",
+          "value": "",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "partnerId",
+          "value": "",
+          "description": "",
+          "isBindInitial": false,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "partnerWalletId",
+          "value": "",
+          "description": "",
+          "isBindInitial": false,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "customerId",
+          "value": "",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "customerWalletId",
+          "value": "",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "ruleId",
+          "value": "",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "holdId",
+          "value": "",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "activityId",
+          "value": "",
+          "description": "",
+          "isBindInitial": false,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "_webhookBody",
+          "value": "",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": ""
+        },
+        {
+          "name": "_webhookSig",
+          "value": "",
+          "description": "",
+          "isBindInitial": true,
+          "isSync": true,
+          "initialValue": ""
+        }
+      ],
+      "openApiInfo": {}
+    }
+  ]
+}

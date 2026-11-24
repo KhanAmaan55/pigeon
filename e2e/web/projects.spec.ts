@@ -700,6 +700,61 @@ test.describe('Postman environments', () => {
     await page.getByTestId('send-button').click();
     await expect(page.getByTestId('response-status')).toHaveText('200 OK');
   });
+
+  test('imports an Apidog environment export with its base URL under a chosen name (PIGN-048)', async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    await page.getByTestId('new-browser-workspace').click();
+    await page.getByTestId('create-project-name').fill('Apidog import');
+    await page.getByTestId('create-project-submit').click();
+    await expect(page.getByTestId('explorer')).toBeVisible();
+
+    const collection = {
+      info: {
+        name: 'Users',
+        schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+      },
+      item: [{ id: 'get-user', name: 'Get user', request: { method: 'GET', url: '{{api}}/user' } }],
+    };
+    // The sanitized real Apidog export, pointed at the test server.
+    const apidog = JSON.parse(
+      readFileSync(
+        join(import.meta.dirname, '../../packages/fixtures/apidog/environment-export.apidog.json'),
+        'utf8',
+      ),
+    );
+    apidog.environments[0].baseUrl = `${TEST_SERVER_URL}/json`;
+    const files = [
+      ['users.postman_collection.json', collection],
+      ['Wallet Local.json', apidog],
+    ] as const;
+    const dataTransfer = await page.evaluateHandle((entries) => {
+      const transfer = new DataTransfer();
+      for (const [name, data] of entries) {
+        transfer.items.add(new File([JSON.stringify(data)], name, { type: 'application/json' }));
+      }
+      return transfer;
+    }, files);
+    await page.dispatchEvent('[data-testid="app-shell"]', 'dragover', { dataTransfer });
+    await page.dispatchEvent('[data-testid="app-shell"]', 'drop', { dataTransfer });
+
+    const dialog = page.getByTestId('import-dialog');
+    await expect(dialog.getByTestId('import-item')).toHaveCount(2);
+    await expect(dialog.getByTestId('import-format').nth(1)).toHaveText(
+      'Detected: Apidog environment export',
+    );
+    await dialog.getByTestId('import-base-url-name').fill('api');
+    await expect(dialog.getByTestId('import-base-url').first()).toContainText('{{api}}');
+    await dialog.getByTestId('import-write').click();
+    await expect(page.getByTestId('toast')).toContainText('Imported 1 request, 1 environment');
+
+    await page.getByTestId('environment-selector').click();
+    await page.getByTestId('environment-option').filter({ hasText: 'Wallet Local' }).click();
+    await page.getByTestId('explorer-item').filter({ hasText: 'Get user' }).click();
+    await page.getByTestId('send-button').click();
+    await expect(page.getByTestId('response-status')).toHaveText('200 OK');
+  });
 });
 
 test.describe('scripts', () => {

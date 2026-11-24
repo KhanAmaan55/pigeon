@@ -164,25 +164,35 @@ Globals (`*.postman_globals.json`, `_postman_variable_scope: "globals"`) map to 
 
 Export: one Postman environment file per environment. Secret variables are exported with their **shared** value only (normally empty) — current values/secrets are never exported.
 
-### B.2 Apidog (Assumption — needs samples, PIGN-048)
+### B.2 Apidog (Observed — PIGN-048)
 
-What we believe (unverified):
-- Apidog projects can be exported in an Apidog-specific JSON format that includes environments; Apidog environments contain a list of variables (name, initial/current value, description) and one or more **base URLs** ("services"/"front URLs") per environment.
-- Apidog can also export in other formats (OpenAPI, possibly Postman) — whether environments are included in a Postman-format export is unknown.
+Observed from real exports (Apidog desktop, November 2026; project export format `$schema.version` **1.2.0**), sanitized into `packages/fixtures/apidog/`:
 
-Planned mapping (to be confirmed against real files):
+- **Environment export** (Environment Management → Export, `environment-export.apidog.json`): `{ "environments": [ … ], "servers": [ { "id", "name", "importSourceServerId"? } ] }`.
+- **Project export** in Apidog format (`project-export.apidog.json`): `{ "apidogProject": "1.0.0", "$schema": { "app": "apidog", "type": "project", "version": "1.2.0" }, "info", "projectSetting": { "servers": [ { "id", "name", "moduleId" } ], … }, "moduleSettings": [ { "id", "name", "description" } ], "environments", "globalVariables": [ { "id", "variables": [] } ], "apiCollection", "requestCollection", "docCollection", "schemaCollection", … }`.
 
-| Apidog (assumed) | Pigeon |
+An environment holds `name`, `variables`, `baseUrl` (the main base URL), `baseUrls` (one per service: keyed by **module id** in project exports and by **server id**, incl. `default`, in environment exports), `parameters` (`cookie` / `query` / `header` / `body` lists), `advancedSettings` (proxy per service), `requestProxyAgentSettings`, `websocketBaseUrls`, `socketioBaseUrls`, `registrationCenters`, `type` (`normal`), and bookkeeping (`id`, `visibility`, `ordering`, `tags`, `projectType`). A variable holds `name`, `initialValue` (the shared value), `value` (the current one), `description`, `isSync` (`true` in all samples) and sometimes `securityType` (only `default` observed). Server names were all "Default Server"; module names come from `moduleSettings`.
+
+Mapping (`formats/src/apidog/environments.ts`):
+
+| Apidog | Pigeon |
 |---|---|
-| environment name | `Environment.name` |
-| variables `name` / `value` (initial) | `Variable.key` / `Variable.value` |
-| variable current value | offered as local current value (not written to files) |
-| secret/sensitive flag (if present) | `type: 'secret'` |
-| base URL (single) | variable `baseUrl` (name configurable in import dialog) |
-| multiple base URLs (per service/module) | variables `baseUrl`, `baseUrl_<serviceSlug>`; import report lists them |
-| globals (if present) | project globals |
+| environment `name` | `Environment.name` (new id; Apidog ids are not kept) |
+| variable `name` / `initialValue` | `Variable.key` / `Variable.value` (written to files) |
+| variable `value` when it differs from `initialValue` | offered as the local current value ("use as my current values") |
+| `isSync: false` (not observed) | value not written to files, only offered as the current value |
+| `securityType` other than `default` (not observed) | `type: 'secret'`, reported |
+| names ending like a credential (`…secret`, `…password`, `…token`, `…apiKey`, `…privateKey`, `…credentials`) with a value | `type: 'secret'` (value only on this machine), reported so it can be changed back |
+| `baseUrl` (or the `default` service's URL) | variable `baseUrl` (name editable in the import dialog), first in the list |
+| other non-empty `baseUrls` with a different URL | `baseUrl_<module name or service id>`; empty services are skipped and counted in the report |
+| `globalVariables[].variables` (only empty lists observed) | project globals, same variable mapping |
+| `parameters` (non-empty), WebSocket/Socket.IO base URLs, registration centers, non-default proxy settings, unknown `type`, unknown environment or variable fields | not imported; listed in the import report |
+| `id`, `visibility`, `ordering`, `tags`, `projectType`, `servers`, `moduleSettings` | used for naming only or ignored (Apidog bookkeeping) |
+| project APIs, docs, schemas, scripts (`apiCollection`, …) | not imported; the report says to export them as OpenAPI or Postman |
 
-Fallback: if the file is not recognized, show: "Unrecognized Apidog export. Export environments from Apidog in Postman format, or share a sample to add support."
+A base URL variable whose name is already used by an exported variable is not added (reported). Detection is structural: `$schema.app === "apidog"` or `apidogProject` (project export), or `environments` whose entries have `variables` plus `baseUrl`/`baseUrls` next to a `servers` list (environment export). Project exports without environments or global variables are rejected with a hint to export the APIs as OpenAPI or Postman.
+
+Fallback: an Apidog-looking file that does not match shows "Unrecognized Apidog export. Export environments from Apidog in Postman format, or share a sample to add support."
 
 ### B.3 Echo API (Assumption — needs samples, PIGN-049)
 
@@ -202,7 +212,7 @@ Plan: PIGN-049 starts by collecting real export samples. If they are Postman-com
 |---|---|---|---|---|
 | Postman v2.1 | import + export | import + export | import + export | MVP, Confirmed/Observed |
 | Postman v2.0 | import | — | — | MVP |
-| Apidog | via Postman/OpenAPI export (not Pigeon's concern) | import (planned) | import (planned) | Later, Assumption |
+| Apidog | via Postman/OpenAPI export (not Pigeon's concern) | import (environment and project exports) | import (project export) | PIGN-048, Observed (format 1.2.0) |
 | Echo API | via Postman export | via Postman export or native (planned) | ? | Later, Assumption |
 | cURL command | one request (import); snippet out | — | — | Later (PIGN-050), Observed |
 

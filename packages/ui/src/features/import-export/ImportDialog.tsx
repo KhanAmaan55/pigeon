@@ -1,10 +1,16 @@
 import type { ImportItem } from '@pigeon/core';
-import { applyImport, importContext, placementOf } from '@pigeon/core';
+import {
+  applyImport,
+  importContext,
+  isValidVariableName,
+  placementOf,
+  withBaseUrlVariable,
+} from '@pigeon/core';
 import type { PickedFile } from '@pigeon/platform';
 import { FileJson, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { Dialog } from 'radix-ui';
 import type { ReactNode } from 'react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 
 import { targetContainerId } from '../explorer/actions';
 import { useAppStore } from '../../stores/AppStoreProvider';
@@ -15,7 +21,8 @@ import { runImportPreview } from './run-import';
  * The import preview (docs/ui-ux.md §3.9, PIGN-028/030) for the files waiting in
  * `AppState.pendingImport`, combined into one confirmation: per file the detected format,
  * counts, warnings and id regenerations; editable collection names; what to do with an
- * environment named like an existing one; "also use imported values as my current values".
+ * environment named like an existing one; "also use imported values as my current values"; the
+ * variable name for Apidog base URLs (PIGN-048).
  * **Import & write files** commits just the imported entities; **Import as local drafts** saves.
  */
 export function ImportDialog() {
@@ -56,7 +63,8 @@ function ImportPreviewPanel({
   onDone: () => void;
 }) {
   const notify = useAppStore((s) => s.notify);
-  const [items, setItems] = useState<ImportItem[] | null>(null);
+  const [previewed, setItems] = useState<ImportItem[] | null>(null);
+  const [baseUrlName, setBaseUrlName] = useState('baseUrl');
   const [names, setNames] = useState<Record<number, string>>({});
   const [useAsCurrentValues, setUseAsCurrentValues] = useState(false);
   const [onCollision, setOnCollision] = useState<'keep-both' | 'replace'>('keep-both');
@@ -88,12 +96,23 @@ function ImportPreviewPanel({
     };
   }, [files, project]);
 
+  const hasBaseUrls =
+    previewed?.some((item) => item.kind === 'environment' && (item.baseUrls?.length ?? 0) > 0) ??
+    false;
+  const baseUrlValid = !hasBaseUrls || isValidVariableName(baseUrlName.trim());
+  const items = useMemo(
+    () =>
+      previewed && hasBaseUrls && baseUrlValid
+        ? withBaseUrlVariable(previewed, baseUrlName.trim())
+        : previewed,
+    [previewed, hasBaseUrls, baseUrlValid, baseUrlName],
+  );
   const importable = items?.filter((item) => item.kind !== 'rejected') ?? [];
   const hasVariables = importable.some(
     (item) => item.kind === 'environment' || item.kind === 'globals',
   );
   const collisions = importable.filter((item) => item.kind === 'environment' && item.collidesWith);
-  const namesValid = Object.values(names).every((name) => name.trim() !== '');
+  const namesValid = Object.values(names).every((name) => name.trim() !== '') && baseUrlValid;
 
   const apply = async (write: boolean) => {
     if (!items) return;
@@ -170,6 +189,28 @@ function ImportPreviewPanel({
               />
             ))}
           </div>
+          {hasBaseUrls && (
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-fg-muted">
+                Base URL variable{' '}
+                <span className="font-mono">{`{{${baseUrlName.trim() || '…'}}}`}</span> (other
+                Apidog services get a suffix)
+              </span>
+              <input
+                data-testid="import-base-url-name"
+                value={baseUrlName}
+                spellCheck={false}
+                aria-invalid={!baseUrlValid}
+                onChange={(event) => setBaseUrlName(event.target.value)}
+                className="h-8 rounded border border-border bg-bg px-2 font-mono text-fg aria-invalid:border-fail"
+              />
+              {!baseUrlValid && (
+                <span role="alert" className="text-xs text-fail">
+                  Use a name without spaces or braces.
+                </span>
+              )}
+            </label>
+          )}
           {collisions.length > 0 && (
             <fieldset data-testid="import-collision" className="flex flex-col gap-1">
               <legend className="text-xs text-fg-muted">
@@ -286,11 +327,13 @@ function ItemPreview({
   onName: (name: string) => void;
 }) {
   const warnings =
-    item.kind === 'collection' || item.kind === 'environment' || item.kind === 'globals'
-      ? item.report.warnings
-      : item.kind === 'request'
-        ? item.warnings
-        : [];
+    item.kind === 'environment' || item.kind === 'globals'
+      ? [...(item.fileWarnings ?? []), ...item.report.warnings]
+      : item.kind === 'collection'
+        ? item.report.warnings
+        : item.kind === 'request'
+          ? item.warnings
+          : [];
   return (
     <section
       data-testid="import-item"
@@ -364,6 +407,23 @@ function ItemPreview({
             {item.report.secrets}
           </Count>
         </dl>
+      )}
+      {item.kind === 'environment' && item.baseUrls && item.baseUrls.length > 0 && (
+        <ul data-testid="import-base-urls" className="flex flex-col gap-0.5 text-xs">
+          {item.baseUrls.map((baseUrl) => (
+            <li
+              key={baseUrl.suffix}
+              data-testid="import-base-url"
+              className={`flex min-w-0 gap-2 font-mono ${baseUrl.skipped ? 'text-fg-muted line-through' : ''}`}
+            >
+              <span className="shrink-0">{`{{${baseUrl.key}}}`}</span>
+              <span className="min-w-0 truncate">{baseUrl.url}</span>
+              {baseUrl.suffix !== '' && (
+                <span className="shrink-0 font-sans text-fg-muted">service {baseUrl.service}</span>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
       {(warnings.length > 0 ||
         (item.kind === 'collection' && item.report.regeneratedIds.length > 0) ||

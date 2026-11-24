@@ -10,9 +10,11 @@ import {
   initializeProject,
   previewImportFiles,
   ProjectSession,
+  withBaseUrlVariable,
 } from '../src/index';
 
 const postman = join(import.meta.dirname, '../../fixtures/postman');
+const apidog = join(import.meta.dirname, '../../fixtures/apidog');
 const file = (path: string) => ({
   name: path.split('/').at(-1)!,
   bytes: new Uint8Array(readFileSync(join(postman, path))),
@@ -133,5 +135,78 @@ describe('importing environments and globals (PIGN-030)', () => {
         message: 'The file is not valid JSON or a cURL command.',
       }),
     ]);
+  });
+});
+
+describe('importing Apidog environments (PIGN-048)', () => {
+  const apidogFile = (name: string) => ({
+    name,
+    bytes: new Uint8Array(readFileSync(join(apidog, name))),
+  });
+
+  it('previews, renames the base URL variable and writes the environment without secrets', async () => {
+    const { fs, secrets, session } = await emptySession();
+    const previewed = previewImportFiles(
+      [apidogFile('project-export.apidog.json')],
+      importContext(session.getWorkingModel()),
+    );
+    expect(previewed).toHaveLength(1);
+    expect(previewed[0]).toMatchObject({
+      kind: 'environment',
+      format: 'Apidog project export (format 1.2.0)',
+      fileWarnings: [expect.stringContaining('its APIs are not')],
+    });
+    const items = withBaseUrlVariable(previewed, 'host');
+    const ids = applyImport(session, items, { useAsCurrentValues: true });
+    await session.saveForCommit(ids);
+    const written = JSON.parse(
+      await fs.readText('environments/wallet-local.postman_environment.json'),
+    );
+    expect(written.name).toBe('Wallet Local');
+    expect(written.values.slice(0, 3)).toEqual([
+      {
+        key: 'host',
+        value: 'http://localhost:3000',
+        type: 'default',
+        enabled: true,
+        description: 'Base URL from Apidog',
+      },
+      {
+        key: 'host_1523599',
+        value: 'http://localhost:3100',
+        type: 'default',
+        enabled: true,
+        description: 'Base URL of the Apidog service “1523599”',
+      },
+      { key: 'apiKey', value: '', type: 'secret', enabled: true },
+    ]);
+    for (const entry of await fs.list('', { recursive: true })) {
+      if (entry.kind !== 'file') continue;
+      const text = await fs.readText(entry.path);
+      for (const secret of ['example-api-key-1111', 'example-webhook-secret-3333']) {
+        expect(text, entry.path).not.toContain(secret);
+      }
+    }
+    const id = session.getWorkingModel().environments[0]!.id;
+    expect(session.currentValues(`env:${id}`)).toMatchObject({
+      host: 'http://localhost:3000',
+      apiKey: 'example-api-key-1111',
+    });
+    expect(Object.values(await secrets.getAll(session.localKey))).toEqual(
+      expect.arrayContaining(['example-api-key-1111', 'example-admin-key-2222']),
+    );
+  });
+
+  it('flags a name collision with an existing environment', async () => {
+    const { session } = await emptySession();
+    session.apply({ type: 'createEnvironment', id: 'mine', name: 'Wallet Local', values: [] });
+    const items = previewImportFiles(
+      [apidogFile('environment-export.apidog.json')],
+      importContext(session.getWorkingModel()),
+    );
+    expect(items[0]).toMatchObject({
+      format: 'Apidog environment export',
+      collidesWith: { id: 'mine', name: 'Wallet Local' },
+    });
   });
 });

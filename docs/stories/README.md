@@ -76,7 +76,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-057). Fu
 | [PIGN-045](PIGN-045-cookie-jar.md) | Cookie jar & cookie manager | 9 Later | Later | 042 | Done |
 | [PIGN-046](PIGN-046-digest-awsv4-auth.md) | Digest & AWS SigV4 auth | 9 Later | Later | 042 | Done |
 | [PIGN-047](PIGN-047-oauth2.md) | OAuth 2.0 auth | 9 Later | Later | 046 | Done |
-| [PIGN-048](PIGN-048-apidog-environments.md) | Apidog environment import | 9 Later | Later | 030 | Blocked |
+| [PIGN-048](PIGN-048-apidog-environments.md) | Apidog environment import | 9 Later | Later | 030 | Done |
 | [PIGN-049](PIGN-049-echoapi-environments.md) | Echo API environment import | 9 Later | Later | 030 | Blocked |
 | [PIGN-050](PIGN-050-curl-import-snippets.md) | cURL import & code snippets | 9 Later | Later | 042 | Done |
 | [PIGN-051](PIGN-051-request-history.md) | Local request history | 9 Later | Later | 042 | Done |

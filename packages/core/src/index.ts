@@ -68,6 +68,7 @@ export type {
 export {
   applyImport,
   importContext,
+  isValidVariableName,
   planEntityIds,
   previewImportFiles,
   previewImport,
@@ -75,6 +76,7 @@ export {
   renamePlan,
   requestNameFor,
   usedIds,
+  withBaseUrlVariable,
 } from './import/import-service';
 export type { ImportReport } from '@pigeon/formats';
 export { statusText } from './execution/status';

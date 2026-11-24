@@ -5,6 +5,19 @@ export type { CanonicalJsonOptions, KeyOrderPath, KeyOrderSpec } from './canonic
 export { contentHash, sha256Hex } from './hash';
 export { beautifyJson } from './json-format';
 export type { DetectedFormat } from './detect';
+export type {
+  ApidogBaseUrl,
+  ApidogEnvironmentSource,
+  ApidogImport,
+  ApidogImportedEnvironment,
+  ApidogVariant,
+} from './apidog/environments';
+export {
+  APIDOG_FALLBACK_MESSAGE,
+  buildApidogEnvironment,
+  DEFAULT_BASE_URL_VARIABLE,
+  importApidog,
+} from './apidog/environments';
 export { detectFormat } from './detect';
 export type { ImportOptions, ImportReport } from './postman/import';
 export { importPostmanCollection } from './postman/import';

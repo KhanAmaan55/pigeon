@@ -5,6 +5,8 @@
  */
 
 import type {
+  ApidogBaseUrl,
+  ApidogEnvironmentSource,
   Collection,
   ImportReport,
   ProjectEnvironment,
@@ -12,7 +14,9 @@ import type {
   VariablesImportReport,
 } from '@pigeon/formats';
 import {
+  buildApidogEnvironment,
   detectFormat,
+  importApidog,
   importPostmanCollection,
   importPostmanEnvironment,
   importPostmanGlobals,
@@ -79,9 +83,15 @@ export function previewImportFile(
     }
     case 'postman-environment':
     case 'postman-globals':
+    case 'apidog':
       return {
         ok: false,
-        format: detected.kind === 'postman-environment' ? 'Postman environment' : 'Postman globals',
+        format:
+          detected.kind === 'postman-environment'
+            ? 'Postman environment'
+            : detected.kind === 'postman-globals'
+              ? 'Postman globals'
+              : 'Apidog export',
         message: 'Importing environments arrives with environment import (not yet available).',
       };
     case 'curl':
@@ -140,6 +150,12 @@ export type ImportItem =
       /** An environment with the same name already in the project. */
       collidesWith?: { id: string; name: string };
       regeneratedId?: string;
+      /** From Apidog (PIGN-048): rebuilt when the base URL variable name changes. */
+      apidog?: ApidogEnvironmentSource;
+      /** Apidog base URLs and the variables they became. */
+      baseUrls?: ApidogBaseUrl[];
+      /** About the whole file (what else it holds that is not imported). */
+      fileWarnings?: string[];
     }
   | {
       kind: 'globals';
@@ -148,6 +164,7 @@ export type ImportItem =
       globals: ProjectGlobals;
       currentValues: Record<string, string>;
       report: VariablesImportReport;
+      fileWarnings?: string[];
     }
   | {
       /** One request from a cURL command (PIGN-050). */
@@ -240,6 +257,56 @@ export function previewImportFiles(
         });
         break;
       }
+      case 'apidog': {
+        const imported = importApidog(detected, {
+          newId: () => {
+            let id = options.newId?.() ?? crypto.randomUUID();
+            while (taken.has(id)) id = crypto.randomUUID();
+            taken.add(id);
+            return id;
+          },
+        });
+        const first = items.length;
+        for (const env of imported.environments) {
+          const name = env.environment.name.toLowerCase();
+          const collidesWith =
+            context.environments.find((e) => e.name.toLowerCase() === name) ??
+            items
+              .flatMap((item) => (item.kind === 'environment' ? [item.environment] : []))
+              .find((e) => e.name.toLowerCase() === name);
+          items.push({
+            kind: 'environment',
+            fileName: file.name,
+            format: imported.format,
+            environment: env.environment,
+            currentValues: env.currentValues,
+            report: env.report,
+            apidog: env.source,
+            baseUrls: env.baseUrls,
+            ...(collidesWith
+              ? { collidesWith: { id: collidesWith.id, name: collidesWith.name } }
+              : {}),
+          });
+        }
+        if (imported.globals) {
+          items.push({
+            kind: 'globals',
+            fileName: file.name,
+            format: imported.format,
+            globals: imported.globals.globals,
+            currentValues: imported.globals.currentValues,
+            report: imported.globals.report,
+          });
+        }
+        const head = items[first];
+        if (
+          imported.warnings.length > 0 &&
+          (head?.kind === 'environment' || head?.kind === 'globals')
+        ) {
+          head.fileWarnings = imported.warnings;
+        }
+        break;
+      }
       case 'curl': {
         let id = options.newId?.() ?? crypto.randomUUID();
         while (taken.has(id)) id = crypto.randomUUID();
@@ -269,6 +336,29 @@ export function previewImportFiles(
     }
   }
   return items;
+}
+
+/** Variable names Pigeon can reference as `{{name}}`: no braces or whitespace. */
+export function isValidVariableName(name: string): boolean {
+  return name !== '' && !/[{}\s]/.test(name);
+}
+
+/**
+ * The items with Apidog base URLs (PIGN-048) under another variable name: `name` for the main
+ * base URL and `name_<service>` for the others (the import dialog's "Base URL variable").
+ */
+export function withBaseUrlVariable(items: readonly ImportItem[], name: string): ImportItem[] {
+  return items.map((item) => {
+    if (item.kind !== 'environment' || !item.apidog) return item;
+    const built = buildApidogEnvironment(item.apidog, name);
+    return {
+      ...item,
+      environment: { ...item.environment, values: built.values },
+      currentValues: built.currentValues,
+      report: built.report,
+      baseUrls: built.baseUrls,
+    };
+  });
 }
 
 export interface ApplyImportOptions {

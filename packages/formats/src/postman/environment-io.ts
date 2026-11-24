@@ -28,12 +28,20 @@ export interface ImportedVariables {
   report: VariablesImportReport;
 }
 
-function splitSecrets(values: ProjectEnvVariable[]): ImportedVariables {
+/**
+ * Empties secret values for the files and hands every value back as `currentValues`. `current`
+ * gives a variable's current value when it differs from the shared one (Apidog, PIGN-048).
+ */
+export function splitSecrets(
+  values: ProjectEnvVariable[],
+  current: Readonly<Record<string, string>> = {},
+): ImportedVariables {
   const currentValues: Record<string, string> = {};
   let secretsWithValue = 0;
   const shared = values.map((variable) => {
-    if (variable.value !== '') currentValues[variable.key] = variable.value;
-    if (variable.type !== 'secret' || variable.value === '') return variable;
+    const value = Object.hasOwn(current, variable.key) ? current[variable.key]! : variable.value;
+    if (value !== '') currentValues[variable.key] = value;
+    if (variable.type !== 'secret' || (variable.value === '' && value === '')) return variable;
     secretsWithValue += 1;
     return { ...variable, value: '' };
   });
