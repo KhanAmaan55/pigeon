@@ -821,7 +821,7 @@ function ExplorerRow({
       {row.scripts && !renaming && (
         <span
           data-testid="explorer-scripts"
-          title="Has scripts (kept, not run yet)"
+          title="Has pre-request or test scripts"
           aria-label="(has scripts)"
           className="shrink-0 rounded bg-hover px-1 font-mono text-[9px] leading-4 font-bold text-fg-muted"
         >

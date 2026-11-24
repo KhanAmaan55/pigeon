@@ -88,7 +88,7 @@ describe('scripts (PIGN-031)', () => {
       createExecutionContext({ capabilities: MEMORY_CAPABILITIES, skippedScripts: places }),
     );
     expect(prepared.ok && prepared.value.meta.warnings?.[0]).toBe(
-      'Scripts were not run (not supported yet): collection Users API, this request.',
+      'Scripts were not run (scripts do not run here): collection Users API, this request.',
     );
   });
 });

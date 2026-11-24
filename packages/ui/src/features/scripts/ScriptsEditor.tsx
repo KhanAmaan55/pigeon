@@ -13,8 +13,8 @@ const SCRIPTS: Array<{ listen: ScriptListen; label: string }> = [
 
 /**
  * Pre-request and test scripts of a request, folder or collection (PIGN-031): JavaScript
- * editors with an enable toggle each. Kept in `event[]` exactly as Postman stores them; not run
- * yet (PIGN-043/044).
+ * editors with an enable toggle each. Kept in `event[]` exactly as Postman stores them; they run
+ * in the script sandbox on send (PIGN-043/044).
  */
 export function ScriptsEditor({
   events,

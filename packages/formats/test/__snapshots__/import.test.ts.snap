@@ -10,9 +10,6 @@ exports[`importPostmanCollection (PIGN-028) > auth.v2.1.json imports, writes val
   "format": "Postman Collection v2.1",
   "regeneratedIds": [],
   "warnings": [
-    "digest auth (1×) is not supported yet: kept as is, requests are sent without it.",
-    "oauth2 auth (1×) is not supported yet: kept as is, requests are sent without it.",
-    "awsv4 auth (1×) is not supported yet: kept as is, requests are sent without it.",
     "hawk auth (1×) is not supported yet: kept as is, requests are sent without it.",
     "ntlm auth (1×) is not supported yet: kept as is, requests are sent without it.",
   ],
@@ -128,9 +125,7 @@ exports[`importPostmanCollection (PIGN-028) > scripts.v2.1.json imports, writes 
   },
   "format": "Postman Collection v2.1",
   "regeneratedIds": [],
-  "warnings": [
-    "2 scripts are kept but not run yet.",
-  ],
+  "warnings": [],
 }
 `;
 
@@ -144,7 +139,6 @@ exports[`importPostmanCollection (PIGN-028) > test-scripts.v2.1.json imports, wr
   "format": "Postman Collection v2.1",
   "regeneratedIds": [],
   "warnings": [
-    "4 scripts are kept but not run yet.",
     "3 items without an id got one.",
   ],
 }

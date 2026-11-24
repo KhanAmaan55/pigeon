@@ -1,6 +1,6 @@
 /**
- * Which scripts a send skips (PIGN-031/043): test scripts until PIGN-044, or every script when
- * script execution is off for the project. A send reports them as a warning.
+ * Which scripts a send skips (PIGN-031/043): every script when script execution is off for the
+ * project, or where scripts don't run at all. A send reports them as a warning.
  */
 
 import { hasScripts, readScript } from '@pigeon/formats';
@@ -34,10 +34,10 @@ export function scriptsNotRun(
 }
 
 /**
- * Why scripts were skipped: test scripts aren't supported yet (`tests`), script execution is off
- * for the project (`disabled`), or no script runs at all (`unsupported`, e.g. the CLI).
+ * Why scripts were skipped: script execution is off for the project (`disabled`), or the caller
+ * runs no scripts at all (`unsupported`).
  */
-export type SkippedScriptsReason = 'tests' | 'disabled' | 'unsupported';
+export type SkippedScriptsReason = 'disabled' | 'unsupported';
 
 /** The send warning for skipped scripts. */
 export function scriptsNotRunWarning(
@@ -46,9 +46,8 @@ export function scriptsNotRunWarning(
 ): string | undefined {
   if (places.length === 0) return undefined;
   const list = places.join(', ');
-  if (reason === 'tests') return `Test scripts were not run (not supported yet): ${list}.`;
   if (reason === 'disabled') {
     return `Scripts were not run (script execution is off for this project): ${list}.`;
   }
-  return `Scripts were not run (not supported yet): ${list}.`;
+  return `Scripts were not run (scripts do not run here): ${list}.`;
 }

@@ -34,9 +34,9 @@ Pigeon runs as a desktop app (macOS, Windows, Linux) and as a static web app. Bo
 ## 4. Non-goals
 
 - Cloud sync, accounts, team workspaces, sharing links, or any Pigeon-hosted backend.
-- Implementing Git (commit/push/pull/branches) inside Pigeon — users use their own Git client. (Read-only Git awareness is future scope.)
+- Implementing Git (commit/push/pull/branches) inside Pigeon — users use their own Git client. (Read-only Git status is shown on desktop since PIGN-057.)
 - Mock servers, monitors, API publishing/documentation portals, API design (OpenAPI editor).
-- 100% Postman script (`pm.*`) compatibility. A documented subset is planned post-MVP.
+- 100% Postman script (`pm.*`) compatibility. A documented subset runs since PIGN-043/044 ([compatibility.md §A.7](compatibility.md#a7-scripts-pign-043044)).
 - Re-implementing every Postman auth type in the MVP.
 - A plugin marketplace.
 

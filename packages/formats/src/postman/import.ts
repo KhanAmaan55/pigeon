@@ -64,7 +64,8 @@ export function importPostmanCollection(
     regeneratedIds: [],
   };
   const unsupportedAuth = new Map<string, number>();
-  let scripts = 0;
+  /** Scripts using `pm` APIs Pigeon's sandbox lacks (compatibility §A.7): API → places. */
+  const unsupportedScriptApis = new Map<string, string[]>();
   const absolutePaths: string[] = [];
   const urlMismatches: string[] = [];
   const filledPathVariables: string[] = [];
@@ -93,15 +94,20 @@ export function importPostmanCollection(
   };
   const noteAuth = (auth: unknown) => {
     if (!isObject(auth) || typeof auth['type'] !== 'string') return;
-    if (!['noauth', 'basic', 'bearer', 'apikey'].includes(auth['type'])) {
+    if (!EXECUTED_AUTH_TYPES.includes(auth['type'])) {
       unsupportedAuth.set(auth['type'], (unsupportedAuth.get(auth['type']) ?? 0) + 1);
     }
   };
-  const noteEvents = (events: unknown) => {
+  const noteEvents = (events: unknown, place: string) => {
     for (const event of asArray(events)) {
       const exec = asObject(asObject(event)['script'])['exec'];
       const text = Array.isArray(exec) ? exec.join('\n') : typeof exec === 'string' ? exec : '';
-      if (text.trim() !== '') scripts += 1;
+      for (const [api, pattern] of UNSUPPORTED_SCRIPT_APIS) {
+        if (!pattern.test(text)) continue;
+        const places = unsupportedScriptApis.get(api) ?? [];
+        if (!places.includes(place)) places.push(place);
+        unsupportedScriptApis.set(api, places);
+      }
     }
   };
 
@@ -112,7 +118,7 @@ export function importPostmanCollection(
       if (!isObject(entry)) continue;
       const name = asString(entry['name']);
       noteAuth(entry['auth']);
-      noteEvents(entry['event']);
+      noteEvents(entry['event'], `${path}${name}`);
       if (Array.isArray(entry['item'])) {
         const { item, ...rest } = entry;
         const id = claim('folder', rest['id'], name);
@@ -212,7 +218,7 @@ export function importPostmanCollection(
   const info = asObject(raw['info']);
   const name = asString(info['name']) || 'Imported collection';
   noteAuth(raw['auth']);
-  noteEvents(raw['event']);
+  noteEvents(raw['event'], 'the collection');
   const { item, ...root } = raw;
   const collectionId = claim('collection', info['_postman_id'], name);
   const collection = collectionFromPostman(
@@ -233,9 +239,9 @@ export function importPostmanCollection(
       `${type} auth (${count}×) is not supported yet: kept as is, requests are sent without it.`,
     );
   }
-  if (scripts > 0) {
+  for (const [api, places] of unsupportedScriptApis) {
     report.warnings.push(
-      `${scripts} script${scripts === 1 ? ' is' : 's are'} kept but not run yet.`,
+      `Scripts use ${api}, which Pigeon's script sandbox does not support (it throws when reached): ${places.join(', ')}.`,
     );
   }
   if (absolutePaths.length > 0) {
@@ -310,6 +316,30 @@ function exampleBodyOf(body: unknown, raw: JsonObject): ExampleBody {
   }
   return { kind: 'text', text: body, format };
 }
+
+/** Auth types Pigeon sends (PIGN-018/046/047, compatibility §A.3); others are kept verbatim. */
+const EXECUTED_AUTH_TYPES = [
+  'noauth',
+  'inherit',
+  'basic',
+  'bearer',
+  'apikey',
+  'digest',
+  'oauth2',
+  'awsv4',
+];
+
+/** `pm` APIs that throw or are missing in Pigeon's sandbox (compatibility §A.7). */
+const UNSUPPORTED_SCRIPT_APIS: ReadonlyArray<readonly [string, RegExp]> = [
+  ['pm.sendRequest', /\bpm\.sendRequest\b/],
+  ['pm.cookies', /\bpm\.cookies\b/],
+  ['pm.vault', /\bpm\.vault\b/],
+  ['pm.execution', /\bpm\.execution\b/],
+  ['postman.setNextRequest', /\bpostman\.setNextRequest\b/],
+  ['pm.visualizer', /\bpm\.visualizer\b/],
+  ['pm.iterationData', /\bpm\.iterationData\b/],
+  ['require()', /\brequire\s*\(/],
+];
 
 /**
  * When the raw URL and the derived `path` differ only where the raw URL has a `:name` path

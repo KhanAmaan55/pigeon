@@ -205,7 +205,7 @@ An environment has `env_id`, `name`, `is_private` (`-1` in the sample), `sort`, 
 
 Mapping (`formats/src/echoapi/environments.ts`):
 
-| Echo API | via Postman export | import (project export; or via Postman export) | import (project export) | PIGN-049, Observed |
+| Echo API | Pigeon |
 |---|---|
 | environment `name` | `Environment.name` (new id) |
 | `env_var_list` key / `value` | `Variable.key` / `Variable.value` (written to files), in file order |
@@ -233,7 +233,7 @@ Detection is structural: `global.envs` whose entries have `env_id` and `env_var_
 | Postman v2.1 | import + export | import + export | import + export | MVP, Confirmed/Observed |
 | Postman v2.0 | import | — | — | MVP |
 | Apidog | via Postman/OpenAPI export (not Pigeon's concern) | import (environment and project exports) | import (project export) | PIGN-048, Observed (format 1.2.0) |
-| Echo API | via Postman export | via Postman export or native (planned) | ? | Later, Assumption |
+| Echo API | via Postman export | import (project export; or via Postman export) | import (project export) | PIGN-049, Observed |
 | cURL command | one request (import); snippet out | — | — | Later (PIGN-050), Observed |
 
 ### B.6 cURL commands (PIGN-050)

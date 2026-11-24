@@ -217,15 +217,11 @@ describe('importPostmanCollection (PIGN-028)', () => {
 
   it('reports unsupported auth, scripts, absolute paths and URL mismatches', () => {
     expect(importFixture('auth.v2.1.json').report.warnings).toEqual([
-      'digest auth (1×) is not supported yet: kept as is, requests are sent without it.',
-      'oauth2 auth (1×) is not supported yet: kept as is, requests are sent without it.',
-      'awsv4 auth (1×) is not supported yet: kept as is, requests are sent without it.',
       'hawk auth (1×) is not supported yet: kept as is, requests are sent without it.',
       'ntlm auth (1×) is not supported yet: kept as is, requests are sent without it.',
     ]);
-    expect(importFixture('scripts.v2.1.json').report.warnings).toEqual([
-      '2 scripts are kept but not run yet.',
-    ]);
+    // Scripts run (PIGN-043/044): only APIs the sandbox lacks are reported.
+    expect(importFixture('scripts.v2.1.json').report.warnings).toEqual([]);
     const bodies = importFixture('bodies.v2.1.json').report.warnings.join('\n');
     expect(bodies).toContain('Form data: /Users/ada/avatar.png');
     expect(bodies).toContain('Binary file: C:\\data\\upload.bin');
@@ -233,6 +229,48 @@ describe('importPostmanCollection (PIGN-028)', () => {
     expect(importFixture('echo-basic.v2.1.json').report.warnings.join('\n')).toContain(
       'URL parts disagree with the raw URL (the raw URL is used): Derived parts disagree.',
     );
+  });
+
+  it('names scripts that use pm APIs the sandbox does not support', () => {
+    const script = (exec: string[]) => [{ listen: 'prerequest', script: { exec } }];
+    const { report } = importPostmanCollection(
+      {
+        info: {
+          name: 'S',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+        },
+        event: script(['pm.sendRequest({ url: "x" }, () => {});']),
+        item: [
+          {
+            name: 'Folder',
+            event: script(['const _ = require("lodash");']),
+            item: [
+              {
+                name: 'Req',
+                event: script(['pm.sendRequest("x")', 'pm.environment.set("a", 1)']),
+                request: { method: 'GET', url: 'http://a' },
+              },
+            ],
+          },
+          {
+            name: 'Fine',
+            event: script(['pm.test("ok", () => {})']),
+            request: { method: 'GET', url: 'http://b' },
+          },
+        ],
+      },
+      '2.1',
+      {
+        newId: (() => {
+          let n = 0;
+          return () => `s-${++n}`;
+        })(),
+      },
+    );
+    expect(report.warnings.filter((w) => w.startsWith('Scripts use'))).toEqual([
+      "Scripts use pm.sendRequest, which Pigeon's script sandbox does not support (it throws when reached): the collection, Folder/Req.",
+      "Scripts use require(), which Pigeon's script sandbox does not support (it throws when reached): Folder.",
+    ]);
   });
 
   it('fills a path variable without a value from the URL path parts, as Postman sends it', () => {

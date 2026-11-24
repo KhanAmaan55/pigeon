@@ -344,7 +344,7 @@ export interface ProjectModel {
   orphanExamples: OrphanExample[];
   /** `compare.json` files whose request is not in the project. */
   orphanComparisons?: OrphanComparison[];
-  /** `pigeon.json` `comparison`, preserved until PIGN-035 models it. */
+  /** `pigeon.json` `comparison`: project comparison defaults (PIGN-035), read by core. */
   comparison?: unknown;
   extra: ExtraFields;
 }

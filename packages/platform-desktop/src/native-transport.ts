@@ -176,7 +176,7 @@ function readFile(
   }
   throw new TransportError(
     'file-unavailable',
-    `${label} cannot be read: project files are not supported yet.`,
+    `${label} is a project file that was not read before sending (no project open).`,
     { detail: ref.path, hint: 'Select the file again.' },
   );
 }

@@ -96,7 +96,8 @@ export function previewImportFile(
               : detected.kind === 'apidog'
                 ? 'Apidog export'
                 : 'Echo API export',
-        message: 'Importing environments arrives with environment import (not yet available).',
+        message:
+          'This file holds variables, not a collection: import it from the Import dialog, which previews environments and globals.',
       };
     case 'curl':
       return {
