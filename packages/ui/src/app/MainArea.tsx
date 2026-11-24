@@ -2,6 +2,7 @@ import { FileText } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Group, Panel } from 'react-resizable-panels';
 
+import { EmptyState } from '../components/ui';
 import { ResizeHandle } from '../components/ResizeHandle';
 import { EnvironmentEditor } from '../features/environments/EnvironmentEditor';
 import { ContainerSettings, GlobalsEditor } from '../features/environments/ScopeEditors';
@@ -57,9 +58,14 @@ export function MainArea() {
             role="tablist"
             aria-label="Open requests"
             data-testid="request-tabs"
-            className="flex h-tabbar shrink-0 items-center border-b border-border bg-surface px-3 text-sm text-fg-muted"
+            className="flex h-tabbar shrink-0 items-center border-b border-border bg-bg px-1.5 text-sm"
           >
-            <span role="tab" aria-selected data-testid="scratch-tab">
+            <span
+              role="tab"
+              aria-selected
+              data-testid="scratch-tab"
+              className="flex h-7 items-center rounded-md bg-hover px-2.5 text-fg"
+            >
               Scratch request
             </span>
           </div>
@@ -108,13 +114,12 @@ function ProjectTabs({ project, split }: { project: OpenProject; split: React.Re
     content = <EnvironmentEditor session={project.session} environmentId={activeTabId} />;
   } else if (!activeTabId || !request) {
     content = (
-      <div
+      <EmptyState
         data-testid="no-tab"
-        className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-fg-muted"
-      >
-        <FileText size={28} aria-hidden />
-        Open a request from the explorer.
-      </div>
+        icon={<FileText aria-hidden />}
+        title="No request open"
+        description="Open a request from the explorer."
+      />
     );
   } else if (request.broken) {
     const path = project.session.itemFilePath(request.id) ?? '';

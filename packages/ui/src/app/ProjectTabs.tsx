@@ -1,8 +1,16 @@
 import { Plus, X } from 'lucide-react';
-import { Dialog } from 'radix-ui';
 import { useState } from 'react';
 
 import { IconButton } from '../components/IconButton';
+import {
+  Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from '../components/ui';
 import type { OpenProject } from '../stores/app-store';
 import { useAppStore, useAppStoreApi } from '../stores/AppStoreProvider';
 import { locationLabel } from '../stores/locations';
@@ -53,8 +61,10 @@ export function ProjectTabs() {
                   api.getState().switchProject(project.key);
                 }
               }}
-              className={`flex h-7 max-w-56 shrink-0 cursor-default items-center gap-1 rounded border pr-0.5 pl-2 ${
-                selected ? 'border-border bg-surface text-fg' : 'border-transparent hover:bg-hover'
+              className={`flex h-7 max-w-56 shrink-0 cursor-default items-center gap-1 rounded-md pr-0.5 pl-2.5 transition-colors ${
+                selected
+                  ? 'bg-bg text-fg shadow-sm ring-1 ring-border'
+                  : 'hover:bg-hover hover:text-fg'
               }`}
             >
               <span className="truncate">{project.session.name || 'Untitled project'}</span>
@@ -68,7 +78,7 @@ export function ProjectTabs() {
                   event.stopPropagation();
                   close(project);
                 }}
-                className="flex size-6 cursor-pointer items-center justify-center rounded text-fg-muted hover:bg-hover hover:text-fg"
+                className="flex size-5 cursor-pointer items-center justify-center rounded text-fg-muted hover:bg-hover hover:text-fg"
               >
                 <X size={12} />
               </span>
@@ -85,43 +95,29 @@ export function ProjectTabs() {
           onClick={() => api.getState().showWelcome()}
         />
       )}
-      <Dialog.Root open={closing !== null} onOpenChange={(open) => !open && setClosing(null)}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-          <Dialog.Content
-            data-testid="close-project-dialog"
-            className="fixed top-1/2 left-1/2 w-[min(26rem,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
-          >
-            <Dialog.Title className="text-base font-semibold">
-              Close “{closing?.session.name}”?
-            </Dialog.Title>
-            <Dialog.Description className="mt-2 text-fg-muted">
-              It has unsaved changes, which will be lost. Saved changes stay in local state.
-            </Dialog.Description>
-            <div className="mt-4 flex justify-end gap-2">
-              <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className="h-8 rounded border border-border px-3 hover:bg-hover"
-                >
-                  Cancel
-                </button>
-              </Dialog.Close>
-              <button
-                type="button"
-                data-testid="close-project-confirm"
-                onClick={() => {
-                  if (closing) api.getState().closeProject(closing.key);
-                  setClosing(null);
-                }}
-                className="h-8 rounded border border-fail px-3 font-semibold text-fail hover:bg-fail/10"
-              >
-                Close without saving
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+      <Dialog open={closing !== null} onOpenChange={(open) => !open && setClosing(null)}>
+        <DialogContent width="sm" data-testid="close-project-dialog">
+          <DialogTitle>Close “{closing?.session.name}”?</DialogTitle>
+          <DialogDescription>
+            It has unsaved changes, which will be lost. Saved changes stay in local state.
+          </DialogDescription>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button>Cancel</Button>
+            </DialogClose>
+            <Button
+              variant="danger"
+              data-testid="close-project-confirm"
+              onClick={() => {
+                if (closing) api.getState().closeProject(closing.key);
+                setClosing(null);
+              }}
+            >
+              Close without saving
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,11 +1,20 @@
 import { Bookmark, AlertTriangle, ChevronDown, Play, Save, Variable, X } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
-import { Dialog } from 'radix-ui';
 import { useState } from 'react';
 
 import type { OpenProject } from '../../stores/app-store';
 import { findContainer, GLOBALS_ENTITY_ID } from '@pigeon/core';
 
+import {
+  Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  menu,
+} from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { methodLabel } from '../explorer/tree';
 import { methodColorClass } from '../request-editor/methods';
@@ -97,15 +106,15 @@ export function RequestTabs({ project }: { project: OpenProject }) {
     : undefined;
   return (
     <>
-      <div className="flex h-tabbar shrink-0 items-stretch border-b border-border bg-surface">
+      <div className="flex h-tabbar shrink-0 items-center border-b border-border bg-bg pl-1.5">
         <div
           role={tabs.length > 0 ? 'tablist' : 'group'}
           aria-label="Open requests"
           data-testid="request-tabs"
-          className="flex min-w-0 flex-1 items-stretch overflow-x-auto"
+          className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto"
         >
           {tabs.length === 0 && (
-            <span className="flex items-center px-3 text-sm text-fg-muted">No request open</span>
+            <span className="flex items-center px-1.5 text-sm text-fg-muted">No request open</span>
           )}
           {tabs.map((tab) => {
             // `model` in the dependency list keeps names current after edits.
@@ -167,8 +176,8 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                 onAuxClick={(event) => {
                   if (event.button === 1) close(tab.id);
                 }}
-                className={`group flex max-w-56 shrink-0 cursor-default items-center gap-1.5 border-r border-border pr-1 pl-3 text-sm ${
-                  active ? 'bg-bg text-fg' : 'text-fg-muted hover:bg-hover'
+                className={`group flex h-7 max-w-56 shrink-0 cursor-default items-center gap-1.5 rounded-md pr-0.5 pl-2.5 text-sm transition-colors ${
+                  active ? 'bg-hover text-fg' : 'text-fg-muted hover:bg-hover/60 hover:text-fg'
                 }`}
               >
                 {tab.id === RUNNER_TAB_ID ? (
@@ -208,7 +217,7 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                       event.stopPropagation();
                       close(tab.id);
                     }}
-                    className={`absolute inset-0 items-center justify-center rounded hover:bg-hover ${
+                    className={`absolute inset-0 items-center justify-center rounded text-fg-muted hover:bg-border hover:text-fg ${
                       dirty ? 'hidden group-hover:flex' : 'flex'
                     } ${active || dirty ? '' : 'opacity-0 group-hover:opacity-100'}`}
                   >
@@ -229,40 +238,37 @@ export function RequestTabs({ project }: { project: OpenProject }) {
             {saveError}
           </span>
         )}
-        <div className="flex shrink-0 items-center gap-px px-2">
-          <button
-            type="button"
+        <div className="flex shrink-0 items-center px-2">
+          <Button
+            size="xs"
             data-testid="save-button"
             disabled={!canSave || !activeTabId || unsaved?.[activeTabId] !== true}
             title="Save (Ctrl/⌘ S): keep the changes in local state; project files don't change"
             onClick={() => activeTabId && void save([activeTabId])}
-            className="inline-flex h-7 items-center gap-1 rounded-l border border-border px-2 text-xs text-fg hover:bg-hover disabled:opacity-50"
+            icon={<Save aria-hidden />}
+            className="rounded-r-none"
           >
-            <Save size={12} aria-hidden />
             Save
-          </button>
+          </Button>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-              <button
-                type="button"
+              <Button
+                size="xs"
                 aria-label="More save options"
                 data-testid="save-menu"
                 disabled={!canSave}
-                className="inline-flex h-7 items-center rounded-r border border-l-0 border-border px-1 text-fg hover:bg-hover disabled:opacity-50"
+                className="-ml-px rounded-l-none px-1"
               >
-                <ChevronDown size={12} aria-hidden />
-              </button>
+                <ChevronDown aria-hidden />
+              </Button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                align="end"
-                className="z-50 min-w-40 rounded-md border border-border bg-surface-raised p-1 text-sm text-fg shadow-lg"
-              >
+              <DropdownMenu.Content align="end" sideOffset={4} className={menu.content}>
                 <DropdownMenu.Item
                   data-testid="save-all"
                   disabled={!hasUnsaved}
                   onSelect={() => void save()}
-                  className="cursor-default rounded px-2 py-1 outline-none data-[disabled]:opacity-50 data-[highlighted]:bg-hover"
+                  className={menu.item}
                 >
                   Save all
                 </DropdownMenu.Item>
@@ -271,64 +277,49 @@ export function RequestTabs({ project }: { project: OpenProject }) {
           </DropdownMenu.Root>
         </div>
       </div>
-      <Dialog.Root open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-          <Dialog.Content
-            data-testid="close-tab-dialog"
-            className="fixed top-1/2 left-1/2 w-[min(26rem,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
-          >
-            <Dialog.Title className="text-base font-semibold">
-              Discard changes to “{pending?.name ?? ''}”?
-            </Dialog.Title>
-            <Dialog.Description className="mt-2 text-fg-muted">
-              The request has unsaved changes. Discarding restores the version in the project files.
-            </Dialog.Description>
-            <div className="mt-4 flex justify-end gap-2">
-              <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className="h-8 rounded border border-border px-3 hover:bg-hover"
-                >
-                  Cancel
-                </button>
-              </Dialog.Close>
-              {canSave && (
-                <button
-                  type="button"
-                  data-testid="close-tab-save"
-                  onClick={() => {
-                    if (!confirming) return;
-                    const id = confirming;
-                    setConfirming(null);
-                    void save([id]).then(() => {
-                      store.getState().closeTab(id);
-                      disposeTabEditor(session, id);
-                    });
-                  }}
-                  className="h-8 rounded bg-accent px-3 font-semibold text-accent-fg hover:opacity-90"
-                >
-                  Save
-                </button>
-              )}
-              <button
-                type="button"
-                data-testid="close-tab-discard"
+      <Dialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <DialogContent width="sm" data-testid="close-tab-dialog">
+          <DialogTitle>Discard changes to “{pending?.name ?? ''}”?</DialogTitle>
+          <DialogDescription>
+            The request has unsaved changes. Discarding restores the version in the project files.
+          </DialogDescription>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button>Cancel</Button>
+            </DialogClose>
+            {canSave && (
+              <Button
+                variant="primary"
+                data-testid="close-tab-save"
                 onClick={() => {
                   if (!confirming) return;
-                  session.discardUnsaved(confirming);
-                  store.getState().closeTab(confirming);
-                  disposeTabEditor(session, confirming);
+                  const id = confirming;
                   setConfirming(null);
+                  void save([id]).then(() => {
+                    store.getState().closeTab(id);
+                    disposeTabEditor(session, id);
+                  });
                 }}
-                className="h-8 rounded border border-fail px-3 font-semibold text-fail hover:bg-fail/10"
               >
-                Discard
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+                Save
+              </Button>
+            )}
+            <Button
+              variant="danger"
+              data-testid="close-tab-discard"
+              onClick={() => {
+                if (!confirming) return;
+                session.discardUnsaved(confirming);
+                store.getState().closeTab(confirming);
+                disposeTabEditor(session, confirming);
+                setConfirming(null);
+              }}
+            >
+              Discard
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

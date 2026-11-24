@@ -9,36 +9,49 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 /*
- * Design tokens. Components use the Tailwind names mapped in `@theme inline` below
- * (e.g. `bg-surface`, `text-fg-muted`, `border-border`, `text-method-get`), never raw colours.
+ * Design tokens (PIGN-058, ui-ux.md §9): a clean and soft look. Components use the Tailwind names
+ * mapped in `@theme inline` below (e.g. `bg-surface`, `text-fg-muted`, `border-border`,
+ * `text-method-get`), never raw colours. Text colours meet 4.5:1 on every surface in both themes
+ * (test/contrast.test.ts).
  */
 :root {
   color-scheme: light;
 
+  /* Surfaces: the app chrome (surface) frames a white work panel (bg). */
   --pg-bg: #ffffff;
-  --pg-surface: #f7f7f8;
-  --pg-surface-raised: #efeff2;
-  --pg-hover: #e8e8ec;
-  --pg-border: #e1e1e6;
-  --pg-fg: #1b1b1f;
-  --pg-fg-muted: #6b6b76;
-  --pg-accent: #4f46e5;
+  --pg-surface: #f7f7f9;
+  --pg-surface-raised: #ffffff;
+  --pg-sunken: #f4f4f7;
+  --pg-hover: #ededf1;
+  --pg-selected: #ebebfb;
+  --pg-border: #e6e6eb;
+  --pg-border-strong: #d6d6de;
+  --pg-fg: #1d1d22;
+  --pg-fg-muted: #686874;
+  --pg-accent: #5b57e0;
+  --pg-accent-hover: #4d49d2;
   --pg-accent-fg: #ffffff;
-  --pg-focus: #6366f1;
+  --pg-accent-text: #4f4bd6;
+  --pg-focus: color-mix(in srgb, #5b57e0 45%, transparent);
+  --pg-overlay: rgb(20 20 28 / 0.28);
 
-  --pg-pass: #15803d;
-  --pg-warn: #b45309;
-  --pg-fail: #dc2626;
-  --pg-info: #2563eb;
+  --pg-pass: #12733a;
+  --pg-warn: #a55207;
+  --pg-fail: #c42323;
+  --pg-info: #2560d8;
 
-  --pg-method-get: #15803d;
-  --pg-method-post: #b45309;
-  --pg-method-put: #2563eb;
-  --pg-method-patch: #7c3aed;
-  --pg-method-delete: #dc2626;
-  --pg-method-head: #0f766e;
-  --pg-method-options: #be185d;
-  --pg-method-gql: #db2777;
+  --pg-method-get: #12733a;
+  --pg-method-post: #a55207;
+  --pg-method-put: #2560d8;
+  --pg-method-patch: #7438d4;
+  --pg-method-delete: #c42323;
+  --pg-method-head: #0e7369;
+  --pg-method-options: #b8246a;
+  --pg-method-gql: #c0287a;
+
+  --pg-shadow-sm: 0 1px 2px rgb(16 16 24 / 0.06);
+  --pg-shadow-md: 0 1px 2px rgb(16 16 24 / 0.04), 0 4px 16px -4px rgb(16 16 24 / 0.12);
+  --pg-shadow-lg: 0 2px 4px rgb(16 16 24 / 0.04), 0 16px 40px -8px rgb(16 16 24 / 0.22);
 
   --pg-font-sans:
     system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
@@ -48,38 +61,48 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --pg-bg: #16161a;
-  --pg-surface: #1c1c21;
-  --pg-surface-raised: #232329;
-  --pg-hover: #2b2b33;
-  --pg-border: #2f2f38;
-  --pg-fg: #e6e6eb;
-  --pg-fg-muted: #9a9aa6;
-  --pg-accent: #818cf8;
-  --pg-accent-fg: #0b0b0f;
-  --pg-focus: #a5b4fc;
+  --pg-bg: #18181c;
+  --pg-surface: #111114;
+  --pg-surface-raised: #1f1f24;
+  --pg-sunken: #141417;
+  --pg-hover: #26262c;
+  --pg-selected: #25254a;
+  --pg-border: #27272e;
+  --pg-border-strong: #34343d;
+  --pg-fg: #ececf1;
+  --pg-fg-muted: #9e9eab;
+  --pg-accent: #5f5be8;
+  --pg-accent-hover: #6d6af0;
+  --pg-accent-fg: #ffffff;
+  --pg-accent-text: #a3a1ff;
+  --pg-focus: color-mix(in srgb, #8582ff 55%, transparent);
+  --pg-overlay: rgb(0 0 0 / 0.5);
 
   --pg-pass: #4ade80;
   --pg-warn: #fbbf24;
-  --pg-fail: #f87171;
+  --pg-fail: #fb7185;
   --pg-info: #60a5fa;
 
   --pg-method-get: #4ade80;
   --pg-method-post: #fbbf24;
   --pg-method-put: #60a5fa;
-  --pg-method-patch: #a78bfa;
-  --pg-method-delete: #f87171;
+  --pg-method-patch: #b49bfd;
+  --pg-method-delete: #fb7185;
   --pg-method-head: #2dd4bf;
   --pg-method-options: #f472b6;
   --pg-method-gql: #f472b6;
+
+  --pg-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --pg-shadow-md: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px -6px rgb(0 0 0 / 0.5);
+  --pg-shadow-lg: 0 0 0 1px rgb(255 255 255 / 0.04), 0 20px 48px -10px rgb(0 0 0 / 0.7);
 }
 
 /* Before the app mounts (no data-theme yet), avoid a white flash for dark-mode users. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --pg-bg: #16161a;
-    --pg-fg: #e6e6eb;
+    --pg-bg: #18181c;
+    --pg-fg: #ececf1;
   }
 }
 
@@ -87,13 +110,19 @@
   --color-bg: var(--pg-bg);
   --color-surface: var(--pg-surface);
   --color-surface-raised: var(--pg-surface-raised);
+  --color-sunken: var(--pg-sunken);
   --color-hover: var(--pg-hover);
+  --color-selected: var(--pg-selected);
   --color-border: var(--pg-border);
+  --color-border-strong: var(--pg-border-strong);
   --color-fg: var(--pg-fg);
   --color-fg-muted: var(--pg-fg-muted);
   --color-accent: var(--pg-accent);
+  --color-accent-hover: var(--pg-accent-hover);
   --color-accent-fg: var(--pg-accent-fg);
+  --color-accent-text: var(--pg-accent-text);
   --color-focus: var(--pg-focus);
+  --color-overlay: var(--pg-overlay);
 
   --color-pass: var(--pg-pass);
   --color-warn: var(--pg-warn);
@@ -109,6 +138,10 @@
   --color-method-options: var(--pg-method-options);
   --color-method-gql: var(--pg-method-gql);
 
+  --shadow-sm: var(--pg-shadow-sm);
+  --shadow-md: var(--pg-shadow-md);
+  --shadow-lg: var(--pg-shadow-lg);
+
   --font-sans: var(--pg-font-sans);
   --font-mono: var(--pg-font-mono);
 }
@@ -123,10 +156,34 @@
   --text-base--line-height: 20px;
 
   /* Fixed chrome sizes, usable as h-topbar, w-activitybar, ... */
-  --spacing-topbar: 36px;
-  --spacing-tabbar: 34px;
-  --spacing-statusbar: 22px;
-  --spacing-activitybar: 44px;
+  --spacing-topbar: 40px;
+  --spacing-tabbar: 38px;
+  --spacing-statusbar: 26px;
+  --spacing-activitybar: 48px;
+
+  /* Soft corners: controls 6 px, panels and menus 8 px, dialogs 12 px. */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Quick, quiet entrances for overlays, menus and dialogs (off with reduced motion). */
+  --animate-fade-in: pg-fade-in 120ms ease-out;
+  --animate-pop-in: pg-pop-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes pg-fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes pg-pop-in {
+    from {
+      opacity: 0;
+      scale: 0.97;
+    }
+  }
 }
 
 @layer base {
@@ -149,7 +206,17 @@
 
   :focus-visible {
     outline: 2px solid var(--pg-focus);
-    outline-offset: -2px;
+    outline-offset: 1px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--pg-accent) 28%, transparent);
+  }
+
+  /* Thin, quiet scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--pg-border-strong) transparent;
   }
 
   @media (prefers-reduced-motion: reduce) {

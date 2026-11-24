@@ -163,7 +163,7 @@ export function AppShell() {
         if (event.relatedTarget === null) setDragging(false);
       }}
       onDrop={onDrop}
-      className={`flex h-full flex-col bg-bg text-fg ${dragging ? 'ring-2 ring-accent ring-inset' : ''}`}
+      className={`flex h-full flex-col bg-surface text-fg ${dragging ? 'ring-2 ring-accent ring-inset' : ''}`}
     >
       <TopBar />
       <div className="flex min-h-0 flex-1">
@@ -186,11 +186,20 @@ export function AppShell() {
               >
                 <Sidebar view={view} />
               </Panel>
-              <ResizeHandle direction="horizontal" testId="sidebar-resize-handle" />
+              <ResizeHandle
+                direction="horizontal"
+                variant="gutter"
+                testId="sidebar-resize-handle"
+              />
             </>
           )}
           <Panel id="main-pane" minSize="30">
-            <MainArea />
+            {/* The work area: a soft panel framed by the app chrome. */}
+            <div className={`h-full pr-1.5 pb-1.5 ${sidebarHidden ? '' : 'pl-0'}`}>
+              <div className="h-full overflow-hidden rounded-lg border border-border bg-bg shadow-sm">
+                <MainArea />
+              </div>
+            </div>
           </Panel>
         </Group>
       </div>

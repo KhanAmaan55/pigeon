@@ -52,7 +52,7 @@ export function ActivityBar({
     <nav
       aria-label="Views"
       data-testid="activity-bar"
-      className="flex w-activitybar shrink-0 flex-col items-center gap-1 border-r border-border bg-surface-raised py-2"
+      className="flex w-activitybar shrink-0 flex-col items-center gap-1.5 bg-surface pt-1 pb-2"
     >
       {PRIMARY_VIEWS.map(({ view, icon }) => button(view, icon))}
       <div className="flex-1" />

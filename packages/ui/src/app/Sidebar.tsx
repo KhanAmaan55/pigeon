@@ -25,7 +25,7 @@ export function Sidebar({ view }: { view: SidebarView }) {
       data-testid="sidebar"
       className="flex h-full min-w-0 flex-col bg-surface"
     >
-      <header className="flex h-tabbar shrink-0 items-center border-b border-border px-3 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+      <header className="flex h-tabbar shrink-0 items-center px-3 text-sm font-semibold text-fg">
         {SIDEBAR_VIEW_TITLES[view]}
       </header>
       {view === 'settings' ? (

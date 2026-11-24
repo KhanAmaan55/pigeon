@@ -7,7 +7,7 @@ type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-label
   label: string;
   icon: ReactNode;
   active?: boolean;
-  /** Show an accent bar on the left edge while active (activity bar). */
+  /** Show the active state in the accent colour (activity bar). */
   indicator?: boolean;
   tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
 };
@@ -26,12 +26,12 @@ export function IconButton({
       <button
         type="button"
         aria-label={label}
-        className={`inline-flex size-8 items-center justify-center rounded text-fg-muted hover:bg-hover hover:text-fg disabled:pointer-events-none disabled:opacity-50 ${
-          active ? 'bg-hover text-fg' : ''
-        } ${
+        className={`inline-flex size-8 items-center justify-center rounded-md text-fg-muted transition-colors duration-100 hover:bg-hover hover:text-fg disabled:pointer-events-none disabled:opacity-50 ${
           active && indicator
-            ? 'relative before:absolute before:inset-y-1.5 before:-left-[6px] before:w-0.5 before:rounded-full before:bg-accent'
-            : ''
+            ? 'bg-selected text-accent-text hover:bg-selected hover:text-accent-text'
+            : active
+              ? 'bg-hover text-fg'
+              : ''
         } ${className}`}
         {...buttonProps}
       >

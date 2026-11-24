@@ -32,7 +32,7 @@ export function StatusBar() {
   return (
     <footer
       data-testid="status-bar"
-      className="flex h-statusbar shrink-0 items-center gap-3 border-t border-border bg-surface-raised px-3 text-xs text-fg-muted"
+      className="flex h-statusbar shrink-0 items-center gap-4 bg-surface px-3 text-xs text-fg-muted"
     >
       <span data-testid="status-platform">
         {PLATFORM_KIND_LABELS[platform.kind]} · {OS_LABELS[platform.os]}
