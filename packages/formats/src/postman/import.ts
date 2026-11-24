@@ -67,6 +67,7 @@ export function importPostmanCollection(
   let scripts = 0;
   const absolutePaths: string[] = [];
   const urlMismatches: string[] = [];
+  const filledPathVariables: string[] = [];
   let generatedIds = 0;
 
   /** Keeps `id` when it is free, else a fresh one (recorded in the report). */
@@ -198,9 +199,14 @@ export function importPostmanCollection(
       return;
     }
     const raw = url['raw'].split(/[?#]/)[0]!.replace(/^[a-z][a-z\d+.-]*:\/\//i, '');
-    const parts = `${host}${url['port'] === undefined ? '' : `:${asString(url['port'])}`}${pathParts ? `/${pathParts}` : ''}`;
-    if (host !== '' && raw.replace(/\/$/, '') !== parts.replace(/\/$/, ''))
-      urlMismatches.push(label);
+    const hostPort = `${host}${url['port'] === undefined ? '' : `:${asString(url['port'])}`}`;
+    const parts = `${hostPort}${pathParts ? `/${pathParts}` : ''}`;
+    if (host === '' || raw.replace(/\/$/, '') === parts.replace(/\/$/, '')) return;
+    const filled = fillPathVariables(url, raw, hostPort);
+    if (filled) {
+      request['url'] = filled.url;
+      filledPathVariables.push(`${label} (${filled.names.join(', ')})`);
+    } else urlMismatches.push(label);
   };
 
   const info = asObject(raw['info']);
@@ -235,6 +241,11 @@ export function importPostmanCollection(
   if (absolutePaths.length > 0) {
     report.warnings.push(
       `Absolute file paths are kept as they are (they only work on this machine): ${absolutePaths.join('; ')}.`,
+    );
+  }
+  if (filledPathVariables.length > 0) {
+    report.warnings.push(
+      `Path variables without a value were filled from the URL's path parts (as Postman sends them): ${filledPathVariables.join('; ')}.`,
     );
   }
   if (urlMismatches.length > 0) {
@@ -298,4 +309,44 @@ function exampleBodyOf(body: unknown, raw: JsonObject): ExampleBody {
     }
   }
   return { kind: 'text', text: body, format };
+}
+
+/**
+ * When the raw URL and the derived `path` differ only where the raw URL has a `:name` path
+ * variable without a value (e.g. raw `…/airports/:airport_id`, path `["airports",
+ * "{{airport_id}}"]`), Postman sends the path parts: the variable gets that part as its value.
+ * `null` when the difference is anything else (the raw URL then wins, compatibility §A.4).
+ */
+function fillPathVariables(
+  url: JsonObject,
+  rawWithoutScheme: string,
+  hostPort: string,
+): { url: JsonObject; names: string[] } | null {
+  const slash = rawWithoutScheme.indexOf('/');
+  const rawHost = slash === -1 ? rawWithoutScheme : rawWithoutScheme.slice(0, slash);
+  if (rawHost !== hostPort) return null;
+  const trim = (segments: string[]) => (segments.at(-1) === '' ? segments.slice(0, -1) : segments);
+  const rawSegments = trim(slash === -1 ? [] : rawWithoutScheme.slice(slash + 1).split('/'));
+  const partSegments = trim(
+    Array.isArray(url['path'])
+      ? url['path'].map((segment) =>
+          isObject(segment) ? asString(segment['value']) : asString(segment),
+        )
+      : asString(url['path']).split('/'),
+  );
+  if (rawSegments.length !== partSegments.length) return null;
+  const variables = asArray(url['variable']).map((entry) => ({ ...asObject(entry) }));
+  const names: string[] = [];
+  for (const [index, rawSegment] of rawSegments.entries()) {
+    const part = partSegments[index]!;
+    if (rawSegment === part) continue;
+    const name = /^:([\w.-]+)$/.exec(rawSegment)?.[1];
+    if (!name || part === '' || part.startsWith(':')) return null;
+    const existing = variables.find((v) => v['key'] === name);
+    if (existing && asString(existing['value']) !== '') return null;
+    if (existing) existing['value'] = part;
+    else variables.push({ key: name, value: part });
+    names.push(`:${name} = ${part}`);
+  }
+  return names.length === 0 ? null : { url: { ...url, variable: variables }, names };
 }

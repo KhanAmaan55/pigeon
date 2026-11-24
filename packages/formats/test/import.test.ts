@@ -235,6 +235,59 @@ describe('importPostmanCollection (PIGN-028)', () => {
     );
   });
 
+  it('fills a path variable without a value from the URL path parts, as Postman sends it', () => {
+    const request = (raw: string, path: string[], variable?: unknown[]) => ({
+      name: raw,
+      request: {
+        method: 'GET',
+        url: { raw, host: ['{{base_url}}'], path, ...(variable ? { variable } : {}) },
+      },
+    });
+    const { collection, report } = importPostmanCollection(
+      {
+        info: {
+          name: 'Airport Gap',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+        },
+        item: [
+          // The real Airport Gap collection: raw has `:airport_id`, the parts the variable.
+          request('{{base_url}}/airports/:airport_id', ['airports', '{{airport_id}}']),
+          request(
+            '{{base_url}}/favorites/:id/x',
+            ['favorites', '22', 'x'],
+            [{ key: 'id', value: '' }],
+          ),
+          // A value is set: ambiguous, the raw URL wins as before.
+          request('{{base_url}}/users/:id', ['users', '7'], [{ key: 'id', value: '5' }]),
+          // Not a path variable that differs: the raw URL wins as before.
+          request('{{base_url}}/v2/users', ['v1', 'users']),
+        ],
+      },
+      '2.1',
+      {
+        newId: (() => {
+          let n = 0;
+          return () => `id-${++n}`;
+        })(),
+      },
+    );
+    const urls = collection.children.map((item) =>
+      item.kind === 'request' ? item.url : undefined,
+    );
+    expect(urls[0]).toMatchObject({
+      raw: '{{base_url}}/airports/:airport_id',
+      pathVariables: [{ key: 'airport_id', value: '{{airport_id}}' }],
+    });
+    expect(urls[1]).toMatchObject({ pathVariables: [{ key: 'id', value: '22' }] });
+    expect(urls[2]).toMatchObject({ pathVariables: [{ key: 'id', value: '5' }] });
+    expect(report.warnings).toEqual(
+      expect.arrayContaining([
+        "Path variables without a value were filled from the URL's path parts (as Postman sends them): {{base_url}}/airports/:airport_id (:airport_id = {{airport_id}}); {{base_url}}/favorites/:id/x (:id = 22).",
+        'URL parts disagree with the raw URL (the raw URL is used): {{base_url}}/users/:id, {{base_url}}/v2/users.',
+      ]),
+    );
+  });
+
   it('imports a 5,000-request collection in well under 5 s', () => {
     const items = Array.from({ length: 50 }, (_, f) => ({
       id: `f${f}`,

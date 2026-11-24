@@ -74,7 +74,7 @@ The official v2.1 JSON Schema is vendored in `packages/fixtures/postman/schema/c
 
 Round-trip `import → Save for Commit → export` must be **semantically equal** to the input, modulo:
 1. Key order and whitespace.
-2. URL derived parts regenerated from `raw` (`host`, `path`, `protocol`, `port`); `raw` is authoritative. If the input's derived parts disagree with `raw`, Pigeon keeps `raw` and records a warning in the import report.
+2. URL derived parts regenerated from `raw` (`host`, `path`, `protocol`, `port`); `raw` is authoritative. If the input's derived parts disagree with `raw`, Pigeon keeps `raw` and records a warning in the import report. One exception, because Postman sends the parts: when they differ only where `raw` has a `:name` path variable with no value (e.g. raw `{{base_url}}/airports/:airport_id`, path `["airports", "{{airport_id}}"]`), the path variable gets the part as its value (`airport_id = {{airport_id}}`) and the report lists it as filled instead of as a mismatch. A path variable that already has a value is never overwritten.
 3. Missing `item.id` / example `id` generated.
 4. Header string form → array form.
 5. Empty/default values omitted (`disabled: false`, empty `description`).
