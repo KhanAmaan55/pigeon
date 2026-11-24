@@ -3,16 +3,22 @@ import { expect, test } from '@playwright/test';
 
 import { generateLargeProject } from '../../packages/fixtures/src/generate-large-project';
 import { TEST_SERVER_URL } from '../test-server';
+import type { RunnerSpeed } from './calibrate';
+import { measureRunnerSpeed, REFERENCE } from './calibrate';
 import '../web/hooks';
 
 /**
- * ui-ux.md §7 budgets with 20 % tolerance (PIGN-042). Each test logs its measurement so a run
- * records the numbers.
+ * ui-ux.md §7 budgets with 20 % tolerance (PIGN-042), scaled by the runner's speed against the
+ * development MacBook (calibrate.ts). Each test logs its measurement so a run records the numbers.
  */
 const TOLERANCE = 1.2;
+let speed: RunnerSpeed = { ...REFERENCE, factor: 1 };
 const record = (name: string, ms: number, budget: number) => {
-  console.log(`perf: ${name} ${ms.toFixed(1)} ms (budget ${budget} ms)`);
-  expect(ms, name).toBeLessThan(budget * TOLERANCE);
+  const limit = budget * TOLERANCE * speed.factor;
+  console.log(
+    `perf: ${name} ${ms.toFixed(1)} ms (budget ${budget} ms, limit ${limit.toFixed(0)} ms)`,
+  );
+  expect(ms, name).toBeLessThan(limit);
 };
 
 async function openLargeProject(page: Page) {
@@ -34,6 +40,16 @@ async function openLargeProject(page: Page) {
 test.describe('performance budgets', () => {
   test.skip(({ browserName }) => browserName !== 'chromium', 'folder access is Chromium-only');
   test.setTimeout(120_000);
+
+  test.beforeAll(async ({ browser }) => {
+    const page = await browser.newPage();
+    await page.goto('/');
+    speed = await measureRunnerSpeed(page);
+    await page.close();
+    console.log(
+      `perf: runner workload reads ${speed.ioMs.toFixed(0)} ms, script ${speed.cpuMs.toFixed(0)} ms (reference ${REFERENCE.ioMs} / ${REFERENCE.cpuMs} ms): budgets ×${speed.factor.toFixed(2)}`,
+    );
+  });
 
   test('open a 5,000-request project, scroll the explorer, switch tabs, type', async ({ page }) => {
     record('open 5,000-request project', await openLargeProject(page), 2000);

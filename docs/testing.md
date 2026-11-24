@@ -20,7 +20,7 @@ Every story leaves the repo green: `pnpm verify` passes and the apps build. Test
 | `pnpm verify` | lint + typecheck + unit/integration tests + web build (required after every story) |
 | `pnpm test` | Vitest across packages |
 | `pnpm test:e2e` | Builds `apps/web` in `e2e` mode (`build:e2e`: adds the `window.__pigeonTest` hooks, never in production builds), then runs Playwright web E2E against `vite preview`; Playwright also starts `@pigeon/test-server` on port 4010. First run locally: `pnpm exec playwright install chromium firefox webkit` |
-| `pnpm test:perf` | Performance budgets (PIGN-042): Vitest `*.perf.test.ts` (5,000-request project read, commit planner), then Playwright `e2e/perf` in Chromium (open project, explorer scroll, tab switch, keystrokes, 5 MB response). Budgets from ui-ux.md §7 with 20 % tolerance; each measurement is printed |
+| `pnpm test:perf` | Performance budgets (PIGN-042): Vitest `*.perf.test.ts` (5,000-request project read, commit planner), then Playwright `e2e/perf` in Chromium (open project, explorer scroll, tab switch, keystrokes, 5 MB response). Budgets from ui-ux.md §7 with 20 % tolerance; the browser budgets are scaled by the runner's speed against the development MacBook (`e2e/perf/calibrate.ts`, ×1 to ×3); each measurement, limit and the factor are printed |
 | `pigeon --smoke --timing` | Desktop cold start: prints `cold-start-ms: N` (process start → app shell painted) |
 | `pnpm --filter @pigeon/test-server start` | Test server on `http://127.0.0.1:4010` (`PIGEON_TEST_SERVER_PORT` overrides) for E2E and Rust tests; endpoints in `packages/test-server/README.md` |
 | `pnpm test:e2e:desktop` | WebdriverIO desktop specs (Linux/Windows) |
