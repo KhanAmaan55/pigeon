@@ -6,7 +6,8 @@
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
 /** Initial JavaScript (entry + modulepreloads), gzip. docs/platform.md §6.1. */
@@ -58,7 +59,8 @@ export function checkBundle(dist: string, budget = INITIAL_JS_BUDGET_BYTES): Bun
     const text = readFileSync(file, 'utf8');
     for (const leak of LEAKS) {
       const match = leak.pattern.exec(text);
-      if (match) errors.push(`${relative(dist, file)}: ${leak.what} (${match[0]})`);
+      if (match)
+        errors.push(`${relative(dist, file).split(sep).join('/')}: ${leak.what} (${match[0]})`);
     }
   }
   const initialFiles = initialScripts(readFileSync(join(dist, 'index.html'), 'utf8'));
@@ -81,7 +83,8 @@ export function checkBundle(dist: string, budget = INITIAL_JS_BUDGET_BYTES): Bun
 
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`;
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run as a script (also on Windows, where argv[1] is `D:\…`, not a file URL).
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const dist = process.argv[2] ?? 'dist';
   const report = checkBundle(dist);
   console.log(
