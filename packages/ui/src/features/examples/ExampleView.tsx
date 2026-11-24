@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { useId, useState } from 'react';
 
 import { CodeEditor } from '../../components/CodeEditor';
+import { Button, Input, SectionLabel } from '../../components/ui';
 import { JsonSchemaActions } from '../compare/JsonSchemaActions';
 import { KeyValueTable } from '../../components/KeyValueTable';
 import { formatBytes } from '../../lib/format';
@@ -57,7 +58,7 @@ export function ExampleView({
 
   return (
     <div data-testid="example-view" className="flex min-h-0 flex-1 flex-col overflow-auto bg-bg">
-      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-2">
         <Bookmark size={14} className="shrink-0 text-fg-muted" aria-hidden />
         {canEdit ? (
           <NameInput
@@ -77,7 +78,7 @@ export function ExampleView({
             pressed={editing}
             disabled={readOnly}
             onClick={() => setEditing(!editing)}
-            icon={<Pencil size={12} aria-hidden />}
+            icon={<Pencil aria-hidden />}
           >
             {editing ? 'Done' : 'Edit'}
           </ToolbarButton>
@@ -89,7 +90,7 @@ export function ExampleView({
               session.apply({ type: 'duplicateExample', id: example.id, newId });
               store.getState().openTab(newId, { pin: true });
             }}
-            icon={<Copy size={12} aria-hidden />}
+            icon={<Copy aria-hidden />}
           >
             Duplicate
           </ToolbarButton>
@@ -100,7 +101,7 @@ export function ExampleView({
               store.getState().closeTab(example.id);
               session.apply({ type: 'deleteExample', id: example.id });
             }}
-            icon={<Trash2 size={12} aria-hidden />}
+            icon={<Trash2 aria-hidden />}
           >
             Delete
           </ToolbarButton>
@@ -109,16 +110,18 @@ export function ExampleView({
 
       <p
         data-testid="example-file"
-        className="shrink-0 border-b border-border px-3 py-1 font-mono text-xs text-fg-muted"
+        className="shrink-0 border-b border-border bg-surface px-4 py-1.5 font-mono text-xs text-fg-muted"
       >
         {exampleFilePath(session, request.id, example)}
         {bodyFile ? ` · ${bodyFile}` : ' · no body'}
       </p>
 
-      <section aria-label="Status" className="flex shrink-0 items-center gap-2 px-3 py-2 text-sm">
+      <section aria-label="Status" className="flex shrink-0 items-center gap-2 px-4 py-3 text-sm">
         {canEdit ? (
           <>
-            <input
+            <Input
+              size="sm"
+              mono
               aria-label="Status code"
               data-testid="example-code"
               type="number"
@@ -129,14 +132,15 @@ export function ExampleView({
                 const code = Number(event.target.value);
                 if (Number.isInteger(code) && code >= 0) update({ code });
               }}
-              className="h-7 w-20 rounded border border-border bg-bg px-2 font-mono text-sm"
+              className="max-w-20"
             />
-            <input
+            <Input
+              size="sm"
               aria-label="Status text"
               data-testid="example-status"
               value={response.status}
               onChange={(event) => update({ status: event.target.value })}
-              className="h-7 w-48 rounded border border-border bg-bg px-2 text-sm"
+              className="max-w-48"
             />
           </>
         ) : (
@@ -182,9 +186,9 @@ export function ExampleView({
       {example.request && (
         <details
           data-testid="example-original-request"
-          className="border-t border-border px-3 py-2"
+          className="border-t border-border px-4 py-3"
         >
-          <summary className="cursor-default text-xs font-semibold tracking-wide text-fg-muted uppercase">
+          <summary className="cursor-default text-xs font-medium text-fg-muted">
             Original request
           </summary>
           <div className="mt-2 flex flex-col gap-1 font-mono text-xs">
@@ -260,10 +264,10 @@ function Section({
 }) {
   const id = useId();
   return (
-    <section aria-labelledby={id} data-testid={testId} className="border-t border-border px-3 py-2">
-      <h2 id={id} className="pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-        {title}
-      </h2>
+    <section aria-labelledby={id} data-testid={testId} className="border-t border-border px-4 py-3">
+      <SectionLabel className="pb-1.5">
+        <h2 id={id}>{title}</h2>
+      </SectionLabel>
       {children}
     </section>
   );
@@ -285,17 +289,18 @@ function ToolbarButton({
   pressed?: boolean;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="sm"
       data-testid={testId}
       disabled={disabled}
       aria-pressed={pressed}
       onClick={onClick}
-      className="inline-flex h-7 items-center gap-1 rounded px-2 text-xs text-fg-muted hover:bg-hover hover:text-fg disabled:opacity-50 aria-pressed:bg-hover aria-pressed:text-fg"
+      icon={icon}
+      className="aria-pressed:bg-hover aria-pressed:text-fg"
     >
-      {icon}
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -307,7 +312,8 @@ function NameInput({ name, onRename }: { name: string; onRename: (name: string) 
     else setValue(name);
   };
   return (
-    <input
+    <Input
+      size="sm"
       aria-label="Example name"
       data-testid="example-name-input"
       value={value}
@@ -317,7 +323,7 @@ function NameInput({ name, onRename }: { name: string; onRename: (name: string) 
         if (event.key === 'Enter') commit();
         if (event.key === 'Escape') setValue(name);
       }}
-      className="h-7 min-w-0 flex-1 rounded border border-border bg-bg px-2 text-sm font-semibold"
+      className="flex-1 font-semibold"
     />
   );
 }

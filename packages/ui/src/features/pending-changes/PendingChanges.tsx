@@ -4,6 +4,8 @@ import { AlertTriangle, FileCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { DiffView } from '../../components/DiffView/DiffView';
+import type { Tone } from '../../components/ui';
+import { Badge, Button, Callout, Checkbox, EmptyState, SectionLabel } from '../../components/ui';
 import type { OpenProject } from '../../stores/app-store';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 
@@ -66,14 +68,21 @@ function pendingEntities(
   return entities.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const BADGES: Record<PendingEntity['state'], { label: string; className: string; title: string }> =
-  {
-    created: { label: 'A', className: 'text-pass', title: 'Added' },
-    updated: { label: 'M', className: 'text-warn', title: 'Modified' },
-    deleted: { label: 'D', className: 'text-fail', title: 'Deleted' },
-    unsaved: { label: '●', className: 'text-fg-muted', title: 'Unsaved (saved first)' },
-    conflict: { label: '!', className: 'text-fail', title: 'Conflict: the file changed on disk' },
-  };
+const BADGES: Record<PendingEntity['state'], { label: string; tone: Tone; title: string }> = {
+  created: { label: 'A', tone: 'pass', title: 'Added' },
+  updated: { label: 'M', tone: 'warn', title: 'Modified' },
+  deleted: { label: 'D', tone: 'fail', title: 'Deleted' },
+  unsaved: { label: '●', tone: 'neutral', title: 'Unsaved (saved first)' },
+  conflict: { label: '!', tone: 'fail', title: 'Conflict: the file changed on disk' },
+};
+
+/** Badge tone of a file-plan row's change letter. */
+const FILE_TONES: Record<'A' | 'M' | 'D' | 'R', Tone> = {
+  A: 'pass',
+  M: 'warn',
+  D: 'fail',
+  R: 'info',
+};
 
 /** Files of a plan for the list: renames collapse their delete + write. */
 function planRows(
@@ -98,7 +107,7 @@ function planRows(
 export function PendingChanges() {
   const project = useAppStore((s) => s.project);
   if (!project) {
-    return <p className="p-4 text-center text-sm text-fg-muted">No project open</p>;
+    return <EmptyState title="No project open" />;
   }
   return <ProjectPendingChanges project={project} />;
 }
@@ -185,13 +194,11 @@ function ProjectPendingChanges({ project }: { project: OpenProject }) {
 
   if (entities.length === 0) {
     return (
-      <div
+      <EmptyState
         data-testid="pending-empty"
-        className="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center text-sm text-fg-muted"
-      >
-        <FileCheck size={24} aria-hidden />
-        Everything is written to files. Use Git to commit.
-      </div>
+        icon={<FileCheck aria-hidden />}
+        title="Everything is written to files. Use Git to commit."
+      />
     );
   }
 
@@ -202,28 +209,28 @@ function ProjectPendingChanges({ project }: { project: OpenProject }) {
   return (
     <div data-testid="pending-changes" className="flex min-h-0 flex-1 flex-col text-sm">
       <section aria-label="Changes" className="border-b border-border">
-        <h3 className="px-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-          Collections
-        </h3>
-        <ul className="max-h-60 overflow-y-auto pb-1">
+        <SectionLabel className="px-4 pt-3 pb-1">
+          <h3>Collections</h3>
+        </SectionLabel>
+        <ul className="max-h-60 overflow-y-auto px-1.5 pb-2">
           {entities.map((entity) => (
             <li key={entity.id}>
               <label
                 data-testid="pending-changes-item"
-                className="flex cursor-default items-center gap-2 px-3 py-0.5 hover:bg-hover"
+                className="flex h-7 cursor-default items-center gap-2 rounded px-2.5 hover:bg-hover"
               >
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={effective.has(entity.id)}
                   onChange={() => toggle(entity.id)}
                   aria-label={`Include ${entity.name}`}
                 />
-                <span
+                <Badge
                   title={BADGES[entity.state].title}
-                  className={`w-3 shrink-0 font-mono text-[10px] font-bold ${BADGES[entity.state].className}`}
+                  tone={BADGES[entity.state].tone}
+                  className="font-mono"
                 >
                   {BADGES[entity.state].label}
-                </span>
+                </Badge>
                 <span className="min-w-0 flex-1 truncate">{entity.name}</span>
                 <span className="text-xs text-fg-muted">{entity.kind}</span>
               </label>
@@ -232,10 +239,10 @@ function ProjectPendingChanges({ project }: { project: OpenProject }) {
         </ul>
       </section>
       <section aria-label="File plan" className="flex min-h-0 flex-1 flex-col">
-        <h3 className="px-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-          Files
-        </h3>
-        <ul className="max-h-48 overflow-y-auto">
+        <SectionLabel className="px-4 pt-3 pb-1">
+          <h3>Files</h3>
+        </SectionLabel>
+        <ul className="max-h-48 overflow-y-auto px-1.5">
           {rows.map((row) => (
             <li key={`${row.kind}:${row.path}`}>
               <button
@@ -243,9 +250,11 @@ function ProjectPendingChanges({ project }: { project: OpenProject }) {
                 data-testid="pending-file"
                 data-kind={row.kind}
                 onClick={() => setOpenFile(row.kind === 'D' ? null : row.path)}
-                className={`flex w-full items-center gap-2 px-3 py-0.5 text-left font-mono text-xs hover:bg-hover ${openFile === row.path ? 'bg-hover' : ''}`}
+                className={`flex h-7 w-full items-center gap-2 rounded px-2.5 text-left font-mono text-xs ${openFile === row.path ? 'bg-selected text-fg' : 'hover:bg-hover'}`}
               >
-                <span className="w-3 shrink-0 font-bold">{row.kind}</span>
+                <Badge tone={FILE_TONES[row.kind]} className="font-mono">
+                  {row.kind}
+                </Badge>
                 <span className="min-w-0 flex-1 truncate">
                   {row.from ? `${row.from} → ${row.path}` : row.path}
                 </span>
@@ -253,32 +262,35 @@ function ProjectPendingChanges({ project }: { project: OpenProject }) {
             </li>
           ))}
           {plan && rows.length === 0 && (
-            <li className="px-3 py-1 text-xs text-fg-muted">No file changes.</li>
+            <li className="px-2.5 py-1 text-xs text-fg-muted">No file changes.</li>
           )}
         </ul>
         {plan?.blocked.map((conflict) => (
-          <p
+          <Callout
             key={conflict.entityId}
             role="alert"
             data-testid="pending-blocked"
-            className="mx-3 mt-1 flex items-start gap-1 text-xs text-fail"
+            tone="fail"
+            icon={<AlertTriangle size={12} className="mt-0.5 shrink-0 text-fail" aria-hidden />}
+            className="mx-4 mt-2"
           >
-            <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
-            {conflict.path ?? conflict.entityId}:{' '}
-            {conflict.reason === 'broken-file'
-              ? 'the file could not be read; fix it on disk first.'
-              : conflict.reason === 'deleted-on-disk'
-                ? 'the file was deleted on disk.'
-                : 'the file changed on disk since you saved.'}
-          </p>
+            <p className="text-xs text-fail">
+              {conflict.path ?? conflict.entityId}:{' '}
+              {conflict.reason === 'broken-file'
+                ? 'the file could not be read; fix it on disk first.'
+                : conflict.reason === 'deleted-on-disk'
+                  ? 'the file was deleted on disk.'
+                  : 'the file changed on disk since you saved.'}
+            </p>
+          </Callout>
         ))}
         {plan?.warnings.map((warning) => (
-          <p key={warning} data-testid="pending-warning" className="mx-3 mt-1 text-xs text-warn">
-            {warning}
-          </p>
+          <Callout key={warning} data-testid="pending-warning" tone="warn" className="mx-4 mt-2">
+            <p className="text-xs text-warn">{warning}</p>
+          </Callout>
         ))}
         {diff && (
-          <div className="mt-2 min-h-0 flex-1 overflow-auto border-t border-border">
+          <div className="mt-3 min-h-0 flex-1 overflow-auto border-t border-border">
             <DiffView before={diff.before} after={diff.after} />
           </div>
         )}
@@ -287,39 +299,39 @@ function ProjectPendingChanges({ project }: { project: OpenProject }) {
         <p
           role="alert"
           data-testid="pending-error"
-          className="border-t border-border px-3 py-1 text-xs text-fail"
+          className="border-t border-border px-4 py-1.5 text-xs text-fail"
         >
           {error}
         </p>
       )}
-      <div className="flex flex-wrap gap-2 border-t border-border p-2">
-        <button
-          type="button"
+      <div className="flex flex-wrap gap-2 border-t border-border p-3">
+        <Button
+          size="sm"
+          variant="primary"
           data-testid="commit-selected"
           disabled={busy || effective.size === 0 || session.localState === undefined}
           onClick={() => void commit('selected')}
-          className="h-7 rounded bg-accent px-2 text-xs font-semibold text-accent-fg disabled:opacity-50"
         >
           Save selected for commit
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          size="sm"
           data-testid="commit-all"
           disabled={busy || session.localState === undefined}
           onClick={() => void commit('all')}
-          className="h-7 rounded border border-border px-2 text-xs hover:bg-hover disabled:opacity-50"
         >
           Save all for commit
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          size="sm"
+          variant="danger"
           data-testid="discard-selected"
           disabled={busy || effective.size === 0}
           onClick={() => void discard()}
-          className="ml-auto h-7 rounded border border-border px-2 text-xs text-fail hover:bg-hover disabled:opacity-50"
+          className="ml-auto"
         >
           Discard
-        </button>
+        </Button>
       </div>
     </div>
   );

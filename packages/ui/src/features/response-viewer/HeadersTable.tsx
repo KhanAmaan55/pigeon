@@ -1,5 +1,6 @@
-import { Copy, Info } from 'lucide-react';
+import { Copy } from 'lucide-react';
 
+import { Callout, EmptyState } from '../../components/ui';
 import { HelpLink } from '../help/WebLimitations';
 import { CopyButton } from './CopyButton';
 
@@ -14,25 +15,25 @@ export function HeadersTable({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
       {restricted && (
-        <p
+        <Callout
+          tone="info"
           data-testid="response-headers-restricted"
-          className="flex shrink-0 items-start gap-1.5 border-b border-border px-3 py-1.5 text-xs text-fg-muted"
+          className="mx-4 mt-3 mb-1 shrink-0"
         >
-          <Info size={12} className="mt-0.5 shrink-0 text-info" aria-hidden />
           Some headers are hidden by the browser: it only shows CORS-safelisted headers, those the
           server lists in Access-Control-Expose-Headers, and never Set-Cookie. The desktop app shows
           all of them. <HelpLink section="response-headers" />
-        </p>
+        </Callout>
       )}
       {headers.length === 0 ? (
-        <p className="p-3 text-sm text-fg-muted">No headers</p>
+        <EmptyState title="No headers" />
       ) : (
         <table aria-label="Response headers" className="w-full table-fixed border-collapse text-sm">
           <thead>
-            <tr className="border-b border-border text-left text-xs font-semibold text-fg-muted">
-              <th className="w-1/3 px-3 py-1">Name</th>
-              <th className="px-3 py-1">Value</th>
-              <th className="w-10 py-1">
+            <tr className="border-b border-border text-left text-xs font-medium text-fg-muted">
+              <th className="w-1/3 px-4 py-1.5 font-medium">Name</th>
+              <th className="px-4 py-1.5 font-medium">Value</th>
+              <th className="w-10 py-1.5">
                 <span className="sr-only">Copy</span>
               </th>
             </tr>
@@ -42,13 +43,13 @@ export function HeadersTable({
               <tr
                 key={`${index}:${name}`}
                 data-testid="response-header-row"
-                className="group border-b border-border/60 align-top"
+                className="group border-b border-border/60 align-top transition-colors hover:bg-hover/50"
               >
-                <td className="px-3 py-1 font-mono break-all text-fg-muted">{name}</td>
-                <td className="px-3 py-1 font-mono break-all whitespace-pre-wrap text-fg">
+                <td className="px-4 py-1.5 font-mono break-all text-fg-muted">{name}</td>
+                <td className="px-4 py-1.5 font-mono break-all whitespace-pre-wrap text-fg">
                   {value}
                 </td>
-                <td className="py-0.5">
+                <td className="py-1">
                   <CopyButton
                     text={`${name}: ${value}`}
                     label={`Copy header ${name}`}

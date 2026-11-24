@@ -2,6 +2,8 @@ import { Check } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 
+import { buttonClass, cx } from '../../components/ui';
+
 /** Copies `text` to the clipboard and shows a check mark for a moment. */
 export function CopyButton({
   text,
@@ -38,7 +40,12 @@ export function CopyButton({
           () => setState('failed'),
         );
       }}
-      className={`inline-flex h-6 items-center gap-1 rounded px-1.5 text-xs text-fg-muted hover:bg-hover hover:text-fg ${state === 'failed' ? 'text-fail' : ''} ${className}`}
+      className={buttonClass({
+        variant: 'ghost',
+        size: 'xs',
+        // `!`: wins over the ghost button's own text colours.
+        className: cx(state === 'failed' && 'text-fail!', className),
+      })}
     >
       {state === 'copied' ? <Check size={12} className="text-pass" aria-hidden /> : icon}
       {children}

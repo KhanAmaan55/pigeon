@@ -7,6 +7,7 @@ import type { OperatingSystem, SecretBackend } from '@pigeon/platform';
 import { useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import { Button, Callout } from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 
 const KEYCHAIN_NAMES: Record<OperatingSystem, string> = {
@@ -62,9 +63,9 @@ export function SecretsSettings() {
     <section
       aria-labelledby="secrets-settings-title"
       data-testid="secrets-settings"
-      className="border-b border-border p-3 text-sm"
+      className="border-b border-border/60 p-4 text-sm"
     >
-      <h2 id="secrets-settings-title" className="mb-2 font-semibold">
+      <h2 id="secrets-settings-title" className="mb-3 text-xs font-medium text-fg-muted">
         Secrets
       </h2>
       {backend === undefined ? (
@@ -72,47 +73,43 @@ export function SecretsSettings() {
           Secret values are not kept for this project (it is read-only).
         </p>
       ) : (
-        <div className="flex flex-col gap-2 text-xs">
-          <p data-testid="secrets-backend" className="text-fg-muted">
+        <div className="flex flex-col gap-3 text-xs">
+          <p data-testid="secrets-backend" className="leading-relaxed text-fg-muted">
             Secret variable values and OAuth tokens of this project are stored on this machine in{' '}
             {secretBackendLabel(backend, platform.os)}. They are never written to project files.
           </p>
           {notice && (
-            <p data-testid="secrets-notice" role="status" className="text-warn">
+            <Callout tone="warn" data-testid="secrets-notice" role="status">
               {notice}
-            </p>
+            </Callout>
           )}
           {confirming ? (
-            <span className="flex flex-wrap items-center gap-1">
+            <span className="flex flex-wrap items-center gap-1.5">
               <span className="text-fg-muted">
                 Remove every secret value and token of this project? This cannot be undone.
               </span>
-              <button
-                type="button"
+              <Button
+                variant="danger"
+                size="xs"
                 data-testid="secrets-forget-confirm"
                 onClick={() => void forget()}
-                className="rounded border border-fail px-1.5 py-0.5 text-fail hover:bg-hover"
               >
                 Forget all
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirming(false)}
-                className="rounded border border-border px-1.5 py-0.5 hover:bg-hover"
-              >
+              </Button>
+              <Button size="xs" onClick={() => setConfirming(false)}>
                 Cancel
-              </button>
+              </Button>
             </span>
           ) : (
-            <button
-              type="button"
+            <Button
+              size="xs"
               data-testid="secrets-forget"
               disabled={busy}
               onClick={() => setConfirming(true)}
-              className="self-start rounded border border-border px-1.5 py-0.5 hover:bg-hover disabled:opacity-50"
+              className="self-start"
             >
               Forget all secrets for this project
-            </button>
+            </Button>
           )}
         </div>
       )}

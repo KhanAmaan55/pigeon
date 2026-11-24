@@ -60,7 +60,10 @@ export interface CodeEditorProps {
   onShowInDocs?: (type: string) => void;
 }
 
-/** Colours from the design tokens, so the editor follows the light/dark theme. */
+/**
+ * Colours from the design tokens, so the editor follows the light/dark theme. The host `div`
+ * shows focus (like a text field); the editor itself draws no outline.
+ */
 const theme = EditorView.theme({
   '&': {
     height: '100%',
@@ -68,42 +71,93 @@ const theme = EditorView.theme({
     color: 'var(--pg-fg)',
     backgroundColor: 'var(--pg-bg)',
   },
-  '&.cm-focused': { outline: '1px solid var(--pg-accent)' },
+  '&.cm-focused': { outline: 'none' },
   '.cm-scroller': { fontFamily: 'var(--pg-font-mono)', lineHeight: '1.5' },
-  '.cm-content': { caretColor: 'var(--pg-fg)' },
+  '.cm-content': { caretColor: 'var(--pg-fg)', padding: '6px 0' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--pg-fg)' },
   '.cm-gutters': {
-    backgroundColor: 'var(--pg-surface)',
+    backgroundColor: 'var(--pg-bg)',
+    // Full muted colour: line numbers are text and need 4.5:1 (PIGN-058).
     color: 'var(--pg-fg-muted)',
-    borderRight: '1px solid var(--pg-border)',
+    border: 'none',
   },
-  '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--pg-hover)' },
+  '.cm-lineNumbers .cm-gutterElement': { padding: '0 6px 0 10px' },
+  '.cm-activeLine': {
+    backgroundColor: 'color-mix(in srgb, var(--pg-hover) 50%, transparent)',
+  },
+  '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--pg-fg)' },
   '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground':
-    { backgroundColor: 'color-mix(in srgb, var(--pg-accent) 25%, transparent)' },
+    { backgroundColor: 'color-mix(in srgb, var(--pg-accent) 22%, transparent)' },
   '.cm-placeholder': { color: 'var(--pg-fg-muted)' },
   '.cm-panels': {
     backgroundColor: 'var(--pg-surface)',
     color: 'var(--pg-fg)',
-    borderColor: 'var(--pg-border)',
   },
+  '.cm-panels.cm-panels-top': { borderBottom: '1px solid var(--pg-border)' },
+  '.cm-panels.cm-panels-bottom': { borderTop: '1px solid var(--pg-border)' },
   '.cm-panels input, .cm-panels button': { fontSize: '12px' },
+  '.cm-panel.cm-search': { padding: '6px 8px' },
+  '.cm-textfield': {
+    backgroundColor: 'var(--pg-sunken)',
+    color: 'var(--pg-fg)',
+    border: '1px solid var(--pg-border)',
+    borderRadius: '6px',
+    padding: '2px 6px',
+    outline: 'none',
+  },
+  '.cm-textfield:focus': {
+    borderColor: 'var(--pg-accent)',
+    boxShadow: '0 0 0 3px var(--pg-focus)',
+  },
+  '.cm-button': {
+    backgroundImage: 'none',
+    backgroundColor: 'var(--pg-surface-raised)',
+    color: 'var(--pg-fg)',
+    border: '1px solid var(--pg-border)',
+    borderRadius: '6px',
+    padding: '2px 8px',
+  },
+  '.cm-button:hover': { backgroundColor: 'var(--pg-hover)' },
   '.cm-searchMatch': {
-    backgroundColor: 'color-mix(in srgb, var(--pg-warn) 30%, transparent)',
-    outline: '1px solid color-mix(in srgb, var(--pg-warn) 60%, transparent)',
+    backgroundColor: 'color-mix(in srgb, var(--pg-warn) 25%, transparent)',
+    outline: '1px solid color-mix(in srgb, var(--pg-warn) 50%, transparent)',
+    borderRadius: '2px',
   },
   '.cm-searchMatch-selected': {
-    backgroundColor: 'color-mix(in srgb, var(--pg-accent) 40%, transparent)',
+    backgroundColor: 'color-mix(in srgb, var(--pg-accent) 35%, transparent)',
   },
   '.cm-foldPlaceholder': {
     backgroundColor: 'var(--pg-hover)',
-    border: '1px solid var(--pg-border)',
+    border: 'none',
+    borderRadius: '4px',
     color: 'var(--pg-fg-muted)',
+    padding: '0 4px',
   },
+  '.cm-foldGutter .cm-gutterElement': { color: 'var(--pg-fg-muted)' },
   '.cm-tooltip': {
     backgroundColor: 'var(--pg-surface-raised)',
     color: 'var(--pg-fg)',
     border: '1px solid var(--pg-border)',
+    borderRadius: '8px',
+    boxShadow: 'var(--pg-shadow-md)',
+    overflow: 'hidden',
   },
+  '.cm-tooltip.cm-tooltip-autocomplete > ul': {
+    fontFamily: 'var(--pg-font-mono)',
+    padding: '4px',
+  },
+  '.cm-tooltip.cm-tooltip-autocomplete > ul > li': {
+    borderRadius: '6px',
+    padding: '2px 8px',
+  },
+  '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+    backgroundColor: 'var(--pg-selected)',
+    color: 'var(--pg-fg)',
+  },
+  '.cm-completionDetail': { color: 'var(--pg-fg-muted)' },
+  '.cm-completionInfo': { padding: '6px 10px' },
+  '.cm-tooltip-hover, .cm-tooltip-lint': { padding: '2px 0' },
+  '.cm-diagnostic': { padding: '4px 10px' },
 });
 
 const highlight = HighlightStyle.define([
@@ -294,7 +348,7 @@ export function CodeEditor({
     <div
       ref={hostRef}
       data-language={language}
-      className={`min-h-0 overflow-hidden rounded border border-border ${className}`}
+      className={`min-h-0 overflow-hidden rounded-lg border border-border bg-bg transition-colors focus-within:border-accent focus-within:ring-3 focus-within:ring-focus ${className}`}
     />
   );
 }

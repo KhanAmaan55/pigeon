@@ -8,7 +8,7 @@ import { FileChip, FilePicker } from './FilePicker';
 const newRow = (): FormDataParam => ({ key: '', value: '', kind: 'text' });
 
 const cellInput =
-  'h-7 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 font-mono text-sm text-fg placeholder:text-fg-muted hover:border-border focus:border-accent focus:outline-none';
+  'h-7 w-full min-w-0 rounded border border-transparent bg-transparent px-1.5 font-mono text-sm text-fg transition-colors placeholder:text-fg-muted hover:bg-hover focus:border-accent focus:bg-bg focus:ring-3 focus:ring-focus focus:outline-none focus-visible:outline-none';
 
 const contentTypeColumn: KeyValueColumn<FormDataParam> = {
   id: 'content-type',
@@ -52,7 +52,7 @@ export function FormDataTable({
           data-testid="formdata-kind-select"
           value={row.kind}
           onChange={(event) => update(withKind(row, event.target.value as FormDataParam['kind']))}
-          className="h-6 shrink-0 rounded border border-border bg-surface px-1 text-xs text-fg-muted"
+          className="h-6 shrink-0 cursor-default rounded border border-transparent bg-hover px-1 text-xs text-fg-muted transition-colors hover:text-fg focus:border-accent focus:ring-3 focus:ring-focus focus:outline-none focus-visible:outline-none"
         >
           <option value="text">Text</option>
           <option value="file">File</option>

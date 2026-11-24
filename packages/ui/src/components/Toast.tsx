@@ -21,14 +21,14 @@ export function Toast() {
     <div
       role="status"
       data-testid="toast"
-      className="fixed right-4 bottom-10 z-50 flex items-center gap-2 rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-fg shadow-lg"
+      className="fixed right-4 bottom-10 z-50 flex animate-pop-in items-center gap-3 rounded-lg border border-border bg-surface-raised py-2.5 pr-2.5 pl-3.5 text-sm text-fg shadow-md"
     >
       {notice.message}
       <button
         type="button"
         aria-label="Dismiss"
         onClick={() => setHidden(notice.id)}
-        className="text-fg-muted hover:text-fg"
+        className="flex size-5 shrink-0 items-center justify-center rounded text-fg-muted transition-colors hover:bg-hover hover:text-fg"
       >
         <X size={14} />
       </button>

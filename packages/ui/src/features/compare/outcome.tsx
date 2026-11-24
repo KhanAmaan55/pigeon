@@ -1,32 +1,29 @@
 import { CircleCheck, CircleMinus, CircleX, LoaderCircle, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import type { Tone } from '../../components/ui';
 import type { ComparisonState } from '../request-editor/scratch-store';
+import { chipClass } from '../response-viewer/StatusLine';
 
 interface BadgeView {
   label: string;
   icon: ReactNode;
-  className: string;
+  tone: Exclude<Tone, 'accent'>;
   outcome: string;
 }
 
 export const OUTCOMES = {
-  pass: { label: 'Pass', icon: <CircleCheck size={12} />, className: 'text-pass', outcome: 'pass' },
-  warn: {
-    label: 'Warn',
-    icon: <TriangleAlert size={12} />,
-    className: 'text-warn',
-    outcome: 'warn',
-  },
-  fail: { label: 'Fail', icon: <CircleX size={12} />, className: 'text-fail', outcome: 'fail' },
-} as const;
+  pass: { label: 'Pass', icon: <CircleCheck size={12} />, tone: 'pass', outcome: 'pass' },
+  warn: { label: 'Warn', icon: <TriangleAlert size={12} />, tone: 'warn', outcome: 'warn' },
+  fail: { label: 'Fail', icon: <CircleX size={12} />, tone: 'fail', outcome: 'fail' },
+} as const satisfies Record<string, BadgeView>;
 
 function badgeView(comparison: NonNullable<ComparisonState>): BadgeView {
   if (comparison.status === 'running') {
     return {
       label: 'Comparing…',
       icon: <LoaderCircle size={12} className="animate-spin" />,
-      className: 'text-fg-muted',
+      tone: 'neutral',
       outcome: 'running',
     };
   }
@@ -36,21 +33,21 @@ function badgeView(comparison: NonNullable<ComparisonState>): BadgeView {
       return {
         label: 'No baseline',
         icon: <CircleMinus size={12} />,
-        className: 'text-fg-muted',
+        tone: 'neutral',
         outcome: 'none',
       };
     case 'disabled':
       return {
         label: 'Off',
         icon: <CircleMinus size={12} />,
-        className: 'text-fg-muted',
+        tone: 'neutral',
         outcome: 'disabled',
       };
     case 'baseline-not-found':
       return {
         label: 'Baseline not found',
         icon: <TriangleAlert size={12} />,
-        className: 'text-warn',
+        tone: 'warn',
         outcome: 'not-found',
       };
     case 'compared':
@@ -75,7 +72,7 @@ export function ComparisonBadge({
       data-outcome={view.outcome}
       title="Comparison with the baseline example: open the Compare tab"
       onClick={onOpen}
-      className={`inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-xs font-semibold hover:bg-hover ${view.className}`}
+      className={chipClass(view.tone, true)}
     >
       <span aria-hidden className="inline-flex">
         {view.icon}

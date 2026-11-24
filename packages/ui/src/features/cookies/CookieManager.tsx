@@ -6,10 +6,19 @@
 
 import type { StoredCookie } from '@pigeon/core';
 import { Trash2 } from 'lucide-react';
-import { Dialog } from 'radix-ui';
 import { useEffect, useId, useReducer, useState } from 'react';
 
 import { useCapabilities } from '../../app/PlatformProvider';
+import {
+  Button,
+  Checkbox,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+  EmptyState,
+  Input,
+} from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { useCommand } from '../command-palette/CommandsProvider';
 import { HelpLink } from '../help/WebLimitations';
@@ -31,29 +40,17 @@ export function CookieManager() {
     return () => window.removeEventListener(OPEN_COOKIES_EVENT, show);
   }, []);
   return (
-    <Dialog.Root open={open && hasProject} onOpenChange={setOpen}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-        <Dialog.Content
-          data-testid="cookie-manager"
-          aria-describedby={undefined}
-          className="fixed top-1/2 left-1/2 flex max-h-[80vh] w-[min(44rem,94vw)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-surface-raised text-sm text-fg shadow-xl"
-        >
-          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <Dialog.Title className="flex-1 text-base font-semibold">Cookies</Dialog.Title>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                className="h-7 rounded border border-border px-2 hover:bg-hover"
-              >
-                Close
-              </button>
-            </Dialog.Close>
-          </div>
-          {open && <ManagerBody />}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open={open && hasProject} onOpenChange={setOpen}>
+      <DialogContent width="lg" flush data-testid="cookie-manager" aria-describedby={undefined}>
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3.5">
+          <DialogTitle className="flex-1">Cookies</DialogTitle>
+          <DialogClose asChild>
+            <Button size="sm">Close</Button>
+          </DialogClose>
+        </div>
+        {open && <ManagerBody />}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -78,7 +75,7 @@ function ManagerBody() {
   if (!project) return null;
   if (!canReadAllResponseHeaders) {
     return (
-      <p data-testid="cookie-manager-web" className="p-4 text-fg-muted">
+      <p data-testid="cookie-manager-web" className="px-5 py-4 text-fg-muted">
         In the browser, cookies belong to the browser: Pigeon can't read, set or clear them. Turn on
         “Send browser cookies” in a request's Settings tab to let the browser use its own cookies
         for that request. <HelpLink section="cookies" />
@@ -95,31 +92,30 @@ function ManagerBody() {
   };
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2 text-xs text-fg-muted">
+      <div className="flex items-center gap-2 border-b border-border px-5 py-2.5 text-xs text-fg-muted">
         <span className="flex-1">
           {cookies.length} cookie{cookies.length === 1 ? '' : 's'} for “{session.name}” (this
           machine only, never in project files)
         </span>
-        <button
-          type="button"
+        <Button
+          size="sm"
           data-testid="cookie-add"
           onClick={() => setEditing({ ...EMPTY, createdAt: Date.now() })}
-          className="h-7 rounded border border-border px-2 text-fg hover:bg-hover"
         >
           Add cookie
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          size="sm"
+          variant="danger"
           data-testid="cookie-clear-all"
           disabled={cookies.length === 0}
           onClick={() => {
             jar.clear();
             save();
           }}
-          className="h-7 rounded border border-fail/50 px-2 text-fail hover:bg-fail/10 disabled:opacity-50"
         >
           Clear all
-        </button>
+        </Button>
       </div>
       {editing && (
         <CookieForm
@@ -140,22 +136,22 @@ function ManagerBody() {
           }}
         />
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {cookies.length === 0 && <p className="p-2 text-fg-muted">No cookies yet.</p>}
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+        {cookies.length === 0 && <EmptyState title="No cookies yet." />}
         {domains.map((domain) => (
-          <section key={domain} aria-label={domain} data-testid="cookie-domain" className="mb-2">
+          <section key={domain} aria-label={domain} data-testid="cookie-domain" className="mb-3">
             <h3 className="flex items-center gap-2 px-2 py-1 text-xs font-semibold">
               <span className="flex-1">{domain}</span>
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={() => {
                   jar.clear(domain);
                   save();
                 }}
-                className="rounded px-1 font-normal text-fg-muted hover:bg-hover hover:text-fg"
               >
                 Clear
-              </button>
+              </Button>
             </h3>
             <table className="w-full table-fixed text-xs" aria-label={`Cookies for ${domain}`}>
               <tbody>
@@ -165,12 +161,12 @@ function ManagerBody() {
                     <tr
                       key={`${cookie.name}|${cookie.path}`}
                       data-testid="cookie-row"
-                      className="border-t border-border/60"
+                      className="group border-t border-border/50 transition-colors hover:bg-hover/40"
                     >
-                      <td className="w-1/4 truncate px-2 py-1 font-mono">{cookie.name}</td>
-                      <td className="truncate px-2 py-1 font-mono">{cookie.value}</td>
-                      <td className="w-20 truncate px-2 py-1 text-fg-muted">{cookie.path}</td>
-                      <td className="w-40 truncate px-2 py-1 text-fg-muted">
+                      <td className="w-1/4 truncate px-2 py-1.5 font-mono">{cookie.name}</td>
+                      <td className="truncate px-2 py-1.5 font-mono">{cookie.value}</td>
+                      <td className="w-20 truncate px-2 py-1.5 text-fg-muted">{cookie.path}</td>
+                      <td className="w-40 truncate px-2 py-1.5 text-fg-muted">
                         {cookie.expires === undefined
                           ? 'Session'
                           : new Date(cookie.expires).toLocaleString()}
@@ -178,14 +174,14 @@ function ManagerBody() {
                         {cookie.httpOnly ? ' · HttpOnly' : ''}
                       </td>
                       <td className="w-24 px-2 py-1 text-right">
-                        <button
-                          type="button"
+                        <Button
+                          variant="ghost"
+                          size="xs"
                           data-testid="cookie-edit"
                           onClick={() => setEditing(cookie)}
-                          className="rounded px-1 hover:bg-hover"
                         >
                           Edit
-                        </button>
+                        </Button>
                         <button
                           type="button"
                           aria-label={`Delete ${cookie.name}`}
@@ -194,7 +190,7 @@ function ManagerBody() {
                             jar.remove(cookie);
                             save();
                           }}
-                          className="rounded p-1 align-middle text-fg-muted hover:bg-hover hover:text-fail"
+                          className="inline-flex size-6 items-center justify-center rounded align-middle text-fg-muted transition-colors hover:bg-fail/10 hover:text-fail"
                         >
                           <Trash2 size={12} aria-hidden />
                         </button>
@@ -224,14 +220,15 @@ function CookieForm({
   const valid =
     draft.name.trim() !== '' && draft.domain.trim() !== '' && draft.path.startsWith('/');
   const field = (key: 'name' | 'value' | 'domain' | 'path', label: string) => (
-    <label htmlFor={`${id}-${key}`} className="flex flex-col gap-0.5">
-      <span className="text-xs text-fg-muted">{label}</span>
-      <input
+    <label htmlFor={`${id}-${key}`} className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-fg-muted">{label}</span>
+      <Input
+        size="sm"
+        mono
         id={`${id}-${key}`}
         data-testid={`cookie-${key}`}
         value={draft[key]}
         onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
-        className="h-7 rounded border border-border bg-bg px-2 font-mono text-xs"
       />
     </label>
   );
@@ -247,44 +244,39 @@ function CookieForm({
           domain: draft.domain.trim().toLowerCase().replace(/^\./, ''),
         });
       }}
-      className="grid grid-cols-2 gap-2 border-b border-border px-4 py-3"
+      className="grid grid-cols-2 gap-3 border-b border-border bg-sunken/60 px-5 py-4"
     >
       {field('name', 'Name')}
       {field('value', 'Value')}
       {field('domain', 'Domain (e.g. api.example.com)')}
       {field('path', 'Path')}
       <label className="flex items-center gap-2 text-xs">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={!draft.hostOnly}
           onChange={(event) => setDraft({ ...draft, hostOnly: !event.target.checked })}
         />
         Also send to subdomains
       </label>
       <label className="flex items-center gap-2 text-xs">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={draft.secure}
           onChange={(event) => setDraft({ ...draft, secure: event.target.checked })}
         />
         Secure (https only)
       </label>
       <div className="col-span-2 flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="h-7 rounded border border-border px-2 hover:bg-hover"
-        >
+        <Button size="sm" onClick={onCancel}>
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
+          size="sm"
+          variant="primary"
           type="submit"
           data-testid="cookie-save"
           disabled={!valid}
-          className="h-7 rounded bg-accent px-3 font-semibold text-accent-fg disabled:opacity-50"
         >
           Save cookie
-        </button>
+        </Button>
       </div>
     </form>
   );

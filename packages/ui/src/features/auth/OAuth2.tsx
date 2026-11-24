@@ -21,6 +21,7 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import { Button, Callout, Select } from '../../components/ui';
 import { useVariableScopes } from '../../components/VariableInput/VariablesContext';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 
@@ -83,21 +84,21 @@ export function OAuth2Fields({
     options: ReadonlyArray<{ value: string; label: string }>,
     set: (value: string) => void,
   ) => (
-    <label className="flex items-center gap-2 text-xs">
-      <span className="w-36 shrink-0 text-fg-muted">{label}</span>
-      <select
+    <label className="grid grid-cols-[9rem_minmax(0,1fr)] items-center gap-3">
+      <span className="text-fg-muted">{label}</span>
+      <Select
         data-testid={testId}
         disabled={readOnly}
         value={value}
         onChange={(e) => set(e.target.value)}
-        className="h-7 rounded border border-border bg-surface px-2 text-xs text-fg"
+        className="w-56 max-w-full"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
   return (
@@ -226,9 +227,9 @@ function TokenPanel({ auth }: { auth: OAuth2Auth }) {
   const [now] = useState(() => Date.now());
   if (!project) {
     return (
-      <p className="text-xs text-fg-muted">
+      <Callout tone="neutral">
         Open a project to keep tokens; this request gets a token for one send.
-      </p>
+      </Callout>
     );
   }
   const store = project.session.oauthTokens;
@@ -287,47 +288,44 @@ function TokenPanel({ auth }: { auth: OAuth2Auth }) {
         }),
       'Token refreshed.',
     );
-  const button = 'h-7 rounded border border-border px-2 text-xs hover:bg-hover disabled:opacity-50';
   return (
     <section
       aria-label="OAuth 2.0 token"
       data-testid="oauth-token-panel"
-      className="flex flex-col gap-2 rounded border border-border p-2 text-xs"
+      className="mt-1 flex flex-col gap-3 rounded-lg border border-border bg-sunken p-3 text-xs"
     >
       <p data-testid="oauth-token-status" className="text-fg-muted">
         {describe(token, now)} Tokens stay on this machine (secret store), never in project files.
       </p>
       <div className="flex gap-2">
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="sm"
           data-testid="oauth-get-token"
           disabled={status?.kind === 'busy'}
           onClick={() => void getNew()}
-          className={`${button} bg-accent font-semibold text-accent-fg`}
         >
           Get new token
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          size="sm"
           data-testid="oauth-refresh-token"
           disabled={!token?.refreshToken || status?.kind === 'busy'}
           onClick={() => void refresh()}
-          className={button}
         >
           Refresh
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          size="sm"
           data-testid="oauth-clear-token"
           disabled={!token}
           onClick={() => {
             store.set(key, undefined);
             setStatus({ kind: 'ok', text: 'Token cleared.' });
           }}
-          className={button}
         >
           Clear
-        </button>
+        </Button>
       </div>
       {status && (
         <p

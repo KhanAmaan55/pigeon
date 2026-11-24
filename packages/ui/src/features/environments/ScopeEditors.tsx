@@ -53,7 +53,7 @@ export function ContainerSettings({
   return (
     <div data-testid="container-settings" className="flex h-full min-h-0 flex-col">
       {container.description && (
-        <p className="shrink-0 border-b border-border px-3 py-2 text-sm text-fg-muted">
+        <p className="shrink-0 border-b border-border px-4 py-3 text-sm text-fg-muted">
           {typeof container.description === 'string'
             ? container.description
             : container.description.content}
@@ -64,9 +64,7 @@ export function ContainerSettings({
         data-testid="container-auth"
         className="shrink-0 border-b border-border"
       >
-        <h2 className="px-3 pt-2 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-          Auth
-        </h2>
+        <h2 className="px-4 pt-3 text-xs font-medium text-fg-muted">Auth</h2>
         <AuthEditor
           auth={container.auth}
           onChange={(auth) => session.apply({ type: 'setContainerAuth', id: containerId, auth })}
@@ -77,7 +75,7 @@ export function ContainerSettings({
         />
       </section>
       <details data-testid="container-scripts" className="shrink-0 border-b border-border">
-        <summary className="cursor-default px-3 py-1.5 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+        <summary className="cursor-default px-4 py-2 text-xs font-medium text-fg-muted transition-colors hover:text-fg">
           Scripts{hasScripts(container.events) ? ' ·  JS' : ''}
         </summary>
         <ScriptsEditor
@@ -104,7 +102,7 @@ export function ContainerSettings({
           testId="collection-variables-editor"
         />
       </div>
-      <p className="shrink-0 border-t border-border px-3 py-1.5 text-xs text-fg-muted">
+      <p className="shrink-0 border-t border-border px-4 py-2 text-xs text-fg-muted">
         Requests inside use this auth when set to "Inherit from parent". Variable precedence:
         environment › folders › collection › globals.
       </p>

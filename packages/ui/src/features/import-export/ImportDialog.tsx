@@ -7,11 +7,21 @@ import {
   withBaseUrlVariable,
 } from '@pigeon/core';
 import type { PickedFile } from '@pigeon/platform';
-import { FileJson, LoaderCircle, TriangleAlert } from 'lucide-react';
-import { Dialog } from 'radix-ui';
+import { FileJson, LoaderCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useId, useMemo, useState } from 'react';
 
+import {
+  Button,
+  Callout,
+  Checkbox,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+  Input,
+} from '../../components/ui';
 import { targetContainerId } from '../explorer/actions';
 import { useAppStore } from '../../stores/AppStoreProvider';
 import type { OpenProject } from '../../stores/app-store';
@@ -31,25 +41,18 @@ export function ImportDialog() {
   const setPending = useAppStore((s) => s.setPendingImport);
   const open = files !== null && project !== null;
   return (
-    <Dialog.Root open={open} onOpenChange={(next) => !next && setPending(null)}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-        <Dialog.Content
-          data-testid="import-dialog"
-          aria-describedby={undefined}
-          className="fixed top-1/2 left-1/2 flex max-h-[85vh] w-[min(36rem,92vw)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
-        >
-          {open && (
-            <ImportPreviewPanel
-              key={files.map((f) => `${f.name}:${f.bytes.byteLength}`).join('|')}
-              files={files}
-              project={project}
-              onDone={() => setPending(null)}
-            />
-          )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open={open} onOpenChange={(next) => !next && setPending(null)}>
+      <DialogContent width="lg" data-testid="import-dialog" aria-describedby={undefined}>
+        {open && (
+          <ImportPreviewPanel
+            key={files.map((f) => `${f.name}:${f.bytes.byteLength}`).join('|')}
+            files={files}
+            project={project}
+            onDone={() => setPending(null)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -156,12 +159,12 @@ function ImportPreviewPanel({
 
   return (
     <>
-      <Dialog.Title className="flex items-center gap-2 text-base font-semibold">
+      <DialogTitle className="flex items-center gap-2">
         <FileJson size={16} className="shrink-0 text-fg-muted" aria-hidden />
         <span className="min-w-0 truncate">
           Import {files.length === 1 ? files[0]!.name : `${files.length} files`}
         </span>
-      </Dialog.Title>
+      </DialogTitle>
       {items === null ? (
         <p
           role="status"
@@ -173,7 +176,7 @@ function ImportPreviewPanel({
         </p>
       ) : (
         <form
-          className="mt-3 flex min-h-0 flex-col gap-3"
+          className="mt-4 flex min-h-0 flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
             if (importable.length > 0) void apply(true);
@@ -190,19 +193,19 @@ function ImportPreviewPanel({
             ))}
           </div>
           {hasBaseUrls && (
-            <label className="flex flex-col gap-1">
+            <label className="flex flex-col gap-1.5">
               <span className="text-xs text-fg-muted">
                 Base URL variable{' '}
                 <span className="font-mono">{`{{${baseUrlName.trim() || '…'}}}`}</span> (other
                 services get a suffix)
               </span>
-              <input
+              <Input
+                mono
                 data-testid="import-base-url-name"
                 value={baseUrlName}
                 spellCheck={false}
                 aria-invalid={!baseUrlValid}
                 onChange={(event) => setBaseUrlName(event.target.value)}
-                className="h-8 rounded border border-border bg-bg px-2 font-mono text-fg aria-invalid:border-fail"
               />
               {!baseUrlValid && (
                 <span role="alert" className="text-xs text-fail">
@@ -212,8 +215,8 @@ function ImportPreviewPanel({
             </label>
           )}
           {collisions.length > 0 && (
-            <fieldset data-testid="import-collision" className="flex flex-col gap-1">
-              <legend className="text-xs text-fg-muted">
+            <fieldset data-testid="import-collision" className="flex flex-col gap-1.5">
+              <legend className="mb-1.5 text-xs text-fg-muted">
                 An environment with the same name exists already:
               </legend>
               <label className="flex items-center gap-2">
@@ -223,6 +226,7 @@ function ImportPreviewPanel({
                   data-testid="import-keep-both"
                   checked={onCollision === 'keep-both'}
                   onChange={() => setOnCollision('keep-both')}
+                  className="size-3.5 shrink-0 accent-accent"
                 />
                 Keep both (the imported one becomes “Name (2)”)
               </label>
@@ -233,6 +237,7 @@ function ImportPreviewPanel({
                   data-testid="import-replace"
                   checked={onCollision === 'replace'}
                   onChange={() => setOnCollision('replace')}
+                  className="size-3.5 shrink-0 accent-accent"
                 />
                 Replace the existing variables
               </label>
@@ -240,8 +245,7 @@ function ImportPreviewPanel({
           )}
           {hasVariables && (
             <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
+              <Checkbox
                 data-testid="import-use-current"
                 checked={useAsCurrentValues}
                 onChange={(event) => setUseAsCurrentValues(event.target.checked)}
@@ -249,48 +253,41 @@ function ImportPreviewPanel({
               />
               <span>
                 Also use imported values as my current values
-                <span className="block text-xs text-fg-muted">
+                <span className="mt-0.5 block text-xs text-fg-muted">
                   Kept on this machine only; secret values go to secure storage, never to files.
                 </span>
               </span>
             </label>
           )}
           {error && (
-            <p role="alert" className="text-fail">
+            <Callout tone="fail" role="alert">
               {error}
-            </p>
+            </Callout>
           )}
-          <div className="flex flex-wrap justify-end gap-2">
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                className="h-8 rounded border border-border px-3 hover:bg-hover"
-              >
-                {importable.length === 0 ? 'Close' : 'Cancel'}
-              </button>
-            </Dialog.Close>
+          <DialogFooter className="mt-1 flex-wrap">
+            <DialogClose asChild>
+              <Button>{importable.length === 0 ? 'Close' : 'Cancel'}</Button>
+            </DialogClose>
             {importable.length > 0 && (
               <>
-                <button
-                  type="button"
+                <Button
                   data-testid="import-as-drafts"
                   disabled={working || !namesValid || project.session.readOnly}
                   onClick={() => void apply(false)}
-                  className="h-8 rounded border border-border px-3 hover:bg-hover disabled:opacity-50"
                 >
                   Import as local drafts
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
                   data-testid="import-write"
                   disabled={working || !namesValid || project.session.readOnly}
-                  className="h-8 rounded bg-accent px-3 font-semibold text-accent-fg disabled:opacity-50"
                 >
                   Import &amp; write files
-                </button>
+                </Button>
               </>
             )}
-          </div>
+          </DialogFooter>
         </form>
       )}
     </>
@@ -338,20 +335,20 @@ function ItemPreview({
     <section
       data-testid="import-item"
       data-kind={item.kind}
-      className="flex flex-col gap-2 rounded border border-border p-2"
+      className="flex flex-col gap-3 rounded-lg border border-border p-3"
     >
       <p className="flex flex-wrap items-baseline gap-x-2">
-        <span className="font-mono text-xs">{item.fileName}</span>
+        <span className="font-mono text-xs font-medium">{item.fileName}</span>
         {item.kind !== 'rejected' || item.format ? (
-          <span data-testid="import-format" className="text-fg-muted">
+          <span data-testid="import-format" className="text-xs text-fg-muted">
             Detected: {item.format}
           </span>
         ) : null}
       </p>
       {item.kind === 'rejected' && (
-        <p role="alert" data-testid="import-rejected" className="text-fail">
+        <Callout tone="fail" role="alert" data-testid="import-rejected">
           {item.message}
-        </p>
+        </Callout>
       )}
       {item.kind === 'collection' && (
         <>
@@ -362,13 +359,12 @@ function ItemPreview({
               </Count>
             ))}
           </dl>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1.5">
             <span className="text-xs text-fg-muted">New collection</span>
-            <input
+            <Input
               data-testid="import-name"
               value={name ?? ''}
               onChange={(event) => onName(event.target.value)}
-              className="h-8 rounded border border-border bg-bg px-2 text-fg"
             />
           </label>
         </>
@@ -379,15 +375,14 @@ function ItemPreview({
             <span className="font-semibold">{item.request.method}</span>
             <span className="min-w-0 truncate">{item.request.url.raw}</span>
           </p>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1.5">
             <span className="text-xs text-fg-muted">
               New request (in the selected collection or folder)
             </span>
-            <input
+            <Input
               data-testid="import-name"
               value={name ?? ''}
               onChange={(event) => onName(event.target.value)}
-              className="h-8 rounded border border-border bg-bg px-2 text-fg"
             />
           </label>
         </>
@@ -428,32 +423,30 @@ function ItemPreview({
       {(warnings.length > 0 ||
         (item.kind === 'collection' && item.report.regeneratedIds.length > 0) ||
         (item.kind === 'environment' && item.regeneratedId)) && (
-        <ul
-          data-testid="import-warnings"
-          className="flex max-h-40 min-h-0 flex-col gap-1 overflow-auto rounded border border-warn/40 bg-warn/10 p-2 text-xs"
-        >
-          {warnings.map((warning) => (
-            <li key={warning} data-testid="import-warning" className="flex gap-1.5">
-              <TriangleAlert size={12} className="mt-px shrink-0 text-warn" aria-hidden />
-              <span>{warning}</span>
-            </li>
-          ))}
-          {item.kind === 'collection' &&
-            item.report.regeneratedIds.map((regenerated) => (
-              <li
-                key={`${regenerated.kind}:${regenerated.from}:${regenerated.to}`}
-                data-testid="import-regenerated-id"
-              >
-                New id for {regenerated.kind} “{regenerated.name}” ({regenerated.from} is already
-                used).
+        <Callout tone="warn" className="max-h-40 min-h-0 shrink-0 overflow-auto">
+          <ul data-testid="import-warnings" className="flex flex-col gap-1 text-xs">
+            {warnings.map((warning) => (
+              <li key={warning} data-testid="import-warning">
+                <span>{warning}</span>
               </li>
             ))}
-          {item.kind === 'environment' && item.regeneratedId && (
-            <li data-testid="import-regenerated-id">
-              New id for this environment ({item.regeneratedId} is already used).
-            </li>
-          )}
-        </ul>
+            {item.kind === 'collection' &&
+              item.report.regeneratedIds.map((regenerated) => (
+                <li
+                  key={`${regenerated.kind}:${regenerated.from}:${regenerated.to}`}
+                  data-testid="import-regenerated-id"
+                >
+                  New id for {regenerated.kind} “{regenerated.name}” ({regenerated.from} is already
+                  used).
+                </li>
+              ))}
+            {item.kind === 'environment' && item.regeneratedId && (
+              <li data-testid="import-regenerated-id">
+                New id for this environment ({item.regeneratedId} is already used).
+              </li>
+            )}
+          </ul>
+        </Callout>
       )}
     </section>
   );
@@ -469,9 +462,9 @@ function Count({
   children: ReactNode;
 }) {
   return (
-    <div className="min-w-0 rounded border border-border px-2 py-1">
+    <div className="min-w-0 rounded-lg bg-sunken px-2 py-1.5">
       <dt className="text-xs text-fg-muted capitalize">{label}</dt>
-      <dd data-testid={testId} className="truncate font-mono text-base">
+      <dd data-testid={testId} className="truncate font-mono text-base font-medium">
         {children}
       </dd>
     </div>

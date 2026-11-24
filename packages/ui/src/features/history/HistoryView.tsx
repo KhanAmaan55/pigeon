@@ -9,6 +9,7 @@ import { filterHistory, groupHistoryByDay } from '@pigeon/core';
 import { useEffect, useId, useMemo, useState } from 'react';
 
 import { usePreferences, usePreferencesStore } from '../../app/preferences';
+import { Button, Checkbox, EmptyState, Input, Select } from '../../components/ui';
 import { useAppStore } from '../../stores/AppStoreProvider';
 import type { OpenProject } from '../../stores/app-store';
 import { methodColorClass } from '../request-editor/methods';
@@ -19,15 +20,11 @@ const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 export function HistoryView() {
   const project = useAppStore((s) => s.project);
   if (!project) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-4 text-center text-sm text-fg-muted">
-        No project open
-      </div>
-    );
+    return <EmptyState title="No project open" />;
   }
   if (!project.session.history) {
     return (
-      <p data-testid="history-unavailable" className="p-3 text-sm text-fg-muted">
+      <p data-testid="history-unavailable" className="p-4 text-sm text-fg-muted">
         History is not kept for this project (it is read-only or has no local state).
       </p>
     );
@@ -90,22 +87,22 @@ function ProjectHistoryView({ project }: { project: OpenProject }) {
     () => groupHistoryByDay(filterHistory(summaries ?? [], filter)),
     [summaries, filter],
   );
-  const select = 'h-7 rounded border border-border bg-surface px-1 text-xs text-fg';
 
   return (
     <div data-testid="history-view" className="flex min-h-0 flex-1 flex-col text-sm">
-      <div className="flex flex-col gap-2 border-b border-border p-2">
-        <input
+      <div className="flex flex-col gap-2 border-b border-border/60 px-3 pt-1 pb-3">
+        <Input
+          size="sm"
           type="search"
           aria-label="Filter history"
           data-testid="history-filter"
           placeholder="Filter by URL or name"
           value={filter.text ?? ''}
           onChange={(event) => setFilter({ ...filter, text: event.target.value })}
-          className="h-7 rounded border border-border bg-bg px-2 text-xs text-fg placeholder:text-fg-muted"
         />
         <div className="flex gap-2">
-          <select
+          <Select
+            size="sm"
             aria-label="Method"
             data-testid="history-method"
             value={filter.method ?? ''}
@@ -113,7 +110,7 @@ function ProjectHistoryView({ project }: { project: OpenProject }) {
               const { method: _m, ...rest } = filter;
               setFilter(event.target.value ? { ...rest, method: event.target.value } : rest);
             }}
-            className={select}
+            className="flex-1"
           >
             <option value="">Any method</option>
             {METHODS.map((m) => (
@@ -121,8 +118,9 @@ function ProjectHistoryView({ project }: { project: OpenProject }) {
                 {m}
               </option>
             ))}
-          </select>
-          <select
+          </Select>
+          <Select
+            size="sm"
             aria-label="Status"
             data-testid="history-status"
             value={filter.status ?? ''}
@@ -131,7 +129,7 @@ function ProjectHistoryView({ project }: { project: OpenProject }) {
               const value = event.target.value as HistoryFilter['status'] | '';
               setFilter(value ? { ...rest, status: value } : rest);
             }}
-            className={select}
+            className="flex-1"
           >
             <option value="">Any status</option>
             <option value="2xx">2xx</option>
@@ -139,13 +137,12 @@ function ProjectHistoryView({ project }: { project: OpenProject }) {
             <option value="4xx">4xx</option>
             <option value="5xx">5xx</option>
             <option value="error">No response</option>
-          </select>
+          </Select>
         </div>
         <div className="flex items-center justify-between gap-2 text-xs">
-          <label htmlFor={`${id}-record`} className="flex items-center gap-1.5 text-fg-muted">
-            <input
+          <label htmlFor={`${id}-record`} className="flex items-center gap-2 text-fg-muted">
+            <Checkbox
               id={`${id}-record`}
-              type="checkbox"
               data-testid="history-record"
               checked={recording}
               onChange={(event) => preferences?.getState().setRecordHistory(event.target.checked)}
@@ -153,58 +150,54 @@ function ProjectHistoryView({ project }: { project: OpenProject }) {
             Record sends
           </label>
           {confirmClear ? (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               <span className="text-fg-muted">Clear all?</span>
-              <button
-                type="button"
+              <Button
+                variant="danger"
+                size="xs"
                 data-testid="history-clear-confirm"
                 onClick={() => {
                   setConfirmClear(false);
                   void history.clear();
                 }}
-                className="rounded border border-fail px-1.5 py-0.5 text-fail hover:bg-hover"
               >
                 Clear
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmClear(false)}
-                className="rounded border border-border px-1.5 py-0.5 hover:bg-hover"
-              >
+              </Button>
+              <Button size="xs" onClick={() => setConfirmClear(false)}>
                 Cancel
-              </button>
+              </Button>
             </span>
           ) : (
-            <button
-              type="button"
+            <Button
+              size="xs"
               data-testid="history-clear"
               disabled={!summaries || summaries.length === 0}
               onClick={() => setConfirmClear(true)}
-              className="rounded border border-border px-1.5 py-0.5 hover:bg-hover disabled:opacity-50"
             >
               Clear history
-            </button>
+            </Button>
           )}
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto" data-testid="history-list">
         {summaries === null ? null : summaries.length === 0 ? (
-          <p data-testid="history-empty" className="p-3 text-xs text-fg-muted">
-            No requests sent yet. Sends of this project's requests appear here; they stay on this
-            machine and are never written to the project folder.
-          </p>
+          <EmptyState
+            data-testid="history-empty"
+            title="No requests sent yet."
+            description="Sends of this project's requests appear here; they stay on this machine and are never written to the project folder."
+          />
         ) : groups.length === 0 ? (
-          <p className="p-3 text-xs text-fg-muted">No entries match the filter.</p>
+          <p className="p-4 text-xs text-fg-muted">No entries match the filter.</p>
         ) : (
           groups.map((group) => (
             <section key={group.day} aria-label={dayLabel(group.day)}>
               <h3
                 data-testid="history-day"
-                className="sticky top-0 bg-surface px-3 py-1 text-xs font-semibold text-fg-muted"
+                className="sticky top-0 z-10 bg-surface px-3.5 pt-3 pb-1 text-xs font-medium text-fg-muted"
               >
                 {dayLabel(group.day)}
               </h3>
-              <ul>
+              <ul className="flex flex-col gap-px px-1.5">
                 {group.entries.map((entry) => (
                   <li key={entry.id}>
                     <button
@@ -212,15 +205,17 @@ function ProjectHistoryView({ project }: { project: OpenProject }) {
                       data-testid="history-item"
                       onClick={() => setOpenId(entry.id)}
                       title={entry.url}
-                      className="flex w-full min-w-0 flex-col px-3 py-1 text-left hover:bg-hover"
+                      className="flex w-full min-w-0 flex-col gap-0.5 rounded px-2 py-1.5 text-left transition-colors hover:bg-hover"
                     >
                       <span className="flex min-w-0 items-baseline gap-2 font-mono text-xs">
-                        <span className={`font-semibold ${methodColorClass(entry.method)}`}>
+                        <span
+                          className={`w-12 shrink-0 text-xs font-semibold ${methodColorClass(entry.method)}`}
+                        >
                           {entry.method}
                         </span>
-                        <span className="min-w-0 flex-1 truncate">{entry.url}</span>
+                        <span className="min-w-0 flex-1 truncate text-fg">{entry.url}</span>
                       </span>
-                      <span className="flex gap-2 text-xs text-fg-muted">
+                      <span className="flex gap-2 pl-14 text-xs text-fg-muted">
                         <span data-testid="history-item-status" className={statusClass(entry)}>
                           {entry.status ?? 'Error'}
                         </span>

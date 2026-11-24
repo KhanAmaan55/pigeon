@@ -13,12 +13,27 @@ import {
   RefreshCw,
   Search,
 } from 'lucide-react';
-import { ContextMenu, Dialog } from 'radix-ui';
+import { ContextMenu } from 'radix-ui';
 import type { DragEvent, KeyboardEvent, ReactNode } from 'react';
 import { useMemo, useRef, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
 import { IconButton } from '../../components/IconButton';
+import {
+  Badge,
+  Button,
+  Callout,
+  cx,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  EmptyState,
+  Input,
+  menu,
+} from '../../components/ui';
 import { inheritedAuth, PROJECT_ENTITY_ID, snippetRequest, withBaseline } from '@pigeon/core';
 
 import type { OpenProject } from '../../stores/app-store';
@@ -43,7 +58,9 @@ import {
 import type { TreeRow } from './tree';
 import { flattenTree, methodLabel } from './tree';
 
-const ROW_HEIGHT = 26;
+const ROW_HEIGHT = 28;
+/** Rows sit this far in from the sidebar edges, so their rounded hover reads as a pill. */
+const ROW_INSET = 6;
 const NO_ROWS: TreeRow[] = [];
 const FALLBACK_RECT = { width: 280, height: 800 };
 const DRAG_TYPE = 'application/x-pigeon-item';
@@ -283,10 +300,10 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
 
   return (
     <div data-testid="explorer" className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-8 shrink-0 items-center gap-1 border-b border-border px-2">
+      <div className="flex h-10 shrink-0 items-center gap-0.5 pr-1.5 pl-3">
         <span
           data-testid="explorer-project-name"
-          className="min-w-0 flex-1 truncate text-sm font-semibold"
+          className="min-w-0 flex-1 truncate text-sm font-semibold text-fg"
         >
           {model?.name || 'Untitled project'}
         </span>
@@ -320,9 +337,14 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
           onClick={() => void store.getState().refresh()}
         />
       </div>
-      <label className="flex h-8 shrink-0 items-center gap-1.5 border-b border-border px-2 text-fg-muted">
-        <Search size={12} aria-hidden />
-        <input
+      <label className="relative mx-2 mb-2 flex shrink-0 items-center text-fg-muted">
+        <Search
+          size={12}
+          className="pointer-events-none absolute left-2.5 text-fg-muted"
+          aria-hidden
+        />
+        <Input
+          size="sm"
           ref={filterRef}
           aria-label="Filter requests"
           data-testid="explorer-filter"
@@ -332,63 +354,61 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
             if (event.key === 'Escape') store.getState().setFilter('');
           }}
           placeholder="Filter by name or URL"
-          className="h-6 min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted"
+          className="pl-7"
         />
       </label>
       {readOnly && (
-        <p
-          data-testid="read-only-banner"
-          className="border-b border-border bg-warn/10 px-3 py-1.5 text-xs text-fg"
-        >
-          This project was created by a newer Pigeon or its <code>pigeon.json</code> is unreadable.
-          It is read-only.
-        </p>
+        <Callout data-testid="read-only-banner" tone="warn" className="mx-2 mb-2">
+          <p className="text-xs">
+            This project was created by a newer Pigeon or its <code>pigeon.json</code> is
+            unreadable. It is read-only.
+          </p>
+        </Callout>
       )}
       {project.duplicateOf && (
-        <div
-          data-testid="duplicate-project-banner"
-          className="flex flex-col gap-1 border-b border-border bg-warn/10 px-3 py-1.5 text-xs text-fg"
-        >
-          <span>
-            Another folder ({locationLabel(project.duplicateOf)}) has the same project id, so this
-            copy keeps its own local state. Give it a new id to tell them apart in Git too.
-          </span>
-          <button
-            type="button"
-            data-testid="regenerate-project-id"
-            disabled={readOnly || session.changeState(PROJECT_ENTITY_ID) !== 'clean'}
-            onClick={() =>
-              edit(() => session.apply({ type: 'setProjectInfo', id: crypto.randomUUID() }))
-            }
-            className="self-start rounded border border-border bg-surface px-2 py-0.5 hover:bg-hover disabled:opacity-50"
-          >
-            Regenerate project id
-          </button>
-        </div>
+        <Callout data-testid="duplicate-project-banner" tone="warn" className="mx-2 mb-2">
+          <div className="flex flex-col gap-1.5 text-xs">
+            <span>
+              Another folder ({locationLabel(project.duplicateOf)}) has the same project id, so this
+              copy keeps its own local state. Give it a new id to tell them apart in Git too.
+            </span>
+            <Button
+              size="xs"
+              data-testid="regenerate-project-id"
+              disabled={readOnly || session.changeState(PROJECT_ENTITY_ID) !== 'clean'}
+              onClick={() =>
+                edit(() => session.apply({ type: 'setProjectInfo', id: crypto.randomUUID() }))
+              }
+              className="self-start"
+            >
+              Regenerate project id
+            </Button>
+          </div>
+        </Callout>
       )}
       {error && (
-        <p
-          role="alert"
-          data-testid="explorer-error"
-          className="border-b border-border bg-fail/10 px-3 py-1.5 text-xs text-fg"
-        >
-          {error}
-        </p>
+        <Callout role="alert" data-testid="explorer-error" tone="fail" className="mx-2 mb-2">
+          <p className="text-xs break-words">{error}</p>
+        </Callout>
       )}
       {rows.length === 0 ? (
-        <div className="flex flex-col items-start gap-2 p-3 text-sm text-fg-muted">
-          {filter ? 'Nothing matches the filter.' : 'This project has no collections yet.'}
-          {!filter && !readOnly && (
-            <button
-              type="button"
-              data-testid="explorer-empty-new-collection"
-              onClick={() => edit(() => newCollection(session, store))}
-              className="rounded border border-border px-2 py-1 text-fg hover:bg-hover"
-            >
-              New collection
-            </button>
-          )}
-        </div>
+        <EmptyState
+          icon={filter ? <Search aria-hidden /> : <Library aria-hidden />}
+          title={filter ? 'Nothing matches the filter.' : 'This project has no collections yet.'}
+          action={
+            !filter &&
+            !readOnly && (
+              <Button
+                size="sm"
+                data-testid="explorer-empty-new-collection"
+                onClick={() => edit(() => newCollection(session, store))}
+                icon={<Plus aria-hidden />}
+              >
+                New collection
+              </Button>
+            )
+          }
+        />
       ) : (
         <div
           ref={scrollRef}
@@ -402,7 +422,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
           }
           tabIndex={0}
           onKeyDown={onKeyDown}
-          className="min-h-0 flex-1 overflow-y-auto outline-none focus-visible:ring-1 focus-visible:ring-focus"
+          className="min-h-0 flex-1 overflow-y-auto pb-2 outline-none focus-visible:ring-1 focus-visible:ring-focus focus-visible:ring-inset"
         >
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map((item) => {
@@ -543,15 +563,21 @@ function RowMenu({
   /** Requests: copy as a cURL command (PIGN-050). */
   onCopyCurl: () => void;
 }) {
-  const item = (label: string, onSelect: () => void, testId: string, shortcut?: string) => (
+  const item = (
+    label: string,
+    onSelect: () => void,
+    testId: string,
+    shortcut?: string,
+    danger = false,
+  ) => (
     <ContextMenu.Item
       data-testid={testId}
       disabled={readOnly}
       onSelect={onSelect}
-      className="flex cursor-default items-center justify-between gap-6 rounded px-2 py-1 outline-none select-none data-[disabled]:opacity-50 data-[highlighted]:bg-hover"
+      className={danger ? menu.danger : menu.item}
     >
       {label}
-      {shortcut && <span className="text-xs text-fg-muted">{shortcut}</span>}
+      {shortcut && <span className={menu.shortcut}>{shortcut}</span>}
     </ContextMenu.Item>
   );
   return (
@@ -562,16 +588,16 @@ function RowMenu({
           // Actions move focus themselves (rename input, the new request's URL).
           onCloseAutoFocus={(event) => event.preventDefault()}
           data-testid="explorer-menu"
-          className="z-50 min-w-44 rounded-md border border-border bg-surface-raised p-1 text-sm text-fg shadow-lg"
+          className={menu.content}
         >
           {row.kind === 'example' && (
             <>
               {item('Pin as baseline', () => onBaseline(true), 'menu-pin-baseline')}
               {item('Use auto baseline', () => onBaseline(false), 'menu-auto-baseline')}
-              <ContextMenu.Separator className="my-1 h-px bg-border" />
+              <ContextMenu.Separator className={menu.separator} />
               {item('Rename', onRename, 'menu-rename', 'F2')}
               {item('Duplicate', onDuplicate, 'menu-duplicate', 'Ctrl/⌘ D')}
-              {item('Delete', onDelete, 'menu-delete', 'Del')}
+              {item('Delete', onDelete, 'menu-delete', 'Del', true)}
             </>
           )}
           {!row.deleted && row.kind !== 'example' && (
@@ -579,13 +605,9 @@ function RowMenu({
               {item('New request', onNewRequest, 'menu-new-request', 'Ctrl/⌘ N')}
               {item('New GraphQL request', onNewGraphql, 'menu-new-graphql')}
               {item('New folder', onNewFolder, 'menu-new-folder')}
-              <ContextMenu.Separator className="my-1 h-px bg-border" />
+              <ContextMenu.Separator className={menu.separator} />
               {row.kind !== 'request' && !row.broken && (
-                <ContextMenu.Item
-                  data-testid="menu-run"
-                  onSelect={onRun}
-                  className="flex cursor-default items-center rounded px-2 py-1 outline-none select-none data-[highlighted]:bg-hover"
-                >
+                <ContextMenu.Item data-testid="menu-run" onSelect={onRun} className={menu.item}>
                   Run {row.kind === 'folder' ? 'folder' : 'collection'}…
                 </ContextMenu.Item>
               )}
@@ -593,7 +615,7 @@ function RowMenu({
                 <ContextMenu.Item
                   data-testid="menu-copy-curl"
                   onSelect={onCopyCurl}
-                  className="flex cursor-default items-center rounded px-2 py-1 outline-none select-none data-[highlighted]:bg-hover"
+                  className={menu.item}
                 >
                   Copy as cURL
                 </ContextMenu.Item>
@@ -603,19 +625,19 @@ function RowMenu({
                 <ContextMenu.Item
                   data-testid="menu-export"
                   onSelect={onExport}
-                  className="flex cursor-default items-center rounded px-2 py-1 outline-none select-none data-[highlighted]:bg-hover"
+                  className={menu.item}
                 >
                   Export as Postman collection…
                 </ContextMenu.Item>
               )}
               {item('Rename', onRename, 'menu-rename', 'F2')}
               {!row.broken && item('Duplicate', onDuplicate, 'menu-duplicate', 'Ctrl/⌘ D')}
-              {item('Delete', onDelete, 'menu-delete', 'Del')}
+              {item('Delete', onDelete, 'menu-delete', 'Del', true)}
             </>
           )}
           {(row.change || row.unsaved) && (
             <>
-              {!row.deleted && <ContextMenu.Separator className="my-1 h-px bg-border" />}
+              {!row.deleted && <ContextMenu.Separator className={menu.separator} />}
               {item(
                 row.deleted ? 'Restore (discard delete)' : 'Discard changes',
                 onDiscard,
@@ -649,40 +671,24 @@ function DeleteDialog({
           ? 'folder and everything in it'
           : 'collection and everything in it';
   return (
-    <Dialog.Root open={row !== null} onOpenChange={(open) => !open && onCancel()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-        <Dialog.Content
-          data-testid="delete-dialog"
-          className="fixed top-1/2 left-1/2 w-[min(26rem,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
-        >
-          <Dialog.Title className="text-base font-semibold">Delete “{row?.name}”?</Dialog.Title>
-          <Dialog.Description className="mt-2 text-fg-muted">
-            This deletes the {what}. Files change only when you save it for commit.
-            {unsavedTabs > 0 &&
-              ` ${unsavedTabs} open request${unsavedTabs === 1 ? ' has' : 's have'} unsaved changes that will be discarded.`}
-          </Dialog.Description>
-          <div className="mt-4 flex justify-end gap-2">
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                className="h-8 rounded border border-border px-3 hover:bg-hover"
-              >
-                Cancel
-              </button>
-            </Dialog.Close>
-            <button
-              type="button"
-              data-testid="delete-confirm"
-              onClick={onConfirm}
-              className="h-8 rounded bg-fail px-3 font-semibold text-white hover:opacity-90"
-            >
-              Delete
-            </button>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open={row !== null} onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent width="sm" data-testid="delete-dialog">
+        <DialogTitle>Delete “{row?.name}”?</DialogTitle>
+        <DialogDescription>
+          This deletes the {what}. Files change only when you save it for commit.
+          {unsavedTabs > 0 &&
+            ` ${unsavedTabs} open request${unsavedTabs === 1 ? ' has' : 's have'} unsaved changes that will be discarded.`}
+        </DialogDescription>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button>Cancel</Button>
+          </DialogClose>
+          <Button variant="danger" data-testid="delete-confirm" onClick={onConfirm}>
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -758,14 +764,16 @@ function ExplorerRow({
       style={{
         position: 'absolute',
         top,
-        left: 0,
-        right: 0,
+        left: ROW_INSET,
+        right: ROW_INSET,
         height: ROW_HEIGHT,
-        paddingLeft: 8 + row.depth * 14,
+        paddingLeft: 6 + row.depth * 14,
       }}
-      className={`flex cursor-default items-center gap-1.5 pr-2 text-sm select-none ${
-        selected ? 'bg-hover text-fg' : 'text-fg hover:bg-hover/60'
-      } ${dropClass}`}
+      className={cx(
+        'flex cursor-default items-center gap-1.5 rounded pr-2 text-sm select-none',
+        drop === 'inside' ? 'text-fg' : selected ? 'bg-selected text-fg' : 'text-fg hover:bg-hover',
+        dropClass,
+      )}
     >
       {row.kind === 'example' ? (
         <>
@@ -819,14 +827,14 @@ function ExplorerRow({
         </span>
       )}
       {row.scripts && !renaming && (
-        <span
+        <Badge
           data-testid="explorer-scripts"
           title="Has pre-request or test scripts"
           aria-label="(has scripts)"
-          className="shrink-0 rounded bg-hover px-1 font-mono text-[9px] leading-4 font-bold text-fg-muted"
+          className="font-mono"
         >
           JS
-        </span>
+        </Badge>
       )}
       {row.exampleCount !== undefined && !renaming && (
         <button
@@ -838,7 +846,7 @@ function ExplorerRow({
             event.stopPropagation();
             onToggleExamples();
           }}
-          className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-hover px-1.5 text-[10px] leading-4 text-fg-muted hover:text-fg"
+          className="inline-flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-hover px-1.5 text-[10px] leading-none font-medium text-fg-muted hover:bg-border hover:text-fg"
         >
           <Bookmark size={9} aria-hidden />
           {row.exampleCount}
@@ -914,7 +922,8 @@ function RenameInput({
     else onCancel();
   };
   return (
-    <input
+    <Input
+      size="sm"
       aria-label="Name"
       data-testid="explorer-rename-input"
       autoFocus
@@ -928,7 +937,7 @@ function RenameInput({
         if (event.key === 'Escape') finish(false);
       }}
       onBlur={() => finish(true)}
-      className="h-5 min-w-0 flex-1 rounded-sm border border-accent bg-bg px-1 text-sm text-fg outline-none"
+      className="-ml-1 flex-1"
     />
   );
 }
@@ -950,7 +959,7 @@ function WorkspaceBadge({ persisted }: { persisted: boolean | undefined }) {
       title={`${note} Click to learn more.`}
       aria-label={note}
       onClick={() => openHelp('storage')}
-      className="inline-flex shrink-0 cursor-pointer items-center rounded p-0.5 text-fg-muted hover:bg-hover"
+      className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-hover hover:text-fg"
     >
       <Database size={14} aria-hidden />
     </button>

@@ -1,5 +1,4 @@
-import { Send, X } from 'lucide-react';
-import { Tabs } from 'radix-ui';
+import { ChevronDown, Send, X } from 'lucide-react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
 
@@ -7,6 +6,7 @@ import { hasBody, hasScripts } from '@pigeon/core';
 import { isCurlCommand } from '@pigeon/formats';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import { Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui';
 import { VariableInput } from '../../components/VariableInput';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { takeUrlFocus } from '../explorer/actions';
@@ -95,84 +95,88 @@ export function RequestEditor() {
     >
       <form
         aria-label="Request"
-        className="flex shrink-0 items-center gap-2 border-b border-border p-2"
+        className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-2"
         onSubmit={(event) => {
           event.preventDefault();
           void send();
         }}
       >
-        <select
-          aria-label="Method"
-          data-testid="method-select"
-          value={method}
-          onChange={(event) => setMethod(event.target.value)}
-          className={`h-8 rounded border border-border bg-surface px-2 font-mono text-sm font-semibold ${methodColorClass(method)}`}
-        >
-          {(METHODS.includes(method) ? METHODS : [method, ...METHODS]).map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-        <VariableInput
-          ref={urlRef}
-          aria-label="URL"
-          data-testid="url-input"
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-          onPaste={(event) => {
-            // A pasted cURL command fills the whole request (PIGN-050).
-            const text = event.clipboardData.getData('text/plain');
-            if (!isCurlCommand(text)) return;
-            event.preventDefault();
-            const warnings = applyCurl(text);
-            if (warnings === null) return notify('This cURL command has no URL.');
-            notify(
-              warnings.length === 0
-                ? 'Request filled from the cURL command.'
-                : `Request filled from the cURL command. ${warnings.join(' ')}`,
-            );
-          }}
-          placeholder="Enter a URL or paste a cURL command"
-          spellCheck={false}
-          autoComplete="off"
-          autoCapitalize="off"
-          className="h-8 min-w-0 flex-1 rounded border border-border bg-bg px-2 font-mono text-sm text-fg placeholder:text-fg-muted"
-        />
+        <div className="flex h-8 min-w-0 flex-1 items-center rounded-lg border border-border bg-sunken transition-colors hover:border-border-strong focus-within:border-accent focus-within:bg-bg focus-within:ring-3 focus-within:ring-focus">
+          <span className="relative inline-flex h-full shrink-0">
+            <select
+              aria-label="Method"
+              data-testid="method-select"
+              value={method}
+              onChange={(event) => setMethod(event.target.value)}
+              className={`h-full cursor-default appearance-none rounded-l-lg bg-transparent pr-7 pl-3 font-mono text-sm font-semibold focus:outline-none focus-visible:outline-none ${methodColorClass(method)}`}
+            >
+              {(METHODS.includes(method) ? METHODS : [method, ...METHODS]).map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 right-2 size-3.5 -translate-y-1/2 text-fg-muted"
+            />
+          </span>
+          <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
+          <VariableInput
+            ref={urlRef}
+            aria-label="URL"
+            data-testid="url-input"
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+            onPaste={(event) => {
+              // A pasted cURL command fills the whole request (PIGN-050).
+              const text = event.clipboardData.getData('text/plain');
+              if (!isCurlCommand(text)) return;
+              event.preventDefault();
+              const warnings = applyCurl(text);
+              if (warnings === null) return notify('This cURL command has no URL.');
+              notify(
+                warnings.length === 0
+                  ? 'Request filled from the cURL command.'
+                  : `Request filled from the cURL command. ${warnings.join(' ')}`,
+              );
+            }}
+            placeholder="Enter a URL or paste a cURL command"
+            spellCheck={false}
+            autoComplete="off"
+            autoCapitalize="off"
+            className="h-7.5 min-w-0 px-2.5 font-mono text-base text-fg placeholder:text-fg-muted focus:outline-none focus-visible:outline-none"
+          />
+        </div>
         {/*
           Distinct keys: reusing one element would let a Cancel click that settles the request
           synchronously turn into a submit (and a new send) before its default action runs.
         */}
         {sending ? (
-          <button
+          <Button
             key="cancel"
-            type="button"
             data-testid="cancel-button"
             title="Cancel (Esc)"
             onClick={cancel}
-            className="inline-flex h-8 items-center gap-1.5 rounded border border-border bg-surface px-3 text-sm font-semibold text-fg hover:bg-hover"
+            icon={<X aria-hidden />}
           >
-            <X size={14} aria-hidden />
             Cancel
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
             key="send"
             type="submit"
+            variant="primary"
             data-testid="send-button"
             title={`Send (${shortcut})`}
-            className="inline-flex h-8 items-center gap-1.5 rounded bg-accent px-3 text-sm font-semibold text-accent-fg hover:opacity-90 disabled:opacity-60"
+            icon={<Send aria-hidden />}
           >
-            <Send size={14} aria-hidden />
             Send
-          </button>
+          </Button>
         )}
       </form>
-      <Tabs.Root defaultValue="params" className="flex min-h-0 flex-1 flex-col">
-        <Tabs.List
-          aria-label="Request sections"
-          className="flex shrink-0 gap-1 border-b border-border px-2"
-        >
+      <Tabs defaultValue="params" className="flex min-h-0 flex-1 flex-col">
+        <TabsList aria-label="Request sections" className="shrink-0 flex-wrap px-3 pb-1.5">
           <TabTrigger value="params" count={paramCount} testId="params-tab">
             Params
           </TabTrigger>
@@ -217,31 +221,31 @@ export function RequestEditor() {
           <TabTrigger value="code" testId="code-tab">
             Code
           </TabTrigger>
-        </Tabs.List>
-        <Tabs.Content value="params" className="min-h-0 flex-1 overflow-auto">
+        </TabsList>
+        <TabsContent value="params" className="min-h-0 flex-1 overflow-auto">
           <ParamsTab />
-        </Tabs.Content>
-        <Tabs.Content value="auth" className="min-h-0 flex-1 overflow-auto">
+        </TabsContent>
+        <TabsContent value="auth" className="min-h-0 flex-1 overflow-auto">
           <AuthTab />
-        </Tabs.Content>
-        <Tabs.Content value="headers" className="min-h-0 flex-1 overflow-auto">
+        </TabsContent>
+        <TabsContent value="headers" className="min-h-0 flex-1 overflow-auto">
           <HeadersTab />
-        </Tabs.Content>
-        <Tabs.Content value="body" className="flex min-h-0 flex-1 flex-col overflow-auto">
+        </TabsContent>
+        <TabsContent value="body" className="flex min-h-0 flex-1 flex-col overflow-auto">
           <BodyTab />
-        </Tabs.Content>
+        </TabsContent>
         {hasScriptsTab && (
-          <Tabs.Content value="scripts" className="min-h-0 flex-1 overflow-auto">
+          <TabsContent value="scripts" className="min-h-0 flex-1 overflow-auto">
             <ScriptsTab />
-          </Tabs.Content>
+          </TabsContent>
         )}
-        <Tabs.Content value="settings" className="min-h-0 flex-1 overflow-auto">
+        <TabsContent value="settings" className="min-h-0 flex-1 overflow-auto">
           <SettingsTab />
-        </Tabs.Content>
-        <Tabs.Content value="code" className="flex min-h-0 flex-1 flex-col">
+        </TabsContent>
+        <TabsContent value="code" className="flex min-h-0 flex-1 flex-col">
           <CodePanel />
-        </Tabs.Content>
-      </Tabs.Root>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -258,21 +262,13 @@ function TabTrigger({
   children: ReactNode;
 }) {
   return (
-    <Tabs.Trigger
-      value={value}
-      data-testid={testId}
-      className="-mb-px inline-flex h-8 items-center gap-1.5 border-b-2 border-transparent px-2 text-sm text-fg-muted hover:text-fg data-[state=active]:border-accent data-[state=active]:text-fg"
-    >
+    <TabsTrigger value={value} data-testid={testId}>
       {children}
       {count !== undefined && count > 0 && (
-        <span
-          data-testid={`${testId}-count`}
-          aria-label={`(${count})`}
-          className="rounded-full bg-hover px-1.5 text-xs leading-4 text-fg"
-        >
+        <Badge tone="accent" data-testid={`${testId}-count`} aria-label={`(${count})`}>
           {count}
-        </span>
+        </Badge>
       )}
-    </Tabs.Trigger>
+    </TabsTrigger>
   );
 }

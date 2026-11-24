@@ -1,9 +1,9 @@
 import type { Auth, EffectiveAuth } from '@pigeon/core';
 import { authTypeLabel } from '@pigeon/formats';
-import { TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useId, useRef } from 'react';
 
+import { Callout, Checkbox, fieldClass, Select } from '../../components/ui';
 import { VariableInput } from '../../components/VariableInput';
 import { LiteralSecretHint } from '../request-editor/LiteralSecretHint';
 import { emptyOAuth2, OAuth2Fields } from './OAuth2';
@@ -35,6 +35,9 @@ const CHOICES: Array<{ value: Choice; label: string }> = [
   { value: 'awsv4', label: 'AWS Signature' },
   { value: 'oauth2', label: 'OAuth 2.0' },
 ];
+
+/** Label + field rows of the auth forms (OAuth2.tsx lays out its selects the same way). */
+const FIELD_ROW = 'grid grid-cols-[9rem_minmax(0,1fr)] items-center gap-3';
 
 function emptyAuth(type: Exclude<Choice, 'inherit' | 'unsupported'>): Auth {
   switch (type) {
@@ -159,21 +162,18 @@ export function AuthEditor({
   };
 
   return (
-    <div data-testid="auth-editor" className="flex flex-col gap-3 p-3 text-sm">
-      <div className="flex flex-wrap items-center gap-2">
-        <label
-          htmlFor={selectId}
-          className="text-xs font-semibold tracking-wide text-fg-muted uppercase"
-        >
+    <div data-testid="auth-editor" className="flex max-w-2xl flex-col gap-3 px-4 pt-3 pb-4 text-sm">
+      <div className={`${FIELD_ROW} pb-1`}>
+        <label htmlFor={selectId} className="text-xs font-medium text-fg-muted">
           Auth type
         </label>
-        <select
+        <Select
           id={selectId}
           data-testid="auth-type"
           value={choice}
           disabled={readOnly}
           onChange={(event) => choose(event.target.value as Choice)}
-          className="h-7 rounded border border-border bg-surface px-2 text-xs text-fg"
+          className="w-56 max-w-full"
         >
           {choices.map(({ value, label }) => (
             <option key={value} value={value}>
@@ -183,7 +183,7 @@ export function AuthEditor({
           {auth?.type === 'unsupported' && (
             <option value="unsupported">Unsupported: {auth.authType}</option>
           )}
-        </select>
+        </Select>
       </div>
 
       {!auth && canInherit && inherited && (
@@ -269,16 +269,16 @@ export function AuthEditor({
           </Field>
           {secretField('API key', auth.value, 'apiKey', (value) => onChange({ ...auth, value }))}
           <Field disabled={readOnly} label="Add to" testId="auth-in">
-            {(props) => (
-              <select
+            {({ className: _field, ...props }) => (
+              <Select
                 {...props}
                 value={auth.in}
                 onChange={(e) => onChange({ ...auth, in: e.target.value as 'header' | 'query' })}
-                className="h-7 w-40 rounded border border-border bg-surface px-2 text-xs text-fg"
+                className="w-40"
               >
                 <option value="header">Header</option>
                 <option value="query">Query params</option>
-              </select>
+              </Select>
             )}
           </Field>
         </>
@@ -296,26 +296,26 @@ export function AuthEditor({
             onChange({ ...auth, password }),
           )}
           <Field disabled={readOnly} label="Algorithm" testId="auth-algorithm">
-            {(props) => (
-              <select
+            {({ className: _field, ...props }) => (
+              <Select
                 {...props}
                 value={auth.algorithm || 'MD5'}
                 onChange={(e) => onChange({ ...auth, algorithm: e.target.value })}
-                className="h-7 w-40 rounded border border-border bg-surface px-2 text-xs text-fg"
+                className="w-40"
               >
                 {['MD5', 'MD5-sess', 'SHA-256', 'SHA-256-sess'].map((a) => (
                   <option key={a} value={a}>
                     {a}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
           </Field>
-          <details className="text-xs">
-            <summary className="cursor-pointer text-fg-muted select-none">
+          <details className="rounded-lg border border-border px-3 py-2 text-xs">
+            <summary className="cursor-default text-fg-muted select-none hover:text-fg">
               Advanced (filled from the server's challenge when empty)
             </summary>
-            <div className="mt-2 flex flex-col gap-2">
+            <div className="mt-3 flex flex-col gap-3 pb-1">
               {text('Realm', 'auth-realm', auth.realm, (realm) => onChange({ ...auth, realm }))}
               {text('Nonce', 'auth-nonce', auth.nonce, (nonce) => onChange({ ...auth, nonce }))}
               {text('qop', 'auth-qop', auth.qop, (qop) => onChange({ ...auth, qop }))}
@@ -365,9 +365,8 @@ export function AuthEditor({
           {text('Session token', 'auth-session-token', auth.sessionToken, (sessionToken) =>
             onChange({ ...auth, sessionToken }),
           )}
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
               data-testid="auth-aws-query"
               disabled={readOnly}
               checked={auth.addAuthDataToQuery}
@@ -389,17 +388,10 @@ export function AuthEditor({
       )}
 
       {auth?.type === 'unsupported' && (
-        <p
-          role="note"
-          data-testid="auth-unsupported"
-          className="flex items-start gap-2 rounded border border-warn/40 bg-warn/10 px-2 py-1.5 text-xs"
-        >
-          <TriangleAlert size={14} className="mt-px shrink-0 text-warn" aria-hidden />
-          <span>
-            {auth.authType} auth is not supported yet: the request is sent without auth. Its
-            settings are kept unchanged in the file until you choose another type.
-          </span>
-        </p>
+        <Callout tone="warn" role="note" data-testid="auth-unsupported">
+          {auth.authType} auth is not supported yet: the request is sent without auth. Its settings
+          are kept unchanged in the file until you choose another type.
+        </Callout>
       )}
     </div>
   );
@@ -426,7 +418,7 @@ function Field({
 }) {
   const id = useId();
   return (
-    <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2">
+    <div className={FIELD_ROW}>
       <label htmlFor={id} className="text-fg-muted">
         {label}
       </label>
@@ -437,8 +429,7 @@ function Field({
         disabled,
         spellCheck: false,
         autoComplete: 'off',
-        className:
-          'h-8 w-full min-w-0 rounded border border-border bg-bg px-2 font-mono text-sm text-fg placeholder:text-fg-muted',
+        className: fieldClass({ mono: true }),
       })}
     </div>
   );

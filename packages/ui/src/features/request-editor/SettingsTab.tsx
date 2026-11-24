@@ -5,6 +5,7 @@ import { useId } from 'react';
 import { useCapabilities } from '../../app/PlatformProvider';
 import { formatTimeoutPreference, useExecutionDefaults } from '../../app/preferences';
 import { Tooltip } from '../../components/Tooltip';
+import { Checkbox, Input } from '../../components/ui';
 import type { HelpSectionId } from '../help/WebLimitations';
 import { HelpLink } from '../help/WebLimitations';
 import { useScratchRequest } from './ScratchRequestProvider';
@@ -68,7 +69,10 @@ export function SettingsTab() {
   ) => setSettings({ [key]: value === fallback ? undefined : value });
 
   return (
-    <div data-testid="request-settings" className="flex flex-col gap-4 p-3 text-sm">
+    <div
+      data-testid="request-settings"
+      className="flex max-w-2xl flex-col gap-5 px-4 pt-3 pb-4 text-sm"
+    >
       <NumberSetting
         testId="setting-timeout"
         label="Timeout"
@@ -169,17 +173,16 @@ function CheckboxSetting({
 }) {
   return (
     <Unsupported reason={unsupported}>
-      <label data-testid={`${testId}-row`} className="flex items-start gap-2">
-        <input
-          type="checkbox"
+      <label data-testid={`${testId}-row`} className="flex items-start gap-2.5">
+        <Checkbox
           data-testid={testId}
           checked={checked}
           disabled={unsupported !== undefined}
           onChange={(event) => onChange(event.target.checked)}
-          className="mt-0.5 size-3.5 accent-accent"
+          className="mt-[3px]"
         />
-        <span className="flex flex-col">
-          <span className="text-fg">{label}</span>
+        <span className="flex flex-col gap-0.5">
+          <span className="font-medium text-fg">{label}</span>
           <span className="text-xs text-fg-muted">
             <ReasonOrDescription unsupported={unsupported} description={description} />
           </span>
@@ -213,24 +216,27 @@ function NumberSetting({
   const id = useId();
   return (
     <Unsupported reason={unsupported}>
-      <div data-testid={`${testId}-row`} className="flex flex-col gap-1">
-        <label htmlFor={id} className="text-fg">
+      <div data-testid={`${testId}-row`} className="flex flex-col gap-1.5">
+        <label htmlFor={id} className="font-medium text-fg">
           {label}
         </label>
         <div className="flex items-center gap-2">
-          <input
-            id={id}
-            type="number"
-            inputMode="numeric"
-            min={0}
-            step={1}
-            data-testid={testId}
-            value={value ?? ''}
-            placeholder={placeholder}
-            disabled={disabled || unsupported !== undefined}
-            onChange={(event) => onChange(parseNonNegativeInt(event.target.value))}
-            className="h-7 w-32 rounded border border-border bg-bg px-2 font-mono text-sm text-fg placeholder:text-fg-muted disabled:opacity-60"
-          />
+          <span className="w-32">
+            <Input
+              id={id}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              data-testid={testId}
+              value={value ?? ''}
+              placeholder={placeholder}
+              disabled={disabled || unsupported !== undefined}
+              onChange={(event) => onChange(parseNonNegativeInt(event.target.value))}
+              size="sm"
+              mono
+            />
+          </span>
           {unit && <span className="text-xs text-fg-muted">{unit}</span>}
         </div>
         <span className="text-xs text-fg-muted">

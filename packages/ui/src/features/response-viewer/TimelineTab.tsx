@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { useCapabilities } from '../../app/PlatformProvider';
+import { SectionLabel } from '../../components/ui';
 import { formatDuration, statusText } from '../../lib/format';
 import { HelpLink } from '../help/WebLimitations';
 
@@ -23,7 +24,7 @@ export function TimelineTab({
   const version = response.httpVersion ? ` ${response.httpVersion}` : '';
 
   return (
-    <div data-testid="response-timeline" className="min-h-0 flex-1 overflow-auto p-3 text-sm">
+    <div data-testid="response-timeline" className="min-h-0 flex-1 overflow-auto p-4 text-sm">
       <Section title="Request">
         <p data-testid="timeline-request-line" className="font-mono text-xs break-all">
           <span className="font-semibold">{request.method}</span> {request.url}
@@ -119,8 +120,10 @@ export function TimelineTab({
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="mb-4 last:mb-0">
-      <h2 className="mb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">{title}</h2>
+    <section className="mb-5 last:mb-0">
+      <SectionLabel role="heading" aria-level={2} className="mb-1.5">
+        {title}
+      </SectionLabel>
       {children}
     </section>
   );

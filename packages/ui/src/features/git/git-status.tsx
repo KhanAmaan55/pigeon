@@ -167,7 +167,7 @@ export function GitDot({ row }: { row: Pick<TreeRow, 'kind' | 'path'> }) {
       data-git={state}
       title={GIT_STATE_LABELS[state]}
       aria-label={`(${GIT_STATE_LABELS[state]})`}
-      className={`size-1.5 shrink-0 rounded-sm ${GIT_STATE_CLASSES[state]}`}
+      className={`size-1.5 shrink-0 rounded-full ${GIT_STATE_CLASSES[state]}`}
     />
   );
 }

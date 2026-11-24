@@ -11,6 +11,7 @@ import type { FormEvent } from 'react';
 import { useEffect, useState } from 'react';
 
 import { useCapabilities, usePlatform } from '../../app/PlatformProvider';
+import { Button, Callout, Input, SectionLabel } from '../../components/ui';
 import { HelpLink } from '../help/WebLimitations';
 import type { RecentProject } from '../../stores/app-store';
 import { useAppStore } from '../../stores/AppStoreProvider';
@@ -46,7 +47,7 @@ export function Welcome() {
   return (
     <div
       data-testid="welcome"
-      className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 text-sm"
+      className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 text-sm"
     >
       {capabilities.transport === 'fetch' && <WebFirstRunNotice />}
       <p className="text-fg-muted">
@@ -56,126 +57,117 @@ export function Welcome() {
         <div className="flex flex-col gap-2">
           {creating ? (
             <form aria-label="Create project" className="flex flex-col gap-2" onSubmit={submit}>
-              <input
+              <Input
                 aria-label="Project name"
                 data-testid="create-project-name"
                 autoFocus
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Project name"
-                className="h-8 rounded border border-border bg-bg px-2 text-fg"
               />
               <div className="flex gap-2">
-                <button
+                <Button
                   type="submit"
+                  variant="primary"
                   disabled={busy || name.trim() === ''}
                   data-testid="create-project-submit"
-                  className="h-8 flex-1 rounded bg-accent px-3 font-semibold text-accent-fg disabled:opacity-60"
+                  className="flex-1"
                 >
                   {creating === 'workspace' ? 'Create workspace' : 'Choose location…'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCreating(null)}
-                  className="h-8 rounded border border-border px-3 hover:bg-hover"
-                >
-                  Cancel
-                </button>
+                </Button>
+                <Button onClick={() => setCreating(null)}>Cancel</Button>
               </div>
             </form>
           ) : (
             <>
               {canOpenFolders && (
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
                   data-testid="create-project"
                   disabled={busy}
                   onClick={() => setCreating('folder')}
-                  className="inline-flex h-8 items-center gap-2 rounded bg-accent px-3 font-semibold text-accent-fg disabled:opacity-60"
+                  icon={<FolderPlus aria-hidden />}
+                  className="w-full"
                 >
-                  <FolderPlus size={16} aria-hidden />
                   Create project
-                </button>
+                </Button>
               )}
               {canUseWorkspaces && (
-                <button
-                  type="button"
+                <Button
+                  variant={canOpenFolders ? 'secondary' : 'primary'}
                   data-testid="new-browser-workspace"
                   disabled={busy}
                   onClick={() => setCreating('workspace')}
-                  className={`inline-flex h-8 items-center gap-2 rounded px-3 disabled:opacity-60 ${
-                    canOpenFolders
-                      ? 'border border-border hover:bg-hover'
-                      : 'bg-accent font-semibold text-accent-fg'
-                  }`}
+                  icon={<Database aria-hidden />}
+                  className="w-full"
                 >
-                  <Database size={16} aria-hidden />
                   New browser workspace
-                </button>
+                </Button>
               )}
             </>
           )}
           {canOpenFolders && (
-            <button
-              type="button"
+            <Button
               data-testid="open-folder"
               disabled={busy}
               onClick={() => void openFolder()}
-              className="inline-flex h-8 items-center gap-2 rounded border border-border px-3 hover:bg-hover disabled:opacity-60"
+              icon={<FolderOpen aria-hidden />}
+              className="w-full"
             >
-              <FolderOpen size={16} aria-hidden />
               Open folder…
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
+          <Button
             data-testid="import-postman-file"
             disabled={busy}
             onClick={() => void importIntoNewProject()}
-            className="inline-flex h-8 items-center gap-2 rounded border border-border px-3 hover:bg-hover disabled:opacity-60"
+            icon={<FileInput aria-hidden />}
+            className="w-full"
           >
-            <FileInput size={16} aria-hidden />
             Import Postman file…
-          </button>
+          </Button>
           {canUseWorkspaces && (
-            <button
-              type="button"
+            <Button
               data-testid="import-project-zip"
               disabled={busy}
               onClick={() => void importProjectZip()}
-              className="inline-flex h-8 items-center gap-2 rounded border border-border px-3 hover:bg-hover disabled:opacity-60"
+              icon={<FileArchive aria-hidden />}
+              className="w-full"
             >
-              <FileArchive size={16} aria-hidden />
               Import project (.zip)…
-            </button>
+            </Button>
           )}
           {canUseWorkspaces && !canOpenFolders && (
-            <p className="text-xs text-fg-muted">
-              This browser can't open folders: projects live in browser storage. Export a zip
-              regularly to keep a copy. <HelpLink section="folders" />
-            </p>
+            <Callout tone="info" className="mt-1">
+              <p className="text-xs text-fg-muted">
+                This browser can't open folders: projects live in browser storage. Export a zip
+                regularly to keep a copy. <HelpLink section="folders" />
+              </p>
+            </Callout>
           )}
         </div>
       ) : (
         <p className="text-fg-muted">This browser cannot store projects.</p>
       )}
       {error && (
-        <div
+        <Callout
           role="alert"
           data-testid="welcome-error"
-          className="flex items-start gap-2 rounded border border-fail/40 bg-fail/10 p-2 text-fg"
+          tone="fail"
+          icon={<AlertTriangle size={14} className="mt-0.5 shrink-0 text-fail" aria-hidden />}
         >
-          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-fail" aria-hidden />
-          <span className="min-w-0 flex-1 break-words">{error}</span>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            onClick={clearError}
-            className="text-fg-muted hover:text-fg"
-          >
-            <X size={14} />
-          </button>
-        </div>
+          <div className="flex items-start gap-2">
+            <span className="min-w-0 flex-1 break-words">{error}</span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={clearError}
+              className="-mr-1 rounded p-0.5 text-fg-muted hover:bg-hover hover:text-fg"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </Callout>
       )}
       {recents.length > 0 && <RecentProjects recents={recents} />}
     </div>
@@ -203,32 +195,30 @@ function WebFirstRunNotice() {
   }, [appState]);
   if (dismissed !== false) return null;
   return (
-    <div
-      role="note"
-      data-testid="web-first-run-notice"
-      className="flex flex-col gap-1.5 rounded border border-warn/40 bg-warn/10 p-2 text-xs text-fg"
-    >
-      <p>
-        Pigeon web keeps your workspaces, drafts and variable values in this browser's storage. The
-        browser may clear it under storage pressure, so export projects regularly.{' '}
-        <HelpLink section="storage" />
-      </p>
-      <p>
-        Secrets are stored here unencrypted: don't use production credentials on shared machines.{' '}
-        <HelpLink section="secrets" />
-      </p>
-      <button
-        type="button"
-        data-testid="web-first-run-dismiss"
-        onClick={() => {
-          setDismissed(true);
-          void appState.set('app', FIRST_RUN_KEY, true);
-        }}
-        className="self-end rounded border border-border bg-surface px-2 py-0.5 hover:bg-hover"
-      >
-        Got it
-      </button>
-    </div>
+    <Callout role="note" data-testid="web-first-run-notice" tone="warn">
+      <div className="flex flex-col gap-1.5 text-xs">
+        <p>
+          Pigeon web keeps your workspaces, drafts and variable values in this browser's storage.
+          The browser may clear it under storage pressure, so export projects regularly.{' '}
+          <HelpLink section="storage" />
+        </p>
+        <p>
+          Secrets are stored here unencrypted: don't use production credentials on shared machines.{' '}
+          <HelpLink section="secrets" />
+        </p>
+        <Button
+          size="xs"
+          data-testid="web-first-run-dismiss"
+          onClick={() => {
+            setDismissed(true);
+            void appState.set('app', FIRST_RUN_KEY, true);
+          }}
+          className="self-end"
+        >
+          Got it
+        </Button>
+      </div>
+    </Callout>
   );
 }
 
@@ -240,8 +230,10 @@ function RecentProjects({ recents }: { recents: RecentProject[] }) {
 
   return (
     <section aria-label="Recent projects" className="flex flex-col gap-1">
-      <h2 className="text-xs font-semibold tracking-wide text-fg-muted uppercase">Recent</h2>
-      <ul className="flex flex-col">
+      <SectionLabel className="px-2">
+        <h2>Recent</h2>
+      </SectionLabel>
+      <ul className="flex flex-col gap-0.5">
         {recents.map((recent) => {
           const key = locationKey(recent.location);
           const missing = status[key] === 'missing';
@@ -251,14 +243,14 @@ function RecentProjects({ recents }: { recents: RecentProject[] }) {
               key={key}
               data-testid="recent-project"
               data-status={status[key] ?? 'unknown'}
-              className="group flex items-center gap-1"
+              className="group flex items-center gap-1 rounded-lg pr-1 hover:bg-hover"
             >
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => void openRecent(recent)}
                 title={locationLabel(recent.location)}
-                className="flex min-w-0 flex-1 flex-col items-start rounded px-2 py-1 text-left hover:bg-hover disabled:opacity-60"
+                className="flex min-w-0 flex-1 flex-col items-start rounded-lg px-2 py-1.5 text-left disabled:opacity-60"
               >
                 <span
                   className={`truncate font-medium ${missing ? 'text-fg-muted line-through' : 'text-fg'}`}
@@ -271,21 +263,20 @@ function RecentProjects({ recents }: { recents: RecentProject[] }) {
                 </span>
               </button>
               {needsPermission && (
-                <button
-                  type="button"
+                <Button
+                  size="xs"
                   data-testid="recent-reconnect"
                   disabled={busy}
                   onClick={() => void openRecent(recent)}
-                  className="h-7 shrink-0 rounded border border-border px-2 text-xs hover:bg-hover"
                 >
                   Reconnect
-                </button>
+                </Button>
               )}
               <button
                 type="button"
                 aria-label={`Remove ${recent.name} from recent projects`}
                 onClick={() => void forgetRecent(recent)}
-                className="rounded p-1 text-fg-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg focus:opacity-100"
+                className="rounded p-1 text-fg-muted opacity-0 group-hover:opacity-100 hover:bg-selected hover:text-fg focus:opacity-100"
               >
                 <X size={14} />
               </button>

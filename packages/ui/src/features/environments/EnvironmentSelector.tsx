@@ -2,6 +2,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { useState } from 'react';
 
+import { Button, menu } from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { useCommand } from '../command-palette/CommandsProvider';
 
@@ -22,33 +23,31 @@ export function EnvironmentSelector() {
       key={id ?? 'none'}
       data-testid="environment-option"
       onSelect={() => project?.session.selectEnvironment(id)}
-      className="flex cursor-default items-center gap-2 rounded px-2 py-1 outline-none data-[highlighted]:bg-hover"
+      className={menu.item}
     >
-      <Check size={12} className={selected === id ? '' : 'invisible'} aria-hidden />
+      <Check className={selected === id ? 'text-accent-text!' : 'invisible'} aria-hidden />
       {label}
     </DropdownMenu.Item>
   );
   return (
     <DropdownMenu.Root open={open} onOpenChange={setOpen}>
       <DropdownMenu.Trigger asChild>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           disabled={!project}
           data-testid="environment-selector"
           title="Environment (Ctrl/⌘ E)"
-          className="inline-flex h-7 max-w-48 items-center gap-1 rounded border border-border px-2 text-sm text-fg-muted hover:bg-hover disabled:opacity-60"
+          className="max-w-48"
         >
-          <span className="truncate">{current?.name ?? 'No environment'}</span>
-          <ChevronDown size={14} className="shrink-0" />
-        </button>
+          <span className="min-w-0 truncate">{current?.name ?? 'No environment'}</span>
+          <ChevronDown className="shrink-0 opacity-70" />
+        </Button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          className="z-50 min-w-48 rounded-md border border-border bg-surface-raised p-1 text-sm text-fg shadow-lg"
-        >
+        <DropdownMenu.Content align="end" sideOffset={4} className={menu.content}>
           {item(null, 'No environment')}
-          {environments.length > 0 && <DropdownMenu.Separator className="my-1 h-px bg-border" />}
+          {environments.length > 0 && <DropdownMenu.Separator className={menu.separator} />}
           {environments.map((environment) => item(environment.id, environment.name))}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>

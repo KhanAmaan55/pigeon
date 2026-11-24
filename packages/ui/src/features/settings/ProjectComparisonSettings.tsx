@@ -3,6 +3,7 @@ import { projectBodySettings, projectRules } from '@pigeon/core';
 import { ruleToFile } from '@pigeon/formats';
 import { useId } from 'react';
 
+import { Checkbox, Input, Select } from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { RulesTable } from '../compare/RulesTable';
 
@@ -41,21 +42,22 @@ export function ProjectComparisonSettings() {
     options: readonly string[],
     onChange: (value: string) => void,
   ) => (
-    <label className="flex items-center justify-between gap-2">
+    <label className="flex items-center justify-between gap-3">
       <span>{label}</span>
-      <select
+      <Select
+        size="sm"
         data-testid={testId}
         value={value}
         disabled={readOnly}
         onChange={(event) => onChange(event.target.value)}
-        className="h-7 rounded border border-border bg-surface px-2 text-xs"
+        className="w-36"
       >
         {options.map((option) => (
           <option key={option} value={option}>
             {option}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 
@@ -63,11 +65,11 @@ export function ProjectComparisonSettings() {
     <section
       aria-labelledby={`${id}-title`}
       data-testid="project-comparison-settings"
-      className="flex flex-col gap-2 border-b border-border p-3 text-sm"
+      className="flex flex-col gap-2.5 border-b border-border/60 p-4 text-sm"
     >
-      <h2 id={`${id}-title`} className="font-semibold">
+      <h2 id={`${id}-title`} className="mb-0.5 text-xs font-medium text-fg-muted">
         Comparison defaults
-        <span className="ml-1 text-xs font-normal text-fg-muted">({model.name}, pigeon.json)</span>
+        <span className="ml-1 font-normal">({model.name}, pigeon.json)</span>
       </h2>
       {select(
         'Status',
@@ -76,9 +78,11 @@ export function ProjectComparisonSettings() {
         ['exact', 'class', 'ignore'],
         (status) => set({ status }),
       )}
-      <label className="flex flex-col gap-1">
+      <label className="flex flex-col gap-1.5">
         <span>Compared headers</span>
-        <input
+        <Input
+          size="sm"
+          mono
           data-testid="comparison-headers"
           defaultValue={(headers.compare ?? ['content-type']).join(', ')}
           readOnly={readOnly}
@@ -93,7 +97,6 @@ export function ProjectComparisonSettings() {
               },
             })
           }
-          className="h-7 rounded border border-border bg-bg px-2 font-mono text-xs"
         />
       </label>
       {select(
@@ -114,8 +117,7 @@ export function ProjectComparisonSettings() {
         (additionalFields) => setBody({ additionalFields }),
       )}
       <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
+        <Checkbox
           data-testid="comparison-distinguish-integers"
           checked={body.distinguishIntegers}
           disabled={readOnly}
@@ -123,9 +125,7 @@ export function ProjectComparisonSettings() {
         />
         Tell integers from other numbers
       </label>
-      <h3 className="pt-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-        Project rules (every request)
-      </h3>
+      <h3 className="pt-2 text-xs font-medium text-fg-muted">Project rules (every request)</h3>
       <RulesTable
         rules={projectRules(model)}
         testId="project-rules-editor"

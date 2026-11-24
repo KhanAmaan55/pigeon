@@ -9,6 +9,7 @@ import { SNIPPET_GENERATORS, snippetGenerator } from '@pigeon/formats';
 import { Copy, TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { Callout, Checkbox, Select } from '../../components/ui';
 import { useVariableScopes } from '../../components/VariableInput/VariablesContext';
 import { CopyButton } from '../response-viewer/CopyButton';
 import { useScratchRequest } from './ScratchRequestProvider';
@@ -48,11 +49,15 @@ export function CodePanel() {
   }, [request, inheritedAuth, scopes, language, resolve, reveal]);
 
   return (
-    <div data-testid="code-panel" className="flex h-full min-h-0 flex-col gap-2 p-2 text-xs">
-      <div className="flex flex-wrap items-center gap-3">
+    <div
+      data-testid="code-panel"
+      className="flex h-full min-h-0 flex-col gap-3 px-3 pt-2 pb-3 text-xs"
+    >
+      <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2">
           <span className="text-fg-muted">Language</span>
-          <select
+          <Select
+            size="sm"
             data-testid="code-language"
             value={language}
             onChange={(event) => {
@@ -63,27 +68,24 @@ export function CodePanel() {
                 // Not remembered; fine.
               }
             }}
-            className="h-7 rounded border border-border bg-surface px-2 text-xs text-fg"
           >
             {SNIPPET_GENERATORS.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
+        <label className="flex items-center gap-1.5 text-fg">
+          <Checkbox
             data-testid="code-resolve"
             checked={resolve}
             onChange={(event) => setResolve(event.target.checked)}
           />
           Resolve variables
         </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
+        <label className="flex items-center gap-1.5 text-fg">
+          <Checkbox
             data-testid="code-reveal"
             checked={reveal}
             onChange={(event) => setReveal(event.target.checked)}
@@ -101,25 +103,27 @@ export function CodePanel() {
         </CopyButton>
       </div>
       {(warnings.length > 0 || masked) && (
-        <ul data-testid="code-notes" className="flex flex-col gap-1 text-fg-muted">
-          {masked && (
-            <li data-testid="code-masked">
-              Secret values are shown as ••••••. Turn on “Show secrets” to include them.
-            </li>
-          )}
-          {warnings.map((warning) => (
-            <li key={warning} className="flex gap-1.5">
-              <TriangleAlert size={12} className="mt-px shrink-0 text-warn" aria-hidden />
-              {warning}
-            </li>
-          ))}
-        </ul>
+        <Callout tone="neutral" icon={null} className="shrink-0">
+          <ul data-testid="code-notes" className="flex flex-col gap-1 text-xs text-fg-muted">
+            {masked && (
+              <li data-testid="code-masked">
+                Secret values are shown as ••••••. Turn on “Show secrets” to include them.
+              </li>
+            )}
+            {warnings.map((warning) => (
+              <li key={warning} className="flex gap-1.5">
+                <TriangleAlert size={12} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+                {warning}
+              </li>
+            ))}
+          </ul>
+        </Callout>
       )}
       <pre
         data-testid="code-snippet"
         aria-label="Code snippet"
         tabIndex={0}
-        className="min-h-0 flex-1 overflow-auto rounded border border-border bg-bg p-2 font-mono text-xs whitespace-pre text-fg"
+        className="min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-sunken p-3 font-mono text-xs whitespace-pre text-fg"
       >
         {code}
       </pre>

@@ -1,12 +1,13 @@
 import type { BodyMode, BodyOf, RawLanguage } from '@pigeon/core';
 import { hasBody, prunesBody } from '@pigeon/core';
-import { TriangleAlert, WandSparkles } from 'lucide-react';
+import { WandSparkles } from 'lucide-react';
 import { useState } from 'react';
 
 import { useCapabilities } from '../../../app/PlatformProvider';
 import { CodeEditor } from '../../../components/CodeEditor';
 import { useVariableScopes } from '../../../components/VariableInput';
 import { KeyValueTable } from '../../../components/KeyValueTable';
+import { Button, Callout, EmptyState, Select } from '../../../components/ui';
 import { beautifyJson } from '../../../lib/json-format';
 import { useScratchRequest } from '../ScratchRequestProvider';
 import { GraphqlBody } from './GraphqlBody';
@@ -40,11 +41,15 @@ export function BodyTab() {
   const setBodyMode = useScratchRequest((s) => s.setBodyMode);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
-        <div role="radiogroup" aria-label="Body type" className="flex flex-wrap items-center gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-2 pb-3">
+      <div className="flex min-h-7 shrink-0 flex-wrap items-center gap-x-4 gap-y-1">
+        <div
+          role="radiogroup"
+          aria-label="Body type"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1"
+        >
           {MODES.map(({ mode, label }) => (
-            <label key={mode} className="flex items-center gap-1 text-sm text-fg">
+            <label key={mode} className="flex items-center gap-1.5 text-sm text-fg">
               <input
                 type="radio"
                 name="body-mode"
@@ -52,7 +57,7 @@ export function BodyTab() {
                 data-testid={`body-mode-${mode}`}
                 checked={body.mode === mode}
                 onChange={() => setBodyMode(mode)}
-                className="accent-accent"
+                className="size-3.5 accent-accent"
               />
               {label}
             </label>
@@ -61,9 +66,7 @@ export function BodyTab() {
         {body.mode === 'raw' && <RawToolbar body={body} />}
       </div>
       <GetBodyNotice />
-      {body.mode === 'none' && (
-        <p className="py-6 text-center text-sm text-fg-muted">This request does not have a body.</p>
-      )}
+      {body.mode === 'none' && <EmptyState title="This request does not have a body." />}
       {body.mode === 'raw' && <RawBody body={body} />}
       {body.mode === 'urlencoded' && <UrlencodedBody body={body} />}
       {body.mode === 'formdata' && <FormDataBody body={body} />}
@@ -79,8 +82,9 @@ function RawToolbar({ body }: { body: BodyOf<'raw'> }) {
   return (
     <div className="ml-auto flex items-center gap-2">
       {body.language === 'json' && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           data-testid="beautify-button"
           title={beautifyFailed ? 'The JSON is not valid, so it cannot be beautified' : 'Beautify'}
           onClick={() => {
@@ -88,13 +92,14 @@ function RawToolbar({ body }: { body: BodyOf<'raw'> }) {
             setBeautifyFailed(pretty === null);
             if (pretty !== null && pretty !== body.raw) setBody({ ...body, raw: pretty });
           }}
-          className={`inline-flex h-7 items-center gap-1 rounded px-2 text-xs hover:bg-hover ${beautifyFailed ? 'text-fail' : 'text-fg-muted hover:text-fg'}`}
+          icon={<WandSparkles aria-hidden />}
+          className={beautifyFailed ? 'text-fail!' : undefined}
         >
-          <WandSparkles size={12} aria-hidden />
           Beautify
-        </button>
+        </Button>
       )}
-      <select
+      <Select
+        size="sm"
         aria-label="Raw body language"
         data-testid="raw-language-select"
         value={body.language}
@@ -102,14 +107,13 @@ function RawToolbar({ body }: { body: BodyOf<'raw'> }) {
           setBeautifyFailed(false);
           setBody({ ...body, language: event.target.value as RawLanguage });
         }}
-        className="h-7 rounded border border-border bg-surface px-2 text-xs text-fg"
       >
         {LANGUAGES.map(({ language, label }) => (
           <option key={language} value={language}>
             {label}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }
@@ -158,8 +162,8 @@ function BinaryBody({ body }: { body: BodyOf<'file'> }) {
     setBody(next);
   };
   return (
-    <div className="flex flex-col gap-2 text-sm">
-      <div data-testid="binary-file" className="flex items-center gap-2">
+    <div className="flex flex-col gap-2.5 text-sm">
+      <div data-testid="binary-file" className="flex flex-wrap items-center gap-2">
         {body.src !== undefined && <FileChip src={body.src} onRemove={clear} />}
         <FilePicker
           label={body.src === undefined ? 'Select file' : 'Replace'}
@@ -183,11 +187,7 @@ function GetBodyNotice() {
   const { canSendBodyWithGet } = useCapabilities();
   if (!withBody || !prunesBody(method) || (canSendBodyWithGet && sendsGetBody)) return null;
   return (
-    <p
-      data-testid="get-body-notice"
-      className="flex shrink-0 items-start gap-1.5 rounded bg-hover px-2 py-1 text-xs text-fg-muted"
-    >
-      <TriangleAlert size={12} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+    <Callout tone="warn" data-testid="get-body-notice" className="shrink-0">
       {canSendBodyWithGet
         ? `${method} requests are sent without this body unless "Send body with GET" is on in the Settings tab.`
         : `Browsers can't send a body with ${method} requests. Use another method, e.g. POST, or the desktop app.`}
@@ -197,6 +197,6 @@ function GetBodyNotice() {
           <HelpLink section="body-with-get" />
         </>
       )}
-    </p>
+    </Callout>
   );
 }

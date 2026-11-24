@@ -3,6 +3,7 @@ import { GripVertical, ListTree, Text, Trash2 } from 'lucide-react';
 import type { ClipboardEvent, DragEvent, KeyboardEvent, ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
+import { Checkbox, Textarea } from '../ui';
 import { VariableInput } from '../VariableInput';
 import type { BulkSeparator } from './bulk';
 import {
@@ -50,10 +51,12 @@ export interface KeyValueTableProps<T extends KeyValue = KeyValue> {
   testId?: string;
 }
 
-const cellInput =
-  'h-7 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 font-mono text-sm text-fg placeholder:text-fg-muted hover:border-border focus:border-accent focus:outline-none disabled:opacity-60';
+/** Cell inputs are see-through until hovered or focused (a dense table, not a form). */
+const cellBase =
+  'h-7 w-full min-w-0 rounded border border-transparent bg-transparent px-2 font-mono text-sm text-fg transition-colors placeholder:text-fg-muted focus:outline-none disabled:opacity-60';
+const cellInput = `${cellBase} hover:border-border hover:bg-sunken focus:border-accent focus:bg-bg focus:ring-3 focus:ring-focus`;
 const toolbarButton =
-  'inline-flex h-6 items-center gap-1 rounded px-1.5 text-xs text-fg-muted hover:bg-hover hover:text-fg aria-pressed:bg-hover aria-pressed:text-fg';
+  'inline-flex h-6 cursor-default items-center gap-1 rounded px-2 text-xs text-fg-muted transition-colors hover:bg-hover hover:text-fg aria-pressed:bg-hover aria-pressed:text-fg';
 
 /**
  * Editable key/value rows (docs/ui-ux.md §3.3): enable checkbox, key, value, optional description,
@@ -152,7 +155,7 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
   });
 
   const toolbar = (
-    <div className="flex items-center justify-end gap-1 pb-1">
+    <div className="flex items-center justify-end gap-1 pb-1.5">
       {bulkText === null && (
         <button
           type="button"
@@ -188,7 +191,8 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
     return (
       <div data-testid={testId} className="flex min-h-0 flex-col">
         {toolbar}
-        <textarea
+        <Textarea
+          mono
           aria-label={`${label} (bulk edit)`}
           data-testid="kv-bulk-input"
           value={bulkText}
@@ -204,7 +208,7 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
               ? 'One per line: Key: Value\n// prefix disables a row'
               : 'One per line: key=value\n// prefix disables a row'
           }
-          className="min-h-32 resize-y rounded border border-border bg-bg p-2 font-mono text-sm text-fg placeholder:text-fg-muted"
+          className="min-h-32 resize-y"
         />
       </div>
     );
@@ -216,24 +220,28 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
       {toolbar}
       <table ref={tableRef} aria-label={label} className="w-full table-fixed border-collapse">
         <thead>
-          <tr className="border-b border-border text-left text-xs font-semibold text-fg-muted">
+          <tr className="border-b border-border text-left text-xs font-medium text-fg-muted">
             {!fixedKeys && (
-              <th className="w-12 py-1">
+              <th className="w-12 pb-1.5">
                 <span className="sr-only">Enabled</span>
               </th>
             )}
-            <th className="py-1 pl-1.5">Key</th>
-            <th className="py-1 pl-1.5" title={valueHeaderTitle}>
+            <th className="pb-1.5 pl-2.5 font-medium">Key</th>
+            <th className="pb-1.5 pl-2.5 font-medium" title={valueHeaderTitle}>
               {valueHeader}
             </th>
             {extraColumns.map((column) => (
-              <th key={column.id} className="w-40 py-1 pl-1.5" title={column.headerTitle}>
+              <th
+                key={column.id}
+                className="w-40 pb-1.5 pl-2.5 font-medium"
+                title={column.headerTitle}
+              >
                 {column.header}
               </th>
             ))}
-            {showDescription && <th className="py-1 pl-1.5">Description</th>}
+            {showDescription && <th className="pb-1.5 pl-2.5 font-medium">Description</th>}
             {!fixedKeys && (
-              <th className="w-8 py-1">
+              <th className="w-8 pb-1.5">
                 <span className="sr-only">Actions</span>
               </th>
             )}
@@ -253,7 +261,7 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
                 data-testid={isDraft ? 'kv-draft-row' : 'kv-row'}
                 data-disabled={current.disabled ? '' : undefined}
                 {...(isDraft || fixedKeys ? {} : dropHandlers(index))}
-                className={`border-b border-border/60 ${current.disabled ? 'text-fg-muted' : ''} ${
+                className={`group/row border-b border-border/50 last:border-b-0 ${current.disabled ? 'text-fg-muted' : ''} ${
                   dropAt === index && dragFrom !== null && dragFrom !== index
                     ? dragFrom < index
                       ? 'shadow-[inset_0_-2px_0_var(--color-accent)]'
@@ -262,7 +270,7 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
                 } ${dragFrom === index ? 'opacity-50' : ''}`}
               >
                 {!fixedKeys && (
-                  <td className="py-0.5">
+                  <td className="py-1">
                     <div className="flex items-center">
                       {isDraft ? (
                         <span className="w-5" />
@@ -286,13 +294,12 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
                             setDragFrom(null);
                             setDropAt(null);
                           }}
-                          className="flex w-5 cursor-grab justify-center text-fg-muted hover:text-fg"
+                          className="flex h-7 w-5 cursor-grab items-center justify-center rounded text-fg-muted opacity-60 transition-opacity group-hover/row:opacity-100 hover:text-fg focus-visible:opacity-100"
                         >
                           <GripVertical size={14} aria-hidden />
                         </span>
                       )}
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         aria-label={`Enable row ${index + 1}`}
                         checked={!isDraft && !current.disabled}
                         disabled={isDraft}
@@ -304,12 +311,12 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
                             return next;
                           })
                         }
-                        className="size-3.5 accent-accent disabled:invisible"
+                        className="ml-1 disabled:invisible"
                       />
                     </div>
                   </td>
                 )}
-                <td className="py-0.5">
+                <td className="py-1">
                   <div className="flex items-center gap-1">
                     <VariableInput
                       aria-label="Key"
@@ -323,12 +330,12 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
                         setRow(index, (r) => ({ ...r, key: event.target.value }))
                       }
                       onPaste={onPaste(index)}
-                      className={`${cellInput} ${fixedKeys ? 'hover:border-transparent focus:border-transparent' : ''}`}
+                      className={fixedKeys ? cellBase : cellInput}
                     />
                     {!isDraft && keyAdornment?.(current, update)}
                   </div>
                 </td>
-                <td className="py-0.5">
+                <td className="py-1">
                   {customValue ?? (
                     <VariableInput
                       aria-label={valueHeader}
@@ -348,7 +355,7 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
                   </td>
                 ))}
                 {showDescription && (
-                  <td className="py-0.5">
+                  <td className="py-1">
                     <input
                       aria-label="Description"
                       value={descriptionText(current.description)}
@@ -361,14 +368,14 @@ export function KeyValueTable<T extends KeyValue = KeyValue>({
                   </td>
                 )}
                 {!fixedKeys && (
-                  <td className="py-0.5">
+                  <td className="py-1">
                     {!isDraft && (
                       <button
                         type="button"
                         aria-label={`Delete row ${index + 1}`}
                         title="Delete"
                         onClick={() => onChange(rows.filter((_, i) => i !== index))}
-                        className="inline-flex size-7 items-center justify-center rounded text-fg-muted hover:bg-hover hover:text-fail"
+                        className="inline-flex size-7 items-center justify-center rounded text-fg-muted opacity-60 transition-[opacity,color,background-color] group-hover/row:opacity-100 hover:bg-fail/10 hover:text-fail focus-visible:opacity-100"
                       >
                         <Trash2 size={14} aria-hidden />
                       </button>

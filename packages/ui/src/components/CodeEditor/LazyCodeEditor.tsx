@@ -15,7 +15,7 @@ export function CodeEditor(props: CodeEditorProps) {
         <div
           aria-busy
           data-testid="code-editor-loading"
-          className={`min-h-0 rounded border border-border bg-bg ${props.className ?? ''}`}
+          className={`min-h-0 rounded-lg border border-border bg-bg ${props.className ?? ''}`}
         />
       }
     >

@@ -7,11 +7,27 @@ import type {
 } from '@pigeon/core';
 import type { NormalizedResponse } from '@pigeon/core';
 import { CircleX, Info, LoaderCircle, TriangleAlert, EyeOff } from 'lucide-react';
-import { Dialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 
+import type { Tone } from '../../components/ui';
+import {
+  Badge,
+  Button,
+  Callout,
+  Checkbox,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  EmptyState,
+  SectionLabel,
+  Select,
+} from '../../components/ui';
 import type { ComparisonState } from '../request-editor/scratch-store';
+import { chipClass } from '../response-viewer/StatusLine';
 import { OUTCOMES } from './outcome';
 import type { BaselineMode, ComparisonOverrides } from '../request-editor/scratch-store';
 import { RequestOverrides } from './RequestOverrides';
@@ -37,11 +53,22 @@ export function groupFindings(findings: readonly Finding[]) {
 }
 
 const SEVERITY_ICONS: Record<Severity, ReactNode> = {
-  fail: <CircleX size={14} className="text-fail" />,
-  warn: <TriangleAlert size={14} className="text-warn" />,
-  info: <Info size={14} className="text-fg-muted" />,
-  ignored: <EyeOff size={14} className="text-fg-muted" />,
+  fail: <CircleX size={12} />,
+  warn: <TriangleAlert size={12} />,
+  info: <Info size={12} />,
+  ignored: <EyeOff size={12} />,
 };
+
+const SEVERITY_TONES: Record<Severity, Tone> = {
+  fail: 'fail',
+  warn: 'warn',
+  info: 'info',
+  ignored: 'neutral',
+};
+
+/** One option of a small segmented pill toggle (Findings / Side by side). */
+const pillToggle =
+  'h-6 cursor-default rounded-full px-2.5 text-xs text-fg-muted transition-colors hover:text-fg aria-checked:bg-surface-raised aria-checked:font-medium aria-checked:text-fg aria-checked:shadow-sm';
 
 /**
  * Response panel → Compare (docs/ui-ux.md §3.7): outcome, counts and baseline name; the
@@ -102,14 +129,15 @@ export function CompareTab({
 
   if (!shown) {
     return (
-      <p data-testid="compare-off" className="p-3 text-sm text-fg-muted">
-        Not compared. Turn on “Compare responses with the baseline” in Settings, or send again.
-      </p>
+      <EmptyState
+        data-testid="compare-off"
+        title="Not compared. Turn on “Compare responses with the baseline” in Settings, or send again."
+      />
     );
   }
   if (shown.status === 'running') {
     return (
-      <p role="status" className="flex items-center gap-2 p-3 text-sm text-fg-muted">
+      <p role="status" className="flex items-center gap-2 p-4 text-sm text-fg-muted">
         <LoaderCircle size={14} className="animate-spin" aria-hidden />
         Comparing with the baseline…
       </p>
@@ -117,46 +145,48 @@ export function CompareTab({
   }
   if (shown.outcome.kind === 'no-baseline') {
     return (
-      <p data-testid="compare-no-baseline" className="p-3 text-sm text-fg-muted">
-        No baseline — Save as example to start tracking.
-      </p>
+      <EmptyState
+        data-testid="compare-no-baseline"
+        title="No baseline — Save as example to start tracking."
+      />
     );
   }
   if (shown.outcome.kind === 'disabled') {
     return (
       <div
         data-testid="compare-disabled"
-        className="flex items-center gap-2 p-3 text-sm text-fg-muted"
+        className="flex flex-wrap items-center gap-3 p-4 text-sm text-fg-muted"
       >
         Comparison is turned off for this request.
         {baselineMode && (
-          <button
-            type="button"
+          <Button
+            size="xs"
             data-testid="compare-enable"
             onClick={() => baselineMode.onChange({ mode: 'auto' })}
-            className="rounded border border-border px-2 py-0.5 text-fg hover:bg-hover"
           >
             Turn on (auto baseline)
-          </button>
+          </Button>
         )}
       </div>
     );
   }
   if (shown.outcome.kind === 'baseline-not-found') {
     return (
-      <div data-testid="compare-baseline-not-found" className="flex items-center gap-2 p-3 text-sm">
-        <TriangleAlert size={14} className="shrink-0 text-warn" aria-hidden />
-        Baseline not found: the pinned example no longer exists.
-        {baselineMode && (
-          <button
-            type="button"
-            data-testid="compare-use-auto"
-            onClick={() => baselineMode.onChange({ mode: 'auto' })}
-            className="rounded border border-border px-2 py-0.5 hover:bg-hover"
-          >
-            Use the auto baseline
-          </button>
-        )}
+      <div className="p-4">
+        <Callout tone="warn" data-testid="compare-baseline-not-found">
+          <div className="flex flex-wrap items-center gap-3">
+            Baseline not found: the pinned example no longer exists.
+            {baselineMode && (
+              <Button
+                size="xs"
+                data-testid="compare-use-auto"
+                onClick={() => baselineMode.onChange({ mode: 'auto' })}
+              >
+                Use the auto baseline
+              </Button>
+            )}
+          </div>
+        </Callout>
       </div>
     );
   }
@@ -169,11 +199,8 @@ export function CompareTab({
 
   return (
     <div data-testid="compare-tab" className="flex min-h-0 flex-1 flex-col text-sm">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border px-3 py-1.5">
-        <span
-          data-testid="compare-outcome"
-          className={`inline-flex items-center gap-1 font-semibold ${outcome.className}`}
-        >
+      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border px-4 py-2">
+        <span data-testid="compare-outcome" className={chipClass(outcome.tone)}>
           {outcome.icon}
           {outcome.label}
         </span>
@@ -191,7 +218,8 @@ export function CompareTab({
           </span>
         </span>
         {baselineMode && (
-          <select
+          <Select
+            size="sm"
             aria-label="Baseline"
             data-testid="compare-baseline-mode"
             value={
@@ -209,7 +237,7 @@ export function CompareTab({
                     : { mode: 'auto' },
               );
             }}
-            className="h-6 rounded border border-border bg-surface px-1 text-xs"
+            className="max-w-64"
           >
             <option value="auto">Auto (same status, else first)</option>
             {baselineMode.examples.map((example) => (
@@ -218,10 +246,14 @@ export function CompareTab({
               </option>
             ))}
             <option value="none">Disable comparison</option>
-          </select>
+          </Select>
         )}
         {schemaActions}
-        <div role="radiogroup" aria-label="Comparison view" className="ml-auto flex gap-1">
+        <div
+          role="radiogroup"
+          aria-label="Comparison view"
+          className="ml-auto flex items-center gap-0.5 rounded-full bg-sunken p-0.5"
+        >
           {(['findings', 'side-by-side'] as const).map((candidate) => (
             <button
               key={candidate}
@@ -230,7 +262,7 @@ export function CompareTab({
               aria-checked={view === candidate}
               data-testid={`compare-view-${candidate}`}
               onClick={() => setView(candidate)}
-              className="h-6 rounded px-2 text-xs text-fg-muted hover:bg-hover hover:text-fg aria-checked:bg-hover aria-checked:text-fg"
+              className={pillToggle}
             >
               {candidate === 'findings' ? 'Findings' : 'Side by side'}
             </button>
@@ -238,9 +270,8 @@ export function CompareTab({
         </div>
       </header>
       {ignored > 0 && view === 'findings' && (
-        <label className="flex shrink-0 items-center gap-1.5 border-b border-border px-3 py-1 text-xs text-fg-muted">
-          <input
-            type="checkbox"
+        <label className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-1.5 text-xs text-fg-muted">
+          <Checkbox
             data-testid="compare-show-ignored"
             checked={showIgnored}
             onChange={(event) => setShowIgnored(event.target.checked)}
@@ -250,16 +281,20 @@ export function CompareTab({
       )}
       {view === 'findings' ? (
         groups.length === 0 ? (
-          <p data-testid="compare-no-findings" className="p-3 text-fg-muted">
+          <p data-testid="compare-no-findings" className="p-4 text-fg-muted">
             The response matches the baseline.
           </p>
         ) : (
           <div data-testid="compare-findings" className="min-h-0 flex-1 overflow-auto">
             {groups.map((group) => (
               <section key={group.id} aria-label={group.title}>
-                <h2 className="sticky top-0 bg-surface px-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+                <SectionLabel
+                  role="heading"
+                  aria-level={2}
+                  className="sticky top-0 z-10 bg-surface px-4 pt-3 pb-1.5"
+                >
                   {group.title}
-                </h2>
+                </SectionLabel>
                 <ul>
                   {group.findings.map((finding, index) => {
                     const line = lineOf(actualIndex, finding.path, finding.schemaPath);
@@ -269,11 +304,15 @@ export function CompareTab({
                         data-testid="compare-finding"
                         data-severity={finding.severity}
                         data-kind={finding.kind}
-                        className="flex items-start gap-2 border-b border-border/60 px-3 py-1.5 hover:bg-hover/50"
+                        className="flex items-start gap-2.5 border-b border-border/60 px-4 py-2 transition-colors hover:bg-hover/50"
                       >
-                        <span className="mt-0.5 shrink-0" aria-label={finding.severity}>
+                        <Badge
+                          tone={SEVERITY_TONES[finding.severity]}
+                          aria-label={finding.severity}
+                          className="mt-0.5"
+                        >
                           {SEVERITY_ICONS[finding.severity]}
-                        </span>
+                        </Badge>
                         <div className="min-w-0 flex-1">
                           {(finding.schemaPath ?? finding.path) && (
                             <span data-testid="compare-finding-path" className="font-mono text-xs">
@@ -292,26 +331,26 @@ export function CompareTab({
                         </div>
                         {onAddRule && <RuleActions finding={finding} onAddRule={onAddRule} />}
                         {line !== undefined && (
-                          <button
-                            type="button"
+                          <Button
+                            variant="ghost"
+                            size="xs"
                             data-testid="compare-show-in-body"
                             onClick={() => onShowInBody(line)}
-                            className="shrink-0 rounded px-1.5 py-0.5 text-xs text-fg-muted hover:bg-hover hover:text-fg"
                           >
                             Show in body
-                          </button>
+                          </Button>
                         )}
-                        <button
-                          type="button"
+                        <Button
+                          variant="ghost"
+                          size="xs"
                           data-testid="compare-show-side-by-side"
                           onClick={() => {
                             setSelected({ finding, nonce: Date.now() });
                             setView('side-by-side');
                           }}
-                          className="shrink-0 rounded px-1.5 py-0.5 text-xs text-fg-muted hover:bg-hover hover:text-fg"
                         >
                           Compare
-                        </button>
+                        </Button>
                       </li>
                     );
                   })}
@@ -329,26 +368,21 @@ export function CompareTab({
         />
       )}
       {(onAccept || onSaveExample) && (
-        <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-3 py-1.5">
+        <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-4 py-2">
           {onAccept && result.outcome !== 'pass' && (
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
               data-testid="compare-accept"
               onClick={() => setConfirming(true)}
-              className="h-7 rounded bg-accent px-2 text-xs font-semibold text-accent-fg"
             >
               Accept as new baseline
-            </button>
+            </Button>
           )}
           {onSaveExample && (
-            <button
-              type="button"
-              data-testid="compare-save-example"
-              onClick={onSaveExample}
-              className="h-7 rounded border border-border px-2 text-xs hover:bg-hover"
-            >
+            <Button size="sm" data-testid="compare-save-example" onClick={onSaveExample}>
               Save as new example
-            </button>
+            </Button>
           )}
         </footer>
       )}
@@ -367,23 +401,25 @@ export function CompareTab({
       {rules && (
         <details
           data-testid="compare-rules"
-          className="max-h-[50%] shrink-0 overflow-auto border-t border-border px-3 py-1.5"
+          className="max-h-[50%] shrink-0 overflow-auto border-t border-border px-4 py-2"
         >
-          <summary className="cursor-default text-xs font-semibold tracking-wide text-fg-muted uppercase">
+          <summary className="cursor-default text-xs font-medium text-fg-muted select-none hover:text-fg">
             Rules ({rules.request.length} request · {rules.project.length} project)
           </summary>
-          <h4 className="pt-2 pb-1 text-xs text-fg-muted">This request (compare.json)</h4>
+          <h4 className="pt-3 pb-1.5 text-xs font-medium text-fg-muted">
+            This request (compare.json)
+          </h4>
           <RequestOverrides overrides={rules.overrides} onChange={rules.onOverrides} />
           <div className="h-2" />
           <RulesTable rules={rules.request} onChange={rules.onChange} testId="request-rules" />
-          <h4 className="flex items-center gap-2 pt-3 pb-1 text-xs text-fg-muted">
+          <h4 className="flex items-center gap-2 pt-4 pb-1.5 text-xs font-medium text-fg-muted">
             Project (pigeon.json, read-only here)
             {onEditProjectRules && (
               <button
                 type="button"
                 data-testid="edit-project-rules"
                 onClick={onEditProjectRules}
-                className="rounded px-1 text-accent hover:underline"
+                className="rounded font-normal text-accent-text underline-offset-2 hover:underline"
               >
                 Edit in project settings
               </button>
@@ -435,18 +471,18 @@ function RuleActions({
   }
   actions.push({ label: 'Ignore', testId: 'finding-ignore', rule: { path, ignore: true } });
   return (
-    <div className="flex shrink-0 gap-1">
+    <div className="flex shrink-0 gap-0.5">
       {actions.map((action) => (
-        <button
+        <Button
           key={action.testId}
-          type="button"
+          variant="ghost"
+          size="xs"
           data-testid={action.testId}
           title={`Add a rule for ${path}`}
           onClick={() => onAddRule(action.rule)}
-          className="rounded px-1.5 py-0.5 text-xs text-fg-muted hover:bg-hover hover:text-fg"
         >
           {action.label}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -467,50 +503,37 @@ function AcceptDialog({
   onConfirm: () => void;
 }) {
   return (
-    <Dialog.Root open={open} onOpenChange={(next) => !next && onCancel()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-        <Dialog.Content
-          data-testid="accept-dialog"
-          className="fixed top-1/2 left-1/2 w-[min(30rem,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
+    <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
+      <DialogContent width="md" data-testid="accept-dialog">
+        <DialogTitle>Accept as new baseline?</DialogTitle>
+        <DialogDescription>
+          The example “{exampleName}” gets this response (status, headers without volatile ones,
+          body) and the current request definition. These {findings.length} finding
+          {findings.length === 1 ? '' : 's'} will go away. Until you save it for commit, discarding
+          the change brings the old baseline back.
+        </DialogDescription>
+        <ul
+          data-testid="accept-findings"
+          className="mt-3 max-h-40 overflow-auto rounded-lg bg-sunken px-3 py-2 text-xs"
         >
-          <Dialog.Title className="text-base font-semibold">Accept as new baseline?</Dialog.Title>
-          <Dialog.Description className="mt-2 text-fg-muted">
-            The example “{exampleName}” gets this response (status, headers without volatile ones,
-            body) and the current request definition. These {findings.length} finding
-            {findings.length === 1 ? '' : 's'} will go away. Until you save it for commit,
-            discarding the change brings the old baseline back.
-          </Dialog.Description>
-          <ul data-testid="accept-findings" className="mt-2 max-h-40 overflow-auto text-xs">
-            {findings.slice(0, 20).map((finding, index) => (
-              <li key={index} className="truncate">
-                <span className="font-mono">
-                  {finding.schemaPath ?? finding.path ?? finding.kind}
-                </span>{' '}
-                — {finding.message}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 flex justify-end gap-2">
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                className="h-8 rounded border border-border px-3 hover:bg-hover"
-              >
-                Cancel
-              </button>
-            </Dialog.Close>
-            <button
-              type="button"
-              data-testid="accept-confirm"
-              onClick={onConfirm}
-              className="h-8 rounded bg-accent px-3 font-semibold text-accent-fg"
-            >
-              Accept
-            </button>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          {findings.slice(0, 20).map((finding, index) => (
+            <li key={index} className="truncate leading-5">
+              <span className="font-mono">
+                {finding.schemaPath ?? finding.path ?? finding.kind}
+              </span>{' '}
+              — {finding.message}
+            </li>
+          ))}
+        </ul>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button>Cancel</Button>
+          </DialogClose>
+          <Button variant="primary" data-testid="accept-confirm" onClick={onConfirm}>
+            Accept
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

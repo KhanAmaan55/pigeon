@@ -5,8 +5,8 @@ import { expect, test } from '@playwright/test';
 import { TEST_SERVER_URL } from '../test-server';
 
 /**
- * axe-core scans of the main screens (PIGN-042): no critical violations. Serious ones are listed
- * in the output so they can be worked on.
+ * axe-core scans of the main screens (PIGN-042): no critical violations, and no colour contrast
+ * failures since the PIGN-058 palette. Other serious ones are listed in the output.
  */
 async function scan(page: Page, screen: string) {
   const { violations } = await new AxeBuilder({ page }).analyze();
@@ -14,20 +14,35 @@ async function scan(page: Page, screen: string) {
     console.log(
       `axe [${screen}] ${v.impact}: ${v.id} (${v.nodes.length}) ${v.nodes
         .slice(0, 3)
-        .map((n) => n.target.join(' '))
+        .map((n) => `${n.target.join(' ')} (${n.any[0]?.message ?? ''})`)
         .join(' | ')}`,
     );
   }
   expect(
-    violations.filter((v) => v.impact === 'critical').map((v) => `${v.id}: ${v.help}`),
+    violations
+      .filter((v) => v.impact === 'critical' || v.id === 'color-contrast')
+      .map((v) => `${v.id}: ${v.help}`),
     screen,
   ).toEqual([]);
 }
 
 test.describe('accessibility', () => {
   test.skip(({ browserName }) => browserName !== 'chromium', 'one engine is enough for axe');
+  // Dialogs and menus fade in; axe should see the finished colours, not a frame of the fade.
+  test.use({ reducedMotion: 'reduce' });
 
-  test('main screens have no critical axe violations', async ({ page }) => {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test.describe(`${colorScheme} theme`, () => {
+      test.use({ colorScheme });
+      test('main screens have no critical axe violations', async ({ page }) => {
+        await scanMainScreens(page);
+      });
+    });
+  }
+});
+
+async function scanMainScreens(page: Page) {
+  {
     await page.goto('/');
     await expect(page.getByTestId('welcome')).toBeVisible();
     await scan(page, 'welcome');
@@ -62,5 +77,5 @@ test.describe('accessibility', () => {
     await page.getByTestId('status-browser-mode').click();
     await expect(page.getByTestId('web-limitations')).toBeVisible();
     await scan(page, 'help');
-  });
-});
+  }
+}

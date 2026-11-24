@@ -7,6 +7,8 @@
 import { ArrowLeft, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { IconButton } from '../../components/IconButton';
+import { SectionLabel } from '../../components/ui';
 import type { DocsField, DocsModel, DocsType } from './runtime';
 
 const SCALARS_LAST = (a: DocsType, b: DocsType) =>
@@ -48,7 +50,7 @@ export function GraphqlDocs({
         setQuery('');
         onFocus(name);
       }}
-      className="font-mono text-accent hover:underline"
+      className="rounded-sm font-mono text-accent-text underline-offset-2 hover:underline"
     >
       {label}
     </button>
@@ -66,7 +68,7 @@ export function GraphqlDocs({
     );
   };
   const fieldRow = (f: DocsField) => (
-    <li key={f.name} data-testid="graphql-docs-field" className="py-1">
+    <li key={f.name} data-testid="graphql-docs-field" className="py-1.5">
       <span className="font-mono">
         <span className="text-fg">{f.name}</span>
         {f.args.length > 0 && (
@@ -83,7 +85,7 @@ export function GraphqlDocs({
         )}
         : {typeRef(f.type, f.typeName)}
       </span>
-      {f.description && <p className="text-fg-muted">{f.description}</p>}
+      {f.description && <p className="mt-0.5 text-fg-muted">{f.description}</p>}
       {f.deprecated && <p className="text-warn">Deprecated: {f.deprecated}</p>}
     </li>
   );
@@ -92,21 +94,18 @@ export function GraphqlDocs({
     <aside
       aria-label="Schema docs"
       data-testid="graphql-docs"
-      className="flex min-h-0 flex-col rounded border border-border text-xs"
+      className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface text-xs"
     >
-      <header className="flex shrink-0 items-center gap-1 border-b border-border p-1">
+      <header className="flex h-9 shrink-0 items-center gap-1 border-b border-border px-1">
         {focus && (
-          <button
-            type="button"
-            aria-label="Back to the root types"
+          <IconButton
+            label="Back to the root types"
             data-testid="graphql-docs-back"
             onClick={() => onFocus(null)}
-            className="rounded p-1 text-fg-muted hover:bg-hover hover:text-fg"
-          >
-            <ArrowLeft size={12} aria-hidden />
-          </button>
+            icon={<ArrowLeft size={14} aria-hidden />}
+          />
         )}
-        <Search size={12} aria-hidden className="ml-1 shrink-0 text-fg-muted" />
+        <Search size={12} aria-hidden className="ml-1.5 shrink-0 text-fg-muted" />
         <input
           type="search"
           aria-label="Search the schema"
@@ -114,25 +113,22 @@ export function GraphqlDocs({
           placeholder="Search types and fields"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          className="h-6 min-w-0 flex-1 bg-transparent px-1 text-xs text-fg placeholder:text-fg-muted focus:outline-none"
+          className="h-7 min-w-0 flex-1 bg-transparent px-1 text-xs text-fg placeholder:text-fg-muted focus:outline-none focus-visible:outline-none"
         />
-        <button
-          type="button"
-          aria-label="Close the schema docs"
+        <IconButton
+          label="Close the schema docs"
           onClick={onClose}
-          className="rounded p-1 text-fg-muted hover:bg-hover hover:text-fg"
-        >
-          <X size={12} aria-hidden />
-        </button>
+          icon={<X size={14} aria-hidden />}
+        />
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {results ? (
           <>
             {results.types.length + results.fields.length === 0 && (
               <p className="text-fg-muted">Nothing matches “{query}”.</p>
             )}
             {results.types.length > 0 && (
-              <ul data-testid="graphql-docs-results">
+              <ul data-testid="graphql-docs-results" className="flex flex-col gap-0.5">
                 {results.types.map((t) => (
                   <li key={t.name}>
                     {link(t.name)} <span className="text-fg-muted">{t.kind}</span>
@@ -141,7 +137,7 @@ export function GraphqlDocs({
               </ul>
             )}
             {results.fields.length > 0 && (
-              <ul className="mt-2">
+              <ul className="mt-3 flex flex-col gap-0.5">
                 {results.fields.map(({ type: owner, field }) => (
                   <li key={`${owner.name}.${field.name}`}>
                     {link(owner.name)}.<span className="font-mono">{field.name}</span>
@@ -177,7 +173,7 @@ export function GraphqlDocs({
               </p>
             )}
             {type.fields.length > 0 && (
-              <ul className="mt-2 divide-y divide-border">{type.fields.map(fieldRow)}</ul>
+              <ul className="mt-3 divide-y divide-border">{type.fields.map(fieldRow)}</ul>
             )}
           </section>
         ) : (
@@ -190,7 +186,9 @@ export function GraphqlDocs({
                 </li>
               ))}
             </ul>
-            <h3 className="mt-3 mb-1 font-semibold text-fg-muted">All types</h3>
+            <SectionLabel role="heading" aria-level={3} className="mt-4 mb-1.5">
+              All types
+            </SectionLabel>
             <ul>
               {[...docs.types].sort(SCALARS_LAST).map((t) => (
                 <li key={t.name}>{link(t.name)}</li>

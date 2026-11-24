@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
 import { IconButton } from '../../components/IconButton';
+import { Badge, Callout, cx, EmptyState, menu } from '../../components/ui';
 import type { OpenProject } from '../../stores/app-store';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { disposeTabEditor } from '../tabs/editor-registry';
@@ -20,7 +21,7 @@ const BADGES: Record<string, { label: string; className: string }> = {
 /** Environments view (docs/ui-ux.md §3.4): the project's environments; each opens in a tab. */
 export function EnvironmentsView() {
   const project = useAppStore((s) => s.project);
-  if (!project) return <p className="p-4 text-center text-sm text-fg-muted">No project open</p>;
+  if (!project) return <EmptyState title="No project open" />;
   return <ProjectEnvironments project={project} />;
 }
 
@@ -71,7 +72,7 @@ function ProjectEnvironments({ project }: { project: OpenProject }) {
 
   return (
     <div data-testid="environments-view" className="flex min-h-0 flex-1 flex-col text-sm">
-      <div className="flex h-8 shrink-0 items-center gap-1 border-b border-border px-2">
+      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border pr-1.5 pl-3">
         <span className="min-w-0 flex-1 truncate text-xs text-fg-muted">
           {environments.length} environment{environments.length === 1 ? '' : 's'}
         </span>
@@ -91,20 +92,20 @@ function ProjectEnvironments({ project }: { project: OpenProject }) {
         />
       </div>
       {error && (
-        <p role="alert" className="border-b border-border bg-fail/10 px-3 py-1 text-xs">
+        <Callout role="alert" tone="fail" className="m-2">
           {error}
-        </p>
+        </Callout>
       )}
       {environments.length === 0 && (
-        <p className="p-3 text-fg-muted">
+        <p className="px-4 py-3 text-fg-muted">
           No environments yet. Environments hold variables like the base URL per stage.
         </p>
       )}
-      <ul className="min-h-0 flex-1 overflow-y-auto py-1">
+      <ul className="min-h-0 flex-1 overflow-y-auto p-1.5">
         <li
           data-testid="globals-item"
           onClick={() => store.getState().openTab(GLOBALS_ENTITY_ID, { pin: true })}
-          className="flex cursor-default items-center gap-2 border-b border-border px-3 py-1 hover:bg-hover"
+          className="group mb-1 flex h-7 cursor-default items-center gap-2 rounded px-2 transition-colors hover:bg-hover"
         >
           <Globe size={14} className="shrink-0 text-fg-muted" aria-hidden />
           <span className="min-w-0 flex-1 truncate">Globals</span>
@@ -118,7 +119,7 @@ function ProjectEnvironments({ project }: { project: OpenProject }) {
                 event.stopPropagation();
                 saveExport(exportGlobals(globals, { version: PIGEON_VERSION }));
               }}
-              className="rounded p-0.5 text-fg-muted hover:bg-hover hover:text-fg"
+              className="flex size-5 items-center justify-center rounded text-fg-muted opacity-0 transition-opacity group-hover:opacity-100 hover:bg-border hover:text-fg focus-visible:opacity-100"
             >
               <Download size={12} aria-hidden />
             </button>
@@ -146,7 +147,10 @@ function ProjectEnvironments({ project }: { project: OpenProject }) {
                   onDoubleClick={() =>
                     change !== 'deleted' && store.getState().openTab(environment.id, { pin: true })
                   }
-                  className="flex cursor-default items-center gap-2 px-3 py-1 hover:bg-hover"
+                  className={cx(
+                    'flex h-7 cursor-default items-center gap-2 rounded px-2 transition-colors',
+                    environment.id === selected ? 'bg-selected' : 'hover:bg-hover',
+                  )}
                 >
                   <Variable size={14} className="shrink-0 text-fg-muted" aria-hidden />
                   {renaming === environment.id ? (
@@ -170,7 +174,7 @@ function ProjectEnvironments({ project }: { project: OpenProject }) {
                           );
                         }
                       }}
-                      className="h-6 min-w-0 flex-1 rounded-sm border border-accent bg-bg px-1"
+                      className="h-6 min-w-0 flex-1 rounded border border-accent bg-bg px-1.5 ring-3 ring-focus outline-none"
                     />
                   ) : (
                     <span
@@ -179,9 +183,7 @@ function ProjectEnvironments({ project }: { project: OpenProject }) {
                       {environment.name}
                     </span>
                   )}
-                  {environment.id === selected && (
-                    <span className="text-xs text-accent">active</span>
-                  )}
+                  {environment.id === selected && <Badge tone="accent">active</Badge>}
                   {change && change !== 'unsaved' && BADGES[change] && (
                     <span
                       data-testid="environment-badge"
@@ -198,7 +200,7 @@ function ProjectEnvironments({ project }: { project: OpenProject }) {
               <ContextMenu.Portal>
                 <ContextMenu.Content
                   onCloseAutoFocus={(event) => event.preventDefault()}
-                  className="z-50 min-w-40 rounded-md border border-border bg-surface-raised p-1 text-sm shadow-lg"
+                  className={menu.content}
                 >
                   {[
                     [
@@ -244,7 +246,7 @@ function ProjectEnvironments({ project }: { project: OpenProject }) {
                         testId !== 'env-menu-export'
                       }
                       onSelect={onSelect as () => void}
-                      className="cursor-default rounded px-2 py-1 outline-none data-[disabled]:opacity-50 data-[highlighted]:bg-hover"
+                      className={testId === 'env-menu-delete' ? menu.danger : menu.item}
                     >
                       {label as string}
                     </ContextMenu.Item>

@@ -1,6 +1,8 @@
 import type { GraphqlView } from '@pigeon/core';
 import { CircleAlert } from 'lucide-react';
 
+import { chipClass } from './StatusLine';
+
 /** `errors: N` next to the status: GraphQL errors arrive with HTTP 200 too (PIGN-032). */
 export function GraphqlErrorsChip({ view }: { view: GraphqlView }) {
   if (view.errors.length === 0) return null;
@@ -8,7 +10,7 @@ export function GraphqlErrorsChip({ view }: { view: GraphqlView }) {
     <span
       data-testid="graphql-errors-chip"
       title="The GraphQL response has errors"
-      className="inline-flex items-center gap-1 rounded-full bg-fail/15 px-2 text-xs font-semibold text-fail"
+      className={chipClass('fail')}
     >
       <CircleAlert size={12} aria-hidden />
       errors: {view.errors.length}
@@ -22,7 +24,7 @@ export function GraphqlErrorList({ view }: { view: GraphqlView }) {
   return (
     <ul
       data-testid="graphql-errors"
-      className="flex max-h-40 shrink-0 flex-col gap-1 overflow-auto border-b border-border bg-fail/5 px-3 py-2 text-sm"
+      className="flex max-h-40 shrink-0 flex-col gap-1.5 overflow-auto border-b border-fail/20 bg-fail/6 px-4 py-2.5 text-sm"
     >
       {view.errors.map((error, index) => (
         <li key={index} data-testid="graphql-error" className="flex flex-col">

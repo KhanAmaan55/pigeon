@@ -9,6 +9,7 @@ import { exampleJsonSchema } from '@pigeon/core';
 import { Braces, Copy } from 'lucide-react';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import { Button } from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 
 export function JsonSchemaActions({
@@ -53,30 +54,28 @@ export function JsonSchemaActions({
     );
     if (outcome === 'saved') notify(`Exported ${result.fileName}.`);
   };
-  const button =
-    'inline-flex h-7 items-center gap-1 rounded px-2 text-xs text-fg-muted hover:bg-hover hover:text-fg';
   return (
-    <span className="inline-flex items-center gap-1">
-      <button
-        type="button"
+    <span className="inline-flex items-center gap-0.5">
+      <Button
+        variant="ghost"
+        size="sm"
         data-testid={`${testIdPrefix}-schema-copy`}
         title="Copy the JSON Schema (draft 2020-12) of this example’s body, rules applied"
         onClick={() => void copy()}
-        className={button}
+        icon={<Copy aria-hidden />}
       >
-        <Copy size={12} aria-hidden />
         Copy JSON Schema
-      </button>
-      <button
-        type="button"
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
         data-testid={`${testIdPrefix}-schema-export`}
         title="Save the JSON Schema (draft 2020-12) of this example’s body, rules applied"
         onClick={() => void save()}
-        className={button}
+        icon={<Braces aria-hidden />}
       >
-        <Braces size={12} aria-hidden />
         Export JSON Schema
-      </button>
+      </Button>
     </span>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useCapabilities } from '../../app/PlatformProvider';
 import { CodeEditor } from '../../components/CodeEditor';
+import { Button, Callout, EmptyState } from '../../components/ui';
 import { formatBytes } from '../../lib/format';
 import type { BodyMode } from './body-view';
 import { describeBody, hexDump, PRETTY_LIMIT, TRUNCATED_BYTES, truncateText } from './body-view';
@@ -12,10 +13,11 @@ import { formatBody } from './formatting';
 
 const MODE_LABELS: Record<BodyMode, string> = { pretty: 'Pretty', raw: 'Raw', preview: 'Preview' };
 
-const noticeClass =
-  'flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-hover/50 px-3 py-1.5 text-xs text-fg-muted';
-const linkButton =
-  'inline-flex h-6 items-center gap-1 rounded border border-border bg-bg px-2 text-xs text-fg hover:bg-hover';
+/** One option of a small segmented pill toggle (Pretty / Raw / Preview). */
+const pillToggle =
+  'h-6 cursor-default rounded-full px-2.5 text-xs text-fg-muted transition-colors hover:text-fg disabled:pointer-events-none disabled:opacity-50 aria-checked:bg-surface-raised aria-checked:font-medium aria-checked:text-fg aria-checked:shadow-sm';
+const noticeClass = 'mx-2 mt-2 shrink-0';
+const noticeBody = 'flex flex-wrap items-center gap-2 text-xs text-fg-muted';
 
 /**
  * Pretty / Raw / Preview of a response body (docs/ui-ux.md §3.5). The first view comes from the
@@ -52,11 +54,7 @@ export function BodyView({
   );
 
   if (info.kind === 'empty') {
-    return (
-      <p data-testid="response-body-empty" className="p-3 text-sm text-fg-muted">
-        Empty response body
-      </p>
-    );
+    return <EmptyState data-testid="response-body-empty" title="Empty response body" />;
   }
   if (info.kind === 'binary' && info.modes.length === 0) {
     return <BinarySummary response={response} onSave={onSave} />;
@@ -80,7 +78,7 @@ export function BodyView({
         <div
           role="radiogroup"
           aria-label="Body view"
-          className="flex shrink-0 items-center gap-1 border-b border-border px-2 py-1"
+          className="mx-2 mt-2 flex w-fit shrink-0 items-center gap-0.5 rounded-full bg-sunken p-0.5"
         >
           {info.modes.map((candidate) => {
             const disabled = candidate === 'pretty' && prettyBlocked;
@@ -94,7 +92,7 @@ export function BodyView({
                 disabled={disabled}
                 title={disabled ? 'Show the whole body to format it' : undefined}
                 onClick={() => choose(candidate)}
-                className="h-6 rounded px-2 text-xs text-fg-muted hover:bg-hover hover:text-fg disabled:opacity-50 aria-checked:bg-hover aria-checked:text-fg"
+                className={pillToggle}
               >
                 {MODE_LABELS[candidate]}
               </button>
@@ -103,41 +101,34 @@ export function BodyView({
         </div>
       )}
       {truncated && (
-        <div data-testid="response-body-truncated" className={noticeClass}>
-          <span>
-            Showing the first {formatBytes(TRUNCATED_BYTES)} of {formatBytes(response.sizeBytes)}.
-          </span>
-          {canShowAll && (
-            <button
-              type="button"
-              data-testid="response-show-all"
-              onClick={() => setShowAll(true)}
-              className={linkButton}
-            >
-              Show all
-            </button>
-          )}
-          <button type="button" onClick={onSave} className={linkButton}>
-            <FileDown size={12} aria-hidden />
-            Save to file
-          </button>
-        </div>
+        <Callout tone="info" data-testid="response-body-truncated" className={noticeClass}>
+          <div className={noticeBody}>
+            <span>
+              Showing the first {formatBytes(TRUNCATED_BYTES)} of {formatBytes(response.sizeBytes)}.
+            </span>
+            {canShowAll && (
+              <Button size="xs" data-testid="response-show-all" onClick={() => setShowAll(true)}>
+                Show all
+              </Button>
+            )}
+            <Button size="xs" onClick={onSave} icon={<FileDown aria-hidden />}>
+              Save to file
+            </Button>
+          </div>
+        </Callout>
       )}
       {info.large && !truncated && mode === 'raw' && info.modes.includes('pretty') && (
-        <div data-testid="response-body-large" className={noticeClass}>
-          <span>
-            Large body ({formatBytes(response.sizeBytes)}, over {formatBytes(PRETTY_LIMIT)}): shown
-            raw.
-          </span>
-          <button
-            type="button"
-            data-testid="response-format-anyway"
-            onClick={() => choose('pretty')}
-            className={linkButton}
-          >
-            Format anyway
-          </button>
-        </div>
+        <Callout tone="info" data-testid="response-body-large" className={noticeClass}>
+          <div className={noticeBody}>
+            <span>
+              Large body ({formatBytes(response.sizeBytes)}, over {formatBytes(PRETTY_LIMIT)}):
+              shown raw.
+            </span>
+            <Button size="xs" data-testid="response-format-anyway" onClick={() => choose('pretty')}>
+              Format anyway
+            </Button>
+          </div>
+        </Callout>
       )}
       {mode === 'preview' ? (
         <Preview response={response} kind={info.preview} />
@@ -190,7 +181,7 @@ function PrettyBody({
       <div
         role="status"
         data-testid="response-body-formatting"
-        className="flex items-center gap-2 p-3 text-sm text-fg-muted"
+        className="flex items-center gap-2 p-4 text-sm text-fg-muted"
       >
         <LoaderCircle size={14} className="animate-spin" aria-hidden />
         Formatting…
@@ -250,12 +241,13 @@ function Preview({
         sandbox=""
         referrerPolicy="no-referrer"
         srcDoc={response.bodyText ?? ''}
-        className="m-2 min-h-0 flex-1 rounded border border-border bg-white"
+        // HTML pages assume a white canvas whatever the app's theme.
+        className="m-2 min-h-0 flex-1 rounded-lg border border-border bg-white"
       />
     );
   }
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-3">
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
       {url && (
         <img
           data-testid="response-preview-image"
@@ -273,22 +265,21 @@ function BinarySummary({ response, onSave }: { response: NormalizedResponse; onS
   return (
     <div
       data-testid="response-binary"
-      className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-3 text-sm"
+      className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4 text-sm"
     >
       <div className="flex items-center gap-3">
         <span className="text-fg">
           Binary body: {formatBytes(response.sizeBytes)}
           {response.contentType ? `, ${response.contentType}` : ''}
         </span>
-        <button type="button" onClick={onSave} className={linkButton}>
-          <FileDown size={12} aria-hidden />
+        <Button size="xs" onClick={onSave} icon={<FileDown aria-hidden />}>
           Save to file
-        </button>
+        </Button>
       </div>
       <pre
         data-testid="response-hex"
         aria-label={`First ${Math.min(response.sizeBytes, 256)} bytes in hexadecimal`}
-        className="font-mono text-xs text-fg-muted"
+        className="rounded-lg bg-sunken p-3 font-mono text-xs text-fg-muted"
       >
         {lines.join('\n')}
         {response.sizeBytes > 256 ? '\n…' : ''}

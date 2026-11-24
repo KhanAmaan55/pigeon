@@ -2,6 +2,7 @@ import type { Finding } from '@pigeon/core';
 import { observeElementRect, useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useMemo, useRef } from 'react';
 
+import { SectionLabel } from '../../components/ui';
 import type { JsonLines } from './json-lines';
 import { indexJson, lineOf } from './json-lines';
 
@@ -34,9 +35,9 @@ export function diffMarkers(
 }
 
 const MARKER_CLASSES: Record<Marker, string> = {
-  '+': 'bg-pass/15 text-pass',
-  '−': 'bg-fail/15 text-fail',
-  '~': 'bg-warn/15 text-warn',
+  '+': 'bg-pass/12 text-pass',
+  '−': 'bg-fail/12 text-fail',
+  '~': 'bg-warn/12 text-warn',
 };
 
 /**
@@ -149,9 +150,13 @@ function Pane({
 
   return (
     <div className="flex min-h-0 flex-col bg-bg">
-      <h2 className="shrink-0 border-b border-border px-2 py-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+      <SectionLabel
+        role="heading"
+        aria-level={2}
+        className="shrink-0 border-b border-border px-3 py-1.5"
+      >
         {title}
-      </h2>
+      </SectionLabel>
       <div
         ref={scrollRef}
         data-testid={testId}

@@ -3,6 +3,7 @@ import { FileUp, X } from 'lucide-react';
 import { useRef } from 'react';
 
 import { usePlatform } from '../../../app/PlatformProvider';
+import { Button } from '../../../components/ui';
 import { useScratchRequest } from '../ScratchRequestProvider';
 import { ProjectFileButton } from './ProjectFileDialog';
 
@@ -55,14 +56,9 @@ export function FilePicker({
         className="sr-only"
         onChange={(event) => void onChange(event.target.files)}
       />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="inline-flex h-7 shrink-0 items-center gap-1 rounded border border-border px-2 text-xs text-fg hover:bg-hover"
-      >
-        <FileUp size={12} aria-hidden />
+      <Button size="xs" onClick={() => inputRef.current?.click()} icon={<FileUp aria-hidden />}>
         {label}
-      </button>
+      </Button>
       {projectFs && <ProjectFileButton fs={projectFs} onPicked={(path) => onPicked([path])} />}
     </>
   );
@@ -75,14 +71,14 @@ export function FileChip({ src, onRemove }: { src: string; onRemove: () => void 
     <span
       data-testid="file-chip"
       title={isPickedFileSrc(src) ? `${name} (picked this session)` : `${src} (project file)`}
-      className="inline-flex h-6 max-w-48 items-center gap-1 rounded bg-hover px-1.5 font-mono text-xs text-fg"
+      className="inline-flex h-6 max-w-48 items-center gap-1 rounded-md border border-border bg-sunken pr-1 pl-2 font-mono text-xs text-fg"
     >
       <span className="truncate">{name}</span>
       <button
         type="button"
         aria-label={`Remove ${name}`}
         onClick={onRemove}
-        className="shrink-0 text-fg-muted hover:text-fail"
+        className="inline-flex size-4 shrink-0 items-center justify-center rounded-sm text-fg-muted hover:bg-fail/10 hover:text-fail"
       >
         <X size={12} aria-hidden />
       </button>

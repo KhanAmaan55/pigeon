@@ -17,9 +17,9 @@ export function KeyboardSettings() {
       id="settings-keyboard"
       aria-labelledby={`${id}-title`}
       data-testid="keyboard-settings"
-      className="border-b border-border p-3 text-sm"
+      className="border-b border-border/60 p-4 text-sm"
     >
-      <h2 id={`${id}-title`} className="mb-2 font-semibold">
+      <h2 id={`${id}-title`} className="mb-3 text-xs font-medium text-fg-muted">
         Keyboard
       </h2>
       <table className="w-full text-xs" aria-label="Keyboard shortcuts">
@@ -35,8 +35,8 @@ export function KeyboardSettings() {
             const alternatives = (command.webBindings ?? []).map((b) => bindingLabel(b, mac));
             return (
               <tr key={command.id} data-testid="keyboard-binding" data-command={command.id}>
-                <td className="py-0.5 pr-2">{command.title}</td>
-                <td className="py-0.5 text-right font-mono whitespace-nowrap text-fg-muted">
+                <td className="py-1 pr-3">{command.title}</td>
+                <td className="py-1 text-right font-mono whitespace-nowrap text-fg-muted">
                   {(web && alternatives.length > 0
                     ? [...alternatives, ...primary.map((p) => `${p} (desktop)`)]
                     : [...primary, ...alternatives]
@@ -47,7 +47,7 @@ export function KeyboardSettings() {
           })}
         </tbody>
       </table>
-      <p className="mt-2 text-xs text-fg-muted">
+      <p className="mt-3 text-xs text-fg-muted">
         Open the command palette ({bindingLabel({ key: 'KeyK', mod: true }, mac)}) to run any
         command.
       </p>

@@ -1,4 +1,4 @@
-/** Shared UI components and styles (PIGN-058, ui-ux.md §9). Features build on these. */
+/** Shared UI components and styles (PIGN-058, ui-ux.md §8). Features build on these. */
 export { Badge, Kbd } from './Badge';
 export type { Tone } from './Badge';
 export { Button, buttonClass } from './Button';

@@ -1,5 +1,6 @@
 import { useId } from 'react';
 
+import { Checkbox } from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 
 /**
@@ -15,15 +16,14 @@ export function ScriptSettings() {
     <section
       aria-labelledby={`${id}-title`}
       data-testid="script-settings"
-      className="border-b border-border p-3 text-sm"
+      className="border-b border-border/60 p-4 text-sm"
     >
-      <h2 id={`${id}-title`} className="mb-2 font-semibold">
+      <h2 id={`${id}-title`} className="mb-3 text-xs font-medium text-fg-muted">
         Scripts
       </h2>
       <label htmlFor={`${id}-run`} className="flex items-start gap-2 text-fg">
-        <input
+        <Checkbox
           id={`${id}-run`}
-          type="checkbox"
           data-testid="preference-run-scripts"
           checked={enabled}
           onChange={(event) => project.store.getState().setScriptsEnabled(event.target.checked)}
@@ -31,7 +31,7 @@ export function ScriptSettings() {
         />
         <span>
           Run pre-request scripts of “{project.session.name}”
-          <span className="block text-xs text-fg-muted">
+          <span className="mt-0.5 block text-xs leading-relaxed text-fg-muted">
             Scripts run in a sandbox without network or file access and stop after 5 s. Their
             variable changes become current values on this machine, never shared values.
           </span>

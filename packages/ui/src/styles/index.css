@@ -9,7 +9,7 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 /*
- * Design tokens (PIGN-058, ui-ux.md §9): a clean and soft look. Components use the Tailwind names
+ * Design tokens (PIGN-058, ui-ux.md §8): a clean and soft look. Components use the Tailwind names
  * mapped in `@theme inline` below (e.g. `bg-surface`, `text-fg-muted`, `border-border`,
  * `text-method-get`), never raw colours. Text colours meet 4.5:1 on every surface in both themes
  * (test/contrast.test.ts).
@@ -72,7 +72,7 @@
   --pg-fg: #ececf1;
   --pg-fg-muted: #9e9eab;
   --pg-accent: #5f5be8;
-  --pg-accent-hover: #6d6af0;
+  --pg-accent-hover: #5551de;
   --pg-accent-fg: #ffffff;
   --pg-accent-text: #a3a1ff;
   --pg-focus: color-mix(in srgb, #8582ff 55%, transparent);

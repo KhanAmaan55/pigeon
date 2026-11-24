@@ -1,6 +1,7 @@
 import type { ProjectExample } from '@pigeon/core';
 import { Bookmark, Trash2 } from 'lucide-react';
 
+import { EmptyState } from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { baselineExampleId } from '../explorer/tree';
 
@@ -38,18 +39,20 @@ export function ExamplesTab({ requestId }: { requestId: string }) {
   if (!project) return null;
   if (examples.length === 0) {
     return (
-      <p data-testid="examples-empty" className="p-3 text-sm text-fg-muted">
-        No examples yet. Use “Save as example” to keep this response.
-      </p>
+      <EmptyState
+        data-testid="examples-empty"
+        icon={<Bookmark aria-hidden />}
+        title="No examples yet. Use “Save as example” to keep this response."
+      />
     );
   }
   return (
-    <ul data-testid="examples-list" className="min-h-0 flex-1 overflow-auto py-1 text-sm">
+    <ul data-testid="examples-list" className="min-h-0 flex-1 overflow-auto p-1.5 text-sm">
       {examples.map((example) => (
         <li
           key={example.id}
           data-testid="examples-list-item"
-          className="group flex items-center gap-2 px-3 py-1 hover:bg-hover"
+          className="group flex h-7 items-center gap-2 rounded px-2 hover:bg-hover"
         >
           <Bookmark size={12} className="shrink-0 text-fg-muted" aria-hidden />
           {example.id === baselineId && (
@@ -82,7 +85,7 @@ export function ExamplesTab({ requestId }: { requestId: string }) {
               aria-label={`Delete example ${example.name}`}
               title="Delete example"
               onClick={() => project.session.apply({ type: 'deleteExample', id: example.id })}
-              className="invisible rounded p-0.5 text-fg-muted group-hover:visible hover:bg-hover hover:text-fg focus:visible"
+              className="invisible rounded p-0.5 text-fg-muted group-hover:visible hover:bg-selected hover:text-fg focus:visible"
             >
               <Trash2 size={12} aria-hidden />
             </button>

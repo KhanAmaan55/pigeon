@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 
 import { useCapabilities } from '../../app/PlatformProvider';
 import { KeyValueTable } from '../../components/KeyValueTable';
+import { SectionLabel } from '../../components/ui';
 import { LiteralSecretHint } from './LiteralSecretHint';
 import { useScratchRequest } from './ScratchRequestProvider';
 import { useAppStore } from '../../stores/AppStoreProvider';
@@ -37,14 +38,14 @@ export function HeadersTab() {
         aria-label={`Browsers don't allow setting ${row.key.trim()}; it will not be sent. Learn more`}
         title={`Browsers don't allow setting "${row.key.trim()}", so it will not be sent. The desktop app can send it. Click to learn more.`}
         onClick={() => openHelp('forbidden-headers')}
-        className="shrink-0 cursor-pointer text-warn"
+        className="inline-flex shrink-0 cursor-pointer items-center rounded-sm text-warn hover:opacity-80"
       >
         <TriangleAlert size={14} aria-hidden />
       </button>
     ) : null;
 
   return (
-    <div className="flex flex-col gap-4 p-2">
+    <div className="flex flex-col gap-5 px-3 pt-2 pb-3">
       <KeyValueTable
         label="Headers"
         testId="headers-table"
@@ -69,7 +70,9 @@ export function HeadersTab() {
         />
       )}
       <section aria-label="Auto-generated headers" className="text-sm text-fg-muted">
-        <h2 className="pb-1 text-xs font-semibold tracking-wide uppercase">Auto-generated</h2>
+        <SectionLabel role="heading" aria-level={2} className="mb-1.5">
+          Auto-generated
+        </SectionLabel>
         {automatic.length > 0 && (
           <table aria-label="Auto-generated headers" className="w-full table-fixed">
             <tbody>
@@ -78,7 +81,7 @@ export function HeadersTab() {
                   key={header.name}
                   data-testid="auto-header-row"
                   title={header.reason}
-                  className="border-b border-border/60 opacity-70"
+                  className="border-b border-border/60 opacity-75"
                 >
                   <td className="w-12" />
                   <td className="px-1.5 py-1 font-mono">{header.name}</td>
@@ -89,7 +92,7 @@ export function HeadersTab() {
             </tbody>
           </table>
         )}
-        <p className="pt-1 text-xs">
+        <p className="pt-2 text-xs">
           {capabilities.canSetAnyHeader
             ? 'Host, Content-Length and Accept-Encoding are added when the request is sent. A header you add with the same name replaces an auto-generated one.'
             : 'The browser adds User-Agent, Host, Origin, Content-Length, Accept-Encoding and other headers itself. A header you add with the same name replaces an auto-generated one.'}

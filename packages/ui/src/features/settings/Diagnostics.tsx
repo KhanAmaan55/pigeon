@@ -2,6 +2,7 @@ import type { Capabilities } from '@pigeon/platform';
 
 import { OS_LABELS, PLATFORM_KIND_LABELS } from '../../app/platformLabels';
 import { useCapabilities, usePlatform } from '../../app/PlatformProvider';
+import { Callout } from '../../components/ui';
 import { useAppStore } from '../../stores/AppStoreProvider';
 import { secretBackendLabel } from './SecretsSettings';
 
@@ -19,12 +20,12 @@ export function Diagnostics() {
     <section
       aria-labelledby="diagnostics-title"
       data-testid="diagnostics-panel"
-      className="p-3 text-sm"
+      className="p-4 text-sm"
     >
-      <h2 id="diagnostics-title" className="mb-2 font-semibold">
+      <h2 id="diagnostics-title" className="mb-3 text-xs font-medium text-fg-muted">
         About / Diagnostics
       </h2>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
         <Row
           name="Platform"
           value={PLATFORM_KIND_LABELS[platform.kind]}
@@ -38,18 +39,17 @@ export function Diagnostics() {
         />
       </dl>
       {secrets.notice && (
-        <p
+        <Callout
+          tone="warn"
           data-testid="diagnostics-secrets-notice"
           role="status"
-          className="mt-2 text-xs text-warn"
+          className="mt-3"
         >
           {secrets.notice}
-        </p>
+        </Callout>
       )}
-      <h3 className="mt-4 mb-2 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-        Capabilities
-      </h3>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-xs">
+      <h3 className="mt-5 mb-2 text-xs font-medium text-fg-muted">Capabilities</h3>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg bg-sunken p-3 font-mono text-xs">
         {capabilities.map(([name, value]) => (
           <Row key={name} name={name} value={String(value)} testId={`capability-${name}`} />
         ))}

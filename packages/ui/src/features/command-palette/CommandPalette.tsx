@@ -5,12 +5,12 @@
  */
 
 import type { ProjectItem } from '@pigeon/core';
-import { Bookmark, Variable } from 'lucide-react';
-import { Dialog } from 'radix-ui';
+import { Bookmark, Search, Variable } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import { Dialog, DialogContent, DialogTitle, Kbd } from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { methodLabel } from '../explorer/tree';
 import { methodColorClass } from '../request-editor/methods';
@@ -96,23 +96,41 @@ export function CommandPalette() {
   useCommand('palette.open', () => setMode('commands'));
   useCommand('quickOpen.open', hasProject ? () => setMode('files') : undefined);
   return (
-    <Dialog.Root open={mode !== null} onOpenChange={(open) => !open && setMode(null)}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-        <Dialog.Content
-          data-testid="command-palette"
-          data-mode={mode ?? undefined}
-          aria-describedby={undefined}
-          className="fixed top-[12vh] left-1/2 flex max-h-[70vh] w-[min(36rem,92vw)] -translate-x-1/2 flex-col overflow-hidden rounded-lg border border-border bg-surface-raised text-sm text-fg shadow-xl"
+    <Dialog open={mode !== null} onOpenChange={(open) => !open && setMode(null)}>
+      {/* Pinned near the top (not centred) so the list grows downwards as results change. */}
+      <DialogContent
+        width="lg"
+        flush
+        data-testid="command-palette"
+        data-mode={mode ?? undefined}
+        aria-describedby={undefined}
+        className="top-[12vh]! max-h-[70vh]! translate-y-0! overflow-hidden"
+      >
+        <DialogTitle className="sr-only">
+          {mode === 'files' ? 'Quick open' : 'Command palette'}
+        </DialogTitle>
+        {mode === 'commands' && <Commands onDone={() => setMode(null)} />}
+        {mode === 'files' && <QuickOpen onDone={() => setMode(null)} />}
+        <div
+          aria-hidden
+          className="flex shrink-0 items-center gap-4 border-t border-border bg-surface px-4 py-2 text-xs text-fg-muted"
         >
-          <Dialog.Title className="sr-only">
-            {mode === 'files' ? 'Quick open' : 'Command palette'}
-          </Dialog.Title>
-          {mode === 'commands' && <Commands onDone={() => setMode(null)} />}
-          {mode === 'files' && <QuickOpen onDone={() => setMode(null)} />}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          <span className="flex items-center gap-1">
+            <Kbd>↑</Kbd>
+            <Kbd>↓</Kbd>
+            <span className="ml-0.5">Navigate</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <Kbd>↵</Kbd>
+            <span className="ml-0.5">{mode === 'files' ? 'Open' : 'Run'}</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <Kbd>esc</Kbd>
+            <span className="ml-0.5">Close</span>
+          </span>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -133,11 +151,7 @@ function Commands({ onDone }: { onDone: () => void }) {
         <>
           <span className="text-fg-muted">{c.category}:</span>
           <span className="min-w-0 flex-1 truncate">{c.title}</span>
-          {c.bindings[0] && (
-            <kbd className="font-mono text-xs text-fg-muted">
-              {bindingLabel(c.bindings[0], mac)}
-            </kbd>
-          )}
+          {c.bindings[0] && <Kbd>{bindingLabel(c.bindings[0], mac)}</Kbd>}
         </>
       )}
       testId="palette-command"
@@ -211,37 +225,42 @@ function FilterList<T>({
   const current = Math.min(active, Math.max(0, results.length - 1));
   return (
     <>
-      <input
-        autoFocus
-        role="combobox"
-        aria-expanded
-        aria-controls="palette-results"
-        aria-activedescendant={
-          results[current] ? `palette-${itemKey(results[current])}` : undefined
-        }
-        data-testid="palette-input"
-        placeholder={placeholder}
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setActive(0);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            setActive(Math.min(current + 1, results.length - 1));
-          } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            setActive(Math.max(current - 1, 0));
-          } else if (event.key === 'Enter' && results[current]) {
-            event.preventDefault();
-            onSelect(results[current]);
+      <div className="flex h-13 shrink-0 items-center gap-3 border-b border-border px-4">
+        <Search aria-hidden className="size-4 shrink-0 text-fg-muted" />
+        <input
+          autoFocus
+          role="combobox"
+          aria-expanded
+          aria-controls="palette-results"
+          aria-activedescendant={
+            results[current] ? `palette-${itemKey(results[current])}` : undefined
           }
-        }}
-        className="h-10 shrink-0 border-b border-border bg-transparent px-3 outline-none"
-      />
-      <ul id="palette-results" role="listbox" className="min-h-0 flex-1 overflow-y-auto p-1">
-        {results.length === 0 && <li className="px-2 py-1.5 text-fg-muted">No matches</li>}
+          data-testid="palette-input"
+          placeholder={placeholder}
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setActive(0);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              setActive(Math.min(current + 1, results.length - 1));
+            } else if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              setActive(Math.max(current - 1, 0));
+            } else if (event.key === 'Enter' && results[current]) {
+              event.preventDefault();
+              onSelect(results[current]);
+            }
+          }}
+          className="h-full min-w-0 flex-1 bg-transparent text-[15px] text-fg outline-none placeholder:text-fg-muted"
+        />
+      </div>
+      <ul id="palette-results" role="listbox" className="min-h-0 flex-1 overflow-y-auto p-1.5">
+        {results.length === 0 && (
+          <li className="px-2.5 py-6 text-center text-fg-muted">No matches</li>
+        )}
         {results.map((item, index) => (
           <li
             key={itemKey(item)}
@@ -251,7 +270,7 @@ function FilterList<T>({
             data-testid={testId}
             onMouseMove={() => setActive(index)}
             onClick={() => onSelect(item)}
-            className="group flex cursor-default items-center gap-2 rounded px-2 py-1.5 aria-selected:bg-hover [&[aria-selected=true]_.text-fg-muted]:text-fg"
+            className="group flex h-8 cursor-default items-center gap-2.5 rounded-md px-2.5 text-[13px] aria-selected:bg-hover [&[aria-selected=true]_.text-fg-muted]:text-fg"
           >
             {render(item)}
           </li>

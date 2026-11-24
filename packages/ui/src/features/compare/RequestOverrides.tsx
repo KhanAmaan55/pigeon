@@ -1,3 +1,4 @@
+import { Input, Select } from '../../components/ui';
 import type { ComparisonOverrides } from '../request-editor/scratch-store';
 
 type Section = Record<string, unknown>;
@@ -39,13 +40,13 @@ export function RequestOverrides({
     options: readonly string[],
     onSelect: (value: string) => void,
   ) => (
-    <label className="flex items-center gap-1">
+    <label className="flex items-center gap-1.5">
       <span className="text-fg-muted">{label}</span>
-      <select
+      <Select
+        size="sm"
         data-testid={testId}
         value={value}
         onChange={(event) => onSelect(event.target.value)}
-        className="h-6 rounded border border-border bg-surface px-1 text-xs"
       >
         <option value="">project default</option>
         {options.map((option) => (
@@ -53,14 +54,14 @@ export function RequestOverrides({
             {option}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 
   return (
     <div
       data-testid="request-overrides"
-      className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs"
     >
       {select(
         'Status',
@@ -76,23 +77,27 @@ export function RequestOverrides({
         ['media-type', 'value', 'presence'],
         (value) => setSection('headers', headers, 'mode', value),
       )}
-      <label className="flex items-center gap-1">
+      <label className="flex items-center gap-1.5">
         <span className="text-fg-muted">Compared</span>
-        <input
-          data-testid="override-header-list"
-          placeholder="project default"
-          defaultValue={
-            Array.isArray(headers['compare']) ? (headers['compare'] as string[]).join(', ') : ''
-          }
-          onBlur={(event) => {
-            const names = event.target.value
-              .split(',')
-              .map((name) => name.trim().toLowerCase())
-              .filter((name) => name !== '');
-            setSection('headers', headers, 'compare', names.length === 0 ? undefined : names);
-          }}
-          className="h-6 w-44 rounded border border-border bg-bg px-1 font-mono"
-        />
+        {/* The input fills its fixed-width wrapper (Input is full width). */}
+        <span className="w-44">
+          <Input
+            size="sm"
+            mono
+            data-testid="override-header-list"
+            placeholder="project default"
+            defaultValue={
+              Array.isArray(headers['compare']) ? (headers['compare'] as string[]).join(', ') : ''
+            }
+            onBlur={(event) => {
+              const names = event.target.value
+                .split(',')
+                .map((name) => name.trim().toLowerCase())
+                .filter((name) => name !== '');
+              setSection('headers', headers, 'compare', names.length === 0 ? undefined : names);
+            }}
+          />
+        </span>
       </label>
       {select(
         'Body',
@@ -110,16 +115,19 @@ export function RequestOverrides({
         ),
       )}
       {arraysValue === 'matchBy' && (
-        <label className="flex items-center gap-1">
+        <label className="flex items-center gap-1.5">
           <span className="text-fg-muted">by key</span>
-          <input
-            data-testid="override-match-by"
-            defaultValue={matchBy}
-            onBlur={(event) =>
-              setSection('body', body, 'arrays', { matchBy: event.target.value.trim() || 'id' })
-            }
-            className="h-6 w-24 rounded border border-border bg-bg px-1 font-mono"
-          />
+          <span className="w-24">
+            <Input
+              size="sm"
+              mono
+              data-testid="override-match-by"
+              defaultValue={matchBy}
+              onBlur={(event) =>
+                setSection('body', body, 'arrays', { matchBy: event.target.value.trim() || 'id' })
+              }
+            />
+          </span>
         </label>
       )}
     </div>

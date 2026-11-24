@@ -1,12 +1,21 @@
 import type { ProjectEnvVariable, ProjectSession } from '@pigeon/core';
 import { Copy, Eye, RotateCcw, Upload } from 'lucide-react';
-import { Dialog } from 'radix-ui';
 import { useEffect, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
 
 import type { KeyValueColumn } from '../../components/KeyValueTable';
 import { KeyValueTable } from '../../components/KeyValueTable';
+import {
+  Button,
+  Callout,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from '../../components/ui';
 import { useProjectState } from '../../stores/AppStoreProvider';
 import { HelpLink } from '../help/WebLimitations';
 
@@ -39,8 +48,11 @@ const toVariable = (row: VariableRow, defaultType: string): ProjectEnvVariable =
 });
 
 const NO_VALUES: Readonly<Record<string, string>> = {};
+/** Like the key/value table's cells: see-through until hovered or focused. */
 const cellInput =
-  'h-7 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 font-mono text-sm text-fg placeholder:text-fg-muted hover:border-border focus:border-accent focus:outline-none';
+  'h-7 w-full min-w-0 rounded border border-transparent bg-transparent px-2 font-mono text-sm text-fg transition-colors placeholder:text-fg-muted hover:border-border hover:bg-sunken focus:border-accent focus:bg-bg focus:ring-3 focus:ring-focus focus:outline-none disabled:opacity-60';
+const cellButton =
+  'inline-flex size-6 shrink-0 items-center justify-center rounded text-fg-muted transition-colors hover:bg-hover hover:text-fg disabled:pointer-events-none disabled:opacity-40';
 
 export interface VariablesEditorProps {
   session: ProjectSession;
@@ -150,7 +162,7 @@ export function VariablesEditor({
             update(next);
           }
         }}
-        className="h-7 rounded-sm border border-transparent bg-transparent px-1 text-sm hover:border-border"
+        className="h-7 w-full cursor-default rounded border border-transparent bg-transparent px-1.5 text-sm text-fg transition-colors hover:border-border hover:bg-sunken focus:border-accent focus:ring-3 focus:ring-focus focus:outline-none disabled:opacity-60"
       >
         {types.map((type) => (
           <option key={type.value} value={type.value}>
@@ -163,21 +175,20 @@ export function VariablesEditor({
 
   return (
     <div data-testid={testId} className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
-        <h2 className="min-w-0 flex-1 truncate text-base font-semibold">{title}</h2>
-        <button
-          type="button"
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5">
+        <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold">{title}</h2>
+        <Button
+          size="sm"
           data-testid="env-reset-current"
           disabled={Object.keys(current).length === 0}
           onClick={() => session.resetCurrentValues(scope)}
-          className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 text-xs hover:bg-hover disabled:opacity-50"
+          icon={<RotateCcw aria-hidden />}
         >
-          <RotateCcw size={12} aria-hidden />
           Reset current values
-        </button>
+        </Button>
         {onPersist && (
-          <button
-            type="button"
+          <Button
+            size="sm"
             data-testid="env-persist-current"
             disabled={readOnly || Object.keys(current).length === 0}
             title={
@@ -186,19 +197,18 @@ export function VariablesEditor({
                 : 'Copies current values into the shared values (a change to save and commit).'
             }
             onClick={onPersist}
-            className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 text-xs hover:bg-hover disabled:opacity-50"
+            icon={<Upload aria-hidden />}
           >
-            <Upload size={12} aria-hidden />
             Persist current as shared
-          </button>
+          </Button>
         )}
       </div>
       {showBrowserNotice && <BrowserSecretsNotice />}
-      <p className="shrink-0 px-3 pt-2 text-xs text-fg-muted">
+      <p className="shrink-0 px-4 pt-3 text-xs text-fg-muted">
         <strong className="text-fg">Shared values</strong> are written to <code>{file}</code> and
         committed. <strong className="text-fg">Current values</strong> stay on this machine.
       </p>
-      <div className="min-h-0 flex-1 overflow-auto p-2">
+      <div className="min-h-0 flex-1 overflow-auto px-3 py-2">
         <KeyValueTable<VariableRow>
           label="Variables"
           testId="env-variables"
@@ -210,7 +220,7 @@ export function VariablesEditor({
           renderValue={
             readOnly
               ? (row) => (
-                  <span className="px-1.5 font-mono text-sm">
+                  <span className="px-2 font-mono text-sm">
                     {row.type === 'secret' ? '••••' : row.value}
                   </span>
                 )
@@ -229,44 +239,30 @@ export function VariablesEditor({
           newRow={() => ({ key: '', value: '', type: defaultType })}
         />
       </div>
-      <Dialog.Root open={unsecure !== null} onOpenChange={(open) => !open && setUnsecure(null)}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-          <Dialog.Content
-            data-testid="unsecure-dialog"
-            className="fixed top-1/2 left-1/2 w-[min(26rem,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
-          >
-            <Dialog.Title className="text-base font-semibold">
-              Stop treating “{unsecure?.key}” as secret?
-            </Dialog.Title>
-            <Dialog.Description className="mt-2 text-fg-muted">
-              Its current value moves out of secret storage into normal local state, and it is no
-              longer masked in results.
-            </Dialog.Description>
-            <div className="mt-4 flex justify-end gap-2">
-              <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className="h-8 rounded border border-border px-3 hover:bg-hover"
-                >
-                  Cancel
-                </button>
-              </Dialog.Close>
-              <button
-                type="button"
-                data-testid="unsecure-confirm"
-                onClick={() => {
-                  unsecure?.apply();
-                  setUnsecure(null);
-                }}
-                className="h-8 rounded border border-fail px-3 font-semibold text-fail hover:bg-fail/10"
-              >
-                Make it a default variable
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+      <Dialog open={unsecure !== null} onOpenChange={(open) => !open && setUnsecure(null)}>
+        <DialogContent width="sm" data-testid="unsecure-dialog">
+          <DialogTitle>Stop treating “{unsecure?.key}” as secret?</DialogTitle>
+          <DialogDescription>
+            Its current value moves out of secret storage into normal local state, and it is no
+            longer masked in results.
+          </DialogDescription>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button>Cancel</Button>
+            </DialogClose>
+            <Button
+              variant="danger"
+              data-testid="unsecure-confirm"
+              onClick={() => {
+                unsecure?.apply();
+                setUnsecure(null);
+              }}
+            >
+              Make it a default variable
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -326,7 +322,7 @@ function CurrentValueCell({
         onPointerLeave={() => setRevealed(false)}
         onKeyDown={(event) => event.key === ' ' && setRevealed(true)}
         onKeyUp={() => setRevealed(false)}
-        className="shrink-0 rounded p-1 text-fg-muted hover:text-fg disabled:opacity-40"
+        className={cellButton}
       >
         <Eye size={12} aria-hidden />
       </button>
@@ -337,7 +333,7 @@ function CurrentValueCell({
         data-testid="secret-copy"
         disabled={disabled || value === ''}
         onClick={() => void navigator.clipboard?.writeText(value)}
-        className="shrink-0 rounded p-1 text-fg-muted hover:text-fg disabled:opacity-40"
+        className={cellButton}
       >
         <Copy size={12} aria-hidden />
       </button>
@@ -363,26 +359,28 @@ function BrowserSecretsNotice() {
   }, [appState]);
   if (dismissed !== false) return null;
   return (
-    <div
+    <Callout
       role="note"
+      tone="warn"
       data-testid="browser-secrets-notice"
-      className="flex shrink-0 items-start gap-2 border-b border-border bg-warn/10 px-3 py-1.5 text-xs text-fg"
+      className="mx-4 mt-3 shrink-0"
     >
-      <span className="min-w-0 flex-1">
-        Secrets are stored in this browser profile, unencrypted. Don't use production credentials on
-        shared machines. <HelpLink section="secrets" />
-      </span>
-      <button
-        type="button"
-        data-testid="browser-secrets-dismiss"
-        onClick={() => {
-          setDismissed(true);
-          void appState.set('app', NOTICE_KEY, true);
-        }}
-        className="shrink-0 rounded border border-border bg-surface px-2 py-0.5 hover:bg-hover"
-      >
-        Got it
-      </button>
-    </div>
+      <div className="flex items-start gap-2">
+        <span className="min-w-0 flex-1">
+          Secrets are stored in this browser profile, unencrypted. Don't use production credentials
+          on shared machines. <HelpLink section="secrets" />
+        </span>
+        <Button
+          size="xs"
+          data-testid="browser-secrets-dismiss"
+          onClick={() => {
+            setDismissed(true);
+            void appState.set('app', NOTICE_KEY, true);
+          }}
+        >
+          Got it
+        </Button>
+      </div>
+    </Callout>
   );
 }

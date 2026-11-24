@@ -6,7 +6,7 @@ Implementation: `packages/ui`. Stack: React, Zustand, CodeMirror 6, Tailwind, Ra
 
 - **Fast**: first paint < 300 ms after shell load; no spinners for local operations; virtualized trees/lists; big bodies in CodeMirror (not DOM trees).
 - **Keyboard-first**: every primary action has a shortcut and appears in the command palette.
-- **Dense but calm**: developer-tool density (13 px UI font, 12–13 px monospace), neutral palette, one accent color, clear status colors (pass green, warn amber, fail red, info blue). Light and dark themes (follow OS by default).
+- **Clean and soft, still dense**: developer-tool density (13 px UI font, 12–13 px monospace) in a calm look — soft surfaces, rounded corners, subtle borders, one accent colour (indigo), clear status colours (pass green, warn amber, fail red, info blue). Light and dark themes (follow OS by default). Details in §8.
 - **Honest about state**: unsaved / saved-locally / committed / conflict states always visible; platform limitations shown in context, not hidden.
 - **Same UI everywhere**: desktop and web share every screen; capability-gated controls are disabled with an explanatory tooltip rather than removed, unless meaningless on the platform.
 
@@ -159,3 +159,16 @@ The registry (`ui/src/features/command-palette/commands.ts`, PIGN-042) lists eve
 | Tab switch | < 50 ms |
 
 Checked by `pnpm test:perf` (testing.md §2) with 20 % tolerance. The budgets are for the development MacBook: a slower machine (a shared CI runner) is timed on a fixed workload first (`e2e/perf/calibrate.ts`: reading 2,000 small files through a folder handle and parsing JSON, no Pigeon code), and the browser budgets are scaled by how much slower it is, from ×1 up to ×3. On 2026-11-24 the development MacBook measured ×1.00–1.04 and opened the 5,000-request project in 1.35–1.4 s. Earlier, measured on the development MacBook (Apple silicon, heavily loaded machine), 2026-11-23: open 5,000-request project 2.2 s in Chromium through a project folder (0.5 s for the read itself in Node), explorer scroll no task over 50 ms, tab switch 16 ms (median), keystroke handling 6 ms (slowest), 5 MB response raw 0.9 s / pretty 0.1 s, desktop cold start 0.56–0.64 s on repeat launches (the first launches after a fresh build took 3–40 s while macOS scanned the new binary). Quick open filters 5,000 requests in well under 100 ms.
+
+## 8. Visual language (PIGN-058)
+
+The look lives in two places: the tokens in `packages/ui/src/styles/index.css` and the shared components in `packages/ui/src/components/ui/`. Features compose these; they don't define colours, radii or control styles of their own.
+
+- **Surfaces**: the app chrome (top bar, activity bar, sidebar, status bar) is one `surface` with no borders between its parts; the work area (request tabs, editor, response) is a rounded `bg` panel inside it with a hairline border and a small shadow. Menus, popovers, toasts and dialogs are `surface-raised` with a soft shadow. Inputs sit on `sunken`. `hover` for hover, `selected` (an accent tint) for the selected tree row and the active view.
+- **Shape**: controls 6 px corners, menus and cards 8 px, dialogs 12 px. Tabs (project, request, editor sections, response sections) are soft pills, not underlined strips.
+- **Colour**: neutral greys with one accent; `accent-text` is the accent for text (lighter in dark mode). Method and status colours are used for small text and tinted chips. Every text colour meets WCAG AA (4.5:1) on every surface in both themes — `packages/ui/test/contrast.test.ts` checks it.
+- **Focus**: inputs show an accent border plus a 3 px soft ring; other controls a 2 px outline in the focus colour.
+- **Motion**: overlays fade in and menus/dialogs pop in (120–140 ms); off with `prefers-reduced-motion`.
+- **Type**: the system UI font and the bundled JetBrains Mono; no other fonts are loaded.
+
+Shared components: `Button` (primary, secondary, ghost, danger, link; xs/sm/md), `Input`, `Textarea`, `Select` (native), `Checkbox`, `Dialog` + `DialogContent` (widths sm–2xl) / `DialogTitle` / `DialogDescription` / `DialogFooter`, `menu` classes for Radix dropdown and context menus, `TabsList` / `TabsTrigger` (and `tabTriggerClass`), `Badge` (tones), `Kbd`, `Callout` (tones), `SectionLabel`, `EmptyState`, `IconButton`, `Tooltip`, `Toast`.

@@ -20,8 +20,9 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> &
 /**
  * A single-line input that highlights `{{variables}}` (docs/ui-ux.md §3.3): resolved green,
  * unresolved red, dynamic purple, with a tooltip listing their values and `{{` autocomplete.
- * The highlights are drawn behind the (transparent-background) input, aligned by sharing its
- * font and padding and following its horizontal scroll.
+ * The highlights are drawn behind the input, aligned by sharing its font and padding and
+ * following its horizontal scroll. With highlights the input is see-through and the backdrop
+ * carries its background, so a field look (`fieldClass`) works as the `className`.
  */
 export const VariableInput = forwardRef<HTMLInputElement, Props>(function VariableInput(
   { value, onChange, className = '', onKeyDown, onScroll, title, ...rest },
@@ -75,12 +76,12 @@ export const VariableInput = forwardRef<HTMLInputElement, Props>(function Variab
   };
 
   return (
-    <div className="relative min-w-0 flex-1">
+    <div className="group/variable relative min-w-0 flex-1">
       {hasVariables && (
         <div
           ref={backdropRef}
           aria-hidden
-          className={`pointer-events-none absolute inset-0 flex items-center overflow-hidden border-transparent whitespace-pre text-transparent ${className}`}
+          className={`pointer-events-none absolute inset-0 flex items-center overflow-hidden border-transparent whitespace-pre text-transparent ${className} group-focus-within/variable:bg-bg`}
         >
           {segments.map((segment, index) =>
             segment.state ? (
@@ -137,13 +138,13 @@ export const VariableInput = forwardRef<HTMLInputElement, Props>(function Variab
           }
           onKeyDown?.(event);
         }}
-        className={`relative w-full bg-transparent ${className}`}
+        className={`relative w-full ${className} ${hasVariables ? 'bg-transparent!' : ''}`}
       />
       {completion && suggestions.length > 0 && (
         <ul
           role="listbox"
           data-testid="variable-suggestions"
-          className="absolute top-full left-0 z-50 mt-1 max-h-60 min-w-56 overflow-y-auto rounded-md border border-border bg-surface-raised p-1 text-sm shadow-lg"
+          className="absolute top-full left-0 z-50 mt-1 max-h-60 min-w-56 animate-pop-in overflow-y-auto rounded-lg border border-border bg-surface-raised p-1 text-sm text-fg shadow-md"
         >
           {suggestions.map((variable, index) => (
             <li
@@ -155,7 +156,7 @@ export const VariableInput = forwardRef<HTMLInputElement, Props>(function Variab
                 event.preventDefault();
                 accept(variable.name);
               }}
-              className={`flex cursor-default items-center gap-3 rounded px-2 py-1 ${index === completion.index ? 'bg-hover' : ''}`}
+              className={`flex h-7 cursor-default items-center gap-3 rounded px-2 ${index === completion.index ? 'bg-hover' : ''}`}
             >
               <span className="font-mono">{variable.name}</span>
               <span className="ml-auto max-w-40 truncate text-xs text-fg-muted">

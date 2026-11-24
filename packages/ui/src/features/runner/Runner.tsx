@@ -23,13 +23,25 @@ import {
   Square,
   TriangleAlert,
 } from 'lucide-react';
-import { Dialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 import { memo, useCallback, useId, useState } from 'react';
 import { useStore } from 'zustand';
 
 import { usePlatform } from '../../app/PlatformProvider';
 import { useVolatileHeaders } from '../../app/preferences';
+import type { Tone } from '../../components/ui';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+  EmptyState,
+  Select,
+} from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { methodLabel } from '../explorer/tree';
 import { methodColorClass } from '../request-editor/methods';
@@ -62,33 +74,25 @@ function useRunnerState<T>(
   );
 }
 
-const OUTCOME_VIEW: Record<RunOutcome, { label: string; icon: ReactNode; className: string }> = {
-  pass: { label: 'Pass', icon: <CircleCheck size={12} />, className: 'text-pass' },
-  warn: { label: 'Warn', icon: <TriangleAlert size={12} />, className: 'text-warn' },
-  fail: { label: 'Fail', icon: <CircleX size={12} />, className: 'text-fail' },
-  'no-baseline': {
-    label: 'No baseline',
-    icon: <CircleMinus size={12} />,
-    className: 'text-fg-muted',
-  },
-  error: { label: 'Error', icon: <CircleX size={12} />, className: 'text-fail' },
-  skipped: { label: 'Skipped', icon: <CircleSlash size={12} />, className: 'text-fg-muted' },
+const OUTCOME_VIEW: Record<RunOutcome, { label: string; icon: ReactNode; tone: Tone }> = {
+  pass: { label: 'Pass', icon: <CircleCheck size={10} />, tone: 'pass' },
+  warn: { label: 'Warn', icon: <TriangleAlert size={10} />, tone: 'warn' },
+  fail: { label: 'Fail', icon: <CircleX size={10} />, tone: 'fail' },
+  'no-baseline': { label: 'No baseline', icon: <CircleMinus size={10} />, tone: 'neutral' },
+  error: { label: 'Error', icon: <CircleX size={10} />, tone: 'fail' },
+  skipped: { label: 'Skipped', icon: <CircleSlash size={10} />, tone: 'neutral' },
 };
 const OUTCOME_ORDER: RunOutcome[] = ['pass', 'warn', 'fail', 'no-baseline', 'error', 'skipped'];
 
 function OutcomeLabel({ outcome }: { outcome: RunOutcome }) {
   const view = OUTCOME_VIEW[outcome];
   return (
-    <span
-      data-testid="run-outcome"
-      data-outcome={outcome}
-      className={`inline-flex items-center gap-1 text-xs font-semibold ${view.className}`}
-    >
+    <Badge tone={view.tone} data-testid="run-outcome" data-outcome={outcome}>
       <span aria-hidden className="inline-flex">
         {view.icon}
       </span>
       {view.label}
-    </span>
+    </Badge>
   );
 }
 
@@ -110,21 +114,14 @@ export function RunDialog() {
   const runner = useRunner();
   const dialog = useRunnerState(runner, (s) => s.dialog, null);
   return (
-    <Dialog.Root
+    <Dialog
       open={dialog !== null}
       onOpenChange={(open) => !open && runner?.getState().closeDialog()}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-        <Dialog.Content
-          data-testid="run-dialog"
-          aria-describedby={undefined}
-          className="fixed top-1/2 left-1/2 w-[min(28rem,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
-        >
-          {dialog && runner && <RunForm runner={runner} initialScopeId={dialog.scopeId} />}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+      <DialogContent width="md" data-testid="run-dialog" aria-describedby={undefined}>
+        {dialog && runner && <RunForm runner={runner} initialScopeId={dialog.scopeId} />}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -160,31 +157,29 @@ function RunForm({
       }}
       className="flex flex-col gap-3"
     >
-      <Dialog.Title className="text-base font-semibold">Run requests</Dialog.Title>
-      <label htmlFor={`${id}-scope`} className="flex flex-col gap-1">
+      <DialogTitle>Run requests</DialogTitle>
+      <label htmlFor={`${id}-scope`} className="mt-1 flex flex-col gap-1.5">
         <span className="text-xs text-fg-muted">Collection or folder</span>
-        <select
+        <Select
           id={`${id}-scope`}
           data-testid="run-scope"
           value={scopeId}
           onChange={(event) => setScopeId(event.target.value)}
-          className="h-8 rounded border border-border bg-bg px-2"
         >
           {options.map((option) => (
             <option key={option.id} value={option.id}>
               {option.label}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
-      <label htmlFor={`${id}-env`} className="flex flex-col gap-1">
+      <label htmlFor={`${id}-env`} className="flex flex-col gap-1.5">
         <span className="text-xs text-fg-muted">Environment</span>
-        <select
+        <Select
           id={`${id}-env`}
           data-testid="run-environment"
           value={environmentId}
           onChange={(event) => setEnvironmentId(event.target.value)}
-          className="h-8 rounded border border-border bg-bg px-2"
         >
           <option value="">No environment</option>
           {environments.map((environment) => (
@@ -192,12 +187,11 @@ function RunForm({
               {environment.name}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
-      <label htmlFor={`${id}-stop`} className="flex items-center gap-2">
-        <input
+      <label htmlFor={`${id}-stop`} className="mt-1 flex items-center gap-2">
+        <Checkbox
           id={`${id}-stop`}
-          type="checkbox"
           data-testid="run-stop-on-fail"
           checked={stopOnFail}
           onChange={(event) => setStopOnFail(event.target.checked)}
@@ -205,9 +199,8 @@ function RunForm({
         Stop on first failure
       </label>
       <label htmlFor={`${id}-baseline`} className="flex items-center gap-2">
-        <input
+        <Checkbox
           id={`${id}-baseline`}
-          type="checkbox"
           data-testid="run-only-baseline"
           checked={onlyWithBaseline}
           onChange={(event) => setOnlyWithBaseline(event.target.checked)}
@@ -215,30 +208,22 @@ function RunForm({
         Only requests with a baseline example
       </label>
       <label htmlFor={`${id}-tests`} className="flex items-center gap-2">
-        <input
+        <Checkbox
           id={`${id}-tests`}
-          type="checkbox"
           data-testid="run-tests-affect-outcome"
           checked={testsAffectOutcome}
           onChange={(event) => setTestsAffectOutcome(event.target.checked)}
         />
         Failed test scripts fail the request
       </label>
-      <div className="flex justify-end gap-2">
-        <Dialog.Close asChild>
-          <button type="button" className="h-8 rounded border border-border px-3 hover:bg-hover">
-            Cancel
-          </button>
-        </Dialog.Close>
-        <button
-          type="submit"
-          data-testid="run-start"
-          disabled={!scopeId}
-          className="h-8 rounded bg-accent px-3 font-semibold text-accent-fg disabled:opacity-50"
-        >
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button>Cancel</Button>
+        </DialogClose>
+        <Button type="submit" variant="primary" data-testid="run-start" disabled={!scopeId}>
           Run
-        </button>
-      </div>
+        </Button>
+      </DialogFooter>
     </form>
   );
 }
@@ -258,20 +243,16 @@ export function RunnerView() {
   if (stored) return <ReportView runner={runner} report={stored} live={null} />;
   if (run) return <ReportView runner={runner} report={run.report} live={run} />;
   return (
-    <div
+    <EmptyState
       data-testid="runner-empty"
-      className="flex flex-1 flex-col items-center justify-center gap-3 text-sm text-fg-muted"
-    >
-      <Play size={28} aria-hidden />
-      No run yet.
-      <button
-        type="button"
-        onClick={() => runner.getState().openDialog()}
-        className="h-8 rounded bg-accent px-3 font-semibold text-accent-fg"
-      >
-        New run…
-      </button>
-    </div>
+      icon={<Play aria-hidden />}
+      title="No run yet."
+      action={
+        <Button variant="primary" onClick={() => runner.getState().openDialog()}>
+          New run…
+        </Button>
+      }
+    />
   );
 }
 
@@ -330,7 +311,7 @@ function ReportView({
 
   return (
     <div data-testid="runner-view" className="flex min-h-0 flex-1 flex-col text-sm">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-2">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-4 py-2.5">
         <span className="font-semibold" data-testid="run-scope-name">
           {scope.name}
         </span>
@@ -351,19 +332,19 @@ function ReportView({
         </span>
         <span className="flex-1" />
         {running ? (
-          <button
-            type="button"
+          <Button
+            size="sm"
             data-testid="run-cancel"
             onClick={() => state.cancel()}
-            className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 hover:bg-hover"
+            icon={<Square aria-hidden />}
           >
-            <Square size={12} aria-hidden /> Cancel
-          </button>
+            Cancel
+          </Button>
         ) : (
           <>
             {live && (
-              <button
-                type="button"
+              <Button
+                size="sm"
                 data-testid="run-accept"
                 disabled={selected.size === 0}
                 onClick={() => {
@@ -373,59 +354,63 @@ function ReportView({
                     notify(`Accepted ${count} new baseline${count === 1 ? '' : 's'} (unsaved).`);
                   }
                 }}
-                className="h-7 rounded border border-border px-2 hover:bg-hover disabled:opacity-50"
               >
                 Accept selected as baselines
-              </button>
+              </Button>
             )}
-            <button
-              type="button"
+            <Button
+              size="sm"
               data-testid="run-export"
               disabled={!report}
               onClick={() => void exportReport()}
-              className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 hover:bg-hover disabled:opacity-50"
+              icon={<Download aria-hidden />}
             >
-              <Download size={12} aria-hidden /> Export report (JSON)
-            </button>
+              Export report (JSON)
+            </Button>
             {live && (
-              <button
-                type="button"
+              <Button
+                size="sm"
+                variant="primary"
                 data-testid="run-again"
                 onClick={() => void state.start(live.settings)}
-                className="inline-flex h-7 items-center gap-1 rounded bg-accent px-2 font-semibold text-accent-fg"
+                icon={<Play aria-hidden />}
               >
-                <Play size={12} aria-hidden /> Run again
-              </button>
+                Run again
+              </Button>
             )}
           </>
         )}
       </header>
-      <div className="h-1 bg-surface" aria-hidden>
+      <div className="h-0.5 bg-hover" aria-hidden>
         <div
           data-testid="run-progress"
-          className="h-full bg-accent transition-[width]"
+          className="h-full rounded-r-full bg-accent transition-[width]"
           style={{ width: `${entries.length ? (done / entries.length) * 100 : 100}%` }}
         />
       </div>
       {report && (
         <div
           data-testid="run-totals"
-          className="flex flex-wrap gap-3 border-b border-border px-3 py-1.5 text-xs"
+          className="flex flex-wrap gap-1.5 border-b border-border/60 px-4 py-2"
         >
           {OUTCOME_ORDER.filter((outcome) => report.totals[outcome] > 0).map((outcome) => (
-            <span
+            <Badge
               key={outcome}
+              tone={OUTCOME_VIEW[outcome].tone}
               data-testid={`run-total-${outcome}`}
-              className={OUTCOME_VIEW[outcome].className}
             >
               {report.totals[outcome]} {OUTCOME_VIEW[outcome].label.toLowerCase()}
-            </span>
+            </Badge>
           ))}
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto" role="list" aria-label="Run results">
+      <div
+        className="flex min-h-0 flex-1 flex-col gap-px overflow-y-auto p-1.5"
+        role="list"
+        aria-label="Run results"
+      >
         {entries.length === 0 && !running && (
-          <p className="p-4 text-center text-fg-muted">No requests to run.</p>
+          <p className="p-6 text-center text-fg-muted">No requests to run.</p>
         )}
         {entries.map((entry, index) => (
           <RunRow
@@ -471,12 +456,11 @@ const RunRow = memo(function RunRow({
       data-request-id={entry.requestId}
       data-outcome={current ? 'running' : entry.outcome}
       onClick={() => onOpen(entry.requestId)}
-      className="flex cursor-default items-center gap-2 border-b border-border/60 px-3 py-1 hover:bg-hover"
+      className="flex h-8 shrink-0 cursor-default items-center gap-2 rounded px-2.5 transition-colors hover:bg-hover"
     >
       <span className="flex w-4 justify-center" onClick={(event) => event.stopPropagation()}>
         {selectable && (
-          <input
-            type="checkbox"
+          <Checkbox
             aria-label={`Select ${entry.name}`}
             data-testid="run-row-select"
             checked={selected}
@@ -510,7 +494,7 @@ const RunRow = memo(function RunRow({
           ? `${entry.tests.pass}/${entry.tests.pass + entry.tests.fail + entry.tests.error} tests`
           : ''}
       </span>
-      <span className="w-10 text-right font-mono text-xs" data-testid="run-row-status">
+      <span className="w-10 text-right font-mono text-xs text-fg" data-testid="run-row-status">
         {entry.status ?? ''}
       </span>
       <span className="w-16 text-right text-xs text-fg-muted">
@@ -541,25 +525,25 @@ export function RunnerSidebar() {
   const reports = useRunnerState(runner, (s) => s.reports, []);
   const viewingId = useRunnerState(runner, (s) => s.viewingId, null);
   if (!runner) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-4 text-center text-sm text-fg-muted">
-        No project open
-      </div>
-    );
+    return <EmptyState title="No project open" />;
   }
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 p-2 text-sm">
-      <button
-        type="button"
+    <div className="flex min-h-0 flex-1 flex-col gap-2 px-3 pt-1 pb-3 text-sm">
+      <Button
+        variant="primary"
         data-testid="runner-new-run"
         onClick={() => runner.getState().openDialog()}
-        className="inline-flex h-8 items-center justify-center gap-1 rounded bg-accent px-3 font-semibold text-accent-fg"
+        icon={<Play aria-hidden />}
+        className="w-full"
       >
-        <Play size={14} aria-hidden /> New run…
-      </button>
-      <h2 className="px-1 pt-2 text-xs font-semibold text-fg-muted uppercase">Recent runs</h2>
-      {reports.length === 0 && <p className="px-1 text-fg-muted">No runs yet.</p>}
-      <ul className="min-h-0 flex-1 overflow-y-auto" aria-label="Recent runs">
+        New run…
+      </Button>
+      <h2 className="px-1 pt-3 text-xs font-medium text-fg-muted">Recent runs</h2>
+      {reports.length === 0 && <p className="px-1 text-xs text-fg-muted">No runs yet.</p>}
+      <ul
+        className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-px overflow-y-auto"
+        aria-label="Recent runs"
+      >
         {reports.map((report) => (
           <li key={report.id}>
             <button
@@ -567,9 +551,9 @@ export function RunnerSidebar() {
               data-testid="runner-report"
               aria-current={viewingId === report.id || undefined}
               onClick={() => runner.getState().view(report.id)}
-              className="flex w-full flex-col items-start rounded px-2 py-1 text-left hover:bg-hover aria-[current]:bg-hover"
+              className="flex w-full min-w-0 flex-col items-start gap-0.5 rounded px-2.5 py-1.5 text-left transition-colors hover:bg-hover aria-[current]:bg-selected"
             >
-              <span className="truncate">{report.scope.name}</span>
+              <span className="max-w-full truncate">{report.scope.name}</span>
               <span className="text-xs text-fg-muted">
                 {new Date(report.startedAt).toLocaleString()} ·{' '}
                 {OUTCOME_ORDER.filter((o) => report.totals[o] > 0)

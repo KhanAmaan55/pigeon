@@ -9,6 +9,7 @@ import type { CorsProxyConfig } from '@pigeon/platform';
 import { useEffect, useId, useState } from 'react';
 
 import { useCapabilities, usePlatform } from '../../app/PlatformProvider';
+import { Button, Checkbox, Input } from '../../components/ui';
 import { useAppStore } from '../../stores/AppStoreProvider';
 
 export const CORS_PROXY_KEY = 'corsProxy';
@@ -62,9 +63,9 @@ export function CorsProxySettings() {
     <section
       aria-labelledby="cors-proxy-title"
       data-testid="cors-proxy-settings"
-      className="border-b border-border p-3 text-sm"
+      className="border-b border-border/60 p-4 text-sm"
     >
-      <h2 id="cors-proxy-title" className="mb-2 font-semibold">
+      <h2 id="cors-proxy-title" className="mb-3 text-xs font-medium text-fg-muted">
         CORS proxy
       </h2>
       {localKey ? (
@@ -115,57 +116,61 @@ function ProxyForm({ localKey }: { localKey: string }) {
     const problem = await control.check(form);
     setStatus(problem ? { ok: false, text: problem } : { ok: true, text: 'The proxy answers.' });
   };
-  const input = 'h-7 w-full rounded border border-border bg-bg px-2 font-mono text-xs text-fg';
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs text-fg-muted">
+    <div className="flex flex-col gap-3">
+      <p className="text-xs leading-relaxed text-fg-muted">
         Browsers block many API calls (CORS, forbidden headers). Run the proxy on your machine with{' '}
-        <code data-testid="cors-proxy-command">{PROXY_START_COMMAND}</code>, then enter the URL and
-        token it prints. It only accepts this app’s origin and your token; keep it bound to
-        127.0.0.1 — anyone with the token can send requests from your network.
+        <code
+          data-testid="cors-proxy-command"
+          className="rounded-sm bg-sunken px-1 py-px font-mono text-xs text-fg"
+        >
+          {PROXY_START_COMMAND}
+        </code>
+        , then enter the URL and token it prints. It only accepts this app’s origin and your token;
+        keep it bound to 127.0.0.1 — anyone with the token can send requests from your network.
       </p>
-      <label htmlFor={`${id}-url`} className="text-xs text-fg-muted">
-        Proxy URL
-      </label>
-      <input
-        id={`${id}-url`}
-        data-testid="cors-proxy-url"
-        value={form.url}
-        spellCheck={false}
-        onChange={(event) => save({ ...form, url: event.target.value })}
-        className={input}
-      />
-      <label htmlFor={`${id}-token`} className="text-xs text-fg-muted">
-        Token
-      </label>
-      <input
-        id={`${id}-token`}
-        type="password"
-        data-testid="cors-proxy-token"
-        value={form.token}
-        autoComplete="off"
-        onChange={(event) => save({ ...form, token: event.target.value })}
-        className={input}
-      />
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <label htmlFor={`${id}-enabled`} className="flex items-center gap-1.5">
-          <input
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={`${id}-url`} className="text-xs text-fg-muted">
+          Proxy URL
+        </label>
+        <Input
+          size="sm"
+          mono
+          id={`${id}-url`}
+          data-testid="cors-proxy-url"
+          value={form.url}
+          spellCheck={false}
+          onChange={(event) => save({ ...form, url: event.target.value })}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={`${id}-token`} className="text-xs text-fg-muted">
+          Token
+        </label>
+        <Input
+          size="sm"
+          mono
+          id={`${id}-token`}
+          type="password"
+          data-testid="cors-proxy-token"
+          value={form.token}
+          autoComplete="off"
+          onChange={(event) => save({ ...form, token: event.target.value })}
+        />
+      </div>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <label htmlFor={`${id}-enabled`} className="flex items-center gap-2">
+          <Checkbox
             id={`${id}-enabled`}
-            type="checkbox"
             data-testid="cors-proxy-enabled"
             checked={form.enabled}
             onChange={(event) => save({ ...form, enabled: event.target.checked })}
           />
           Send this project’s requests through the proxy
         </label>
-        <button
-          type="button"
-          data-testid="cors-proxy-test"
-          onClick={() => void test()}
-          className="rounded border border-border px-2 py-0.5 hover:bg-hover"
-        >
+        <Button size="xs" data-testid="cors-proxy-test" onClick={() => void test()}>
           Test
-        </button>
+        </Button>
       </div>
       <p data-testid="cors-proxy-mode" className="text-xs text-fg-muted">
         {transport === 'proxy' ? 'Proxy mode is on.' : 'Requests go directly from the browser.'}

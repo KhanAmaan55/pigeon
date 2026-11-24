@@ -1,4 +1,5 @@
 import { KeyValueTable } from '../../components/KeyValueTable';
+import { SectionLabel } from '../../components/ui';
 import { useScratchRequest } from './ScratchRequestProvider';
 
 /** Query table synced both ways with the URL, plus a path variable table for `:name` segments. */
@@ -9,11 +10,11 @@ export function ParamsTab() {
   const setPathVariables = useScratchRequest((s) => s.setPathVariables);
 
   return (
-    <div className="flex flex-col gap-4 p-2">
+    <div className="flex flex-col gap-5 px-3 pt-2 pb-3">
       <section aria-label="Query parameters">
-        <h2 className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
+        <SectionLabel role="heading" aria-level={2} className="mb-1.5">
           Query parameters
-        </h2>
+        </SectionLabel>
         <KeyValueTable
           label="Query parameters"
           testId="query-table"
@@ -25,9 +26,9 @@ export function ParamsTab() {
       </section>
       {pathVariables.length > 0 && (
         <section aria-label="Path variables">
-          <h2 className="text-xs font-semibold tracking-wide text-fg-muted uppercase">
+          <SectionLabel role="heading" aria-level={2} className="mb-1.5">
             Path variables
-          </h2>
+          </SectionLabel>
           <KeyValueTable
             label="Path variables"
             testId="path-variables-table"

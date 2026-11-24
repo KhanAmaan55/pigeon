@@ -10,11 +10,20 @@ import {
   PanelRight,
   TriangleAlert,
 } from 'lucide-react';
-import { Tabs } from 'radix-ui';
 import type { ReactNode } from 'react';
 import { lazy, Suspense, useMemo, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import {
+  Badge,
+  Button,
+  Callout,
+  EmptyState,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '../../components/ui';
 import { useVolatileHeaders } from '../../app/preferences';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 import { CompareTab } from '../compare/CompareTab';
@@ -71,18 +80,14 @@ export function ResponseViewer({
         <div
           role="status"
           data-testid="response-loading"
-          className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5 text-sm text-fg-muted"
+          className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2 text-sm text-fg-muted"
         >
           <LoaderCircle size={14} className="animate-spin" aria-hidden />
           Sending request…
         </div>
       )}
       {result === null ? (
-        !sending && (
-          <div className="flex flex-1 items-center justify-center text-sm text-fg-muted">
-            Send a request to see the response
-          </div>
-        )
+        !sending && <EmptyState title="Send a request to see the response" />
       ) : (
         <>
           {result.response && (
@@ -141,18 +146,16 @@ export function ResponseViewer({
 
 function Warnings({ warnings }: { warnings: string[] }) {
   return (
-    <ul
-      data-testid="response-warnings"
-      aria-label="Warnings"
-      className="shrink-0 border-b border-border px-3 py-1.5 text-xs text-fg-muted"
-    >
-      {warnings.map((warning) => (
-        <li key={warning} className="flex items-start gap-1.5">
-          <TriangleAlert size={12} className="mt-0.5 shrink-0 text-warn" aria-hidden />
-          {warning}
-        </li>
-      ))}
-    </ul>
+    <Callout tone="warn" icon={null} className="mx-4 mt-3 shrink-0">
+      <ul data-testid="response-warnings" aria-label="Warnings" className="flex flex-col gap-1">
+        {warnings.map((warning) => (
+          <li key={warning} className="flex items-start gap-2">
+            <TriangleAlert size={14} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+            {warning}
+          </li>
+        ))}
+      </ul>
+    </Callout>
   );
 }
 
@@ -162,16 +165,13 @@ function Cancelled() {
     <div
       role="status"
       data-testid="response-cancelled"
-      className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5 text-sm text-fg-muted"
+      className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2 text-sm text-fg-muted"
     >
       <CircleSlash size={14} aria-hidden />
       Cancelled
     </div>
   );
 }
-
-const actionButton =
-  'inline-flex h-6 items-center gap-1 rounded px-1.5 text-xs text-fg-muted hover:bg-hover hover:text-fg disabled:opacity-50';
 
 type SaveState =
   | { kind: 'idle' }
@@ -262,25 +262,21 @@ function ResponseTabs({
   };
 
   return (
-    <Tabs.Root
+    <Tabs
       value={tab}
       onValueChange={onTab}
       data-transport={result.transport}
       className="flex min-h-0 flex-1 flex-col"
     >
-      <div className="flex shrink-0 items-center gap-1 border-b border-border px-2">
-        <Tabs.List aria-label="Response sections" className="flex gap-1">
+      {/* A container: the action labels hide (screen readers keep them) when the panel is narrow. */}
+      <div className="@container flex shrink-0 items-center gap-2 border-b border-border px-2 py-1.5">
+        <TabsList aria-label="Response sections" className="min-w-0 overflow-x-auto">
           <ResponseTab value="body" testId="response-body-tab">
             Body
           </ResponseTab>
           <ResponseTab value="headers" testId="response-headers-tab">
             Headers
-            <span
-              data-testid="response-headers-count"
-              className="rounded-full bg-hover px-1.5 text-xs leading-4 text-fg"
-            >
-              {response.headers.length}
-            </span>
+            <Badge data-testid="response-headers-count">{response.headers.length}</Badge>
           </ResponseTab>
           <ResponseTab value="timeline" testId="response-timeline-tab">
             Timeline
@@ -293,39 +289,26 @@ function ResponseTabs({
           {showCookies && (
             <ResponseTab value="cookies" testId="response-cookies-tab">
               Cookies
-              {setCookieCount > 0 && (
-                <span className="rounded-full bg-hover px-1.5 text-xs leading-4 text-fg">
-                  {setCookieCount}
-                </span>
-              )}
+              {setCookieCount > 0 && <Badge>{setCookieCount}</Badge>}
             </ResponseTab>
           )}
           {result.tests && (
             <ResponseTab value="tests" testId="response-tests-tab">
               Tests
-              <span
+              <Badge
                 data-testid="response-tests-count"
-                className={`rounded-full px-1.5 text-xs leading-4 ${
-                  result.tests.counts.fail + result.tests.counts.error > 0
-                    ? 'bg-fail/15 text-fail'
-                    : 'bg-hover text-fg'
-                }`}
+                tone={result.tests.counts.fail + result.tests.counts.error > 0 ? 'fail' : 'pass'}
               >
                 {result.tests.counts.pass}/
                 {result.tests.counts.pass + result.tests.counts.fail + result.tests.counts.error}
-              </span>
+              </Badge>
             </ResponseTab>
           )}
           {hasProject && (
             <ResponseTab value="console" testId="response-console-tab">
               Console
               {consoleCount > 0 && (
-                <span
-                  data-testid="response-console-count"
-                  className="rounded-full bg-hover px-1.5 text-xs leading-4 text-fg"
-                >
-                  {consoleCount}
-                </span>
+                <Badge data-testid="response-console-count">{consoleCount}</Badge>
               )}
             </ResponseTab>
           )}
@@ -333,17 +316,12 @@ function ResponseTabs({
             <ResponseTab value="examples" testId="response-examples-tab">
               Examples
               {examples.length > 0 && (
-                <span
-                  data-testid="response-examples-count"
-                  className="rounded-full bg-hover px-1.5 text-xs leading-4 text-fg"
-                >
-                  {examples.length}
-                </span>
+                <Badge data-testid="response-examples-count">{examples.length}</Badge>
               )}
             </ResponseTab>
           )}
-        </Tabs.List>
-        <div className="ml-auto flex items-center gap-1">
+        </TabsList>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {graphql && <GraphqlErrorsChip view={graphql} />}
           {savedExample !== null && saveState.kind === 'idle' && (
             <span role="status" data-testid="example-saved" className="text-xs text-fg-muted">
@@ -367,11 +345,12 @@ function ResponseTabs({
             icon={<Copy size={12} aria-hidden />}
             className={response.bodyText === undefined ? 'pointer-events-none opacity-50' : ''}
           >
-            Copy
+            <span className="sr-only @3xl:not-sr-only">Copy</span>
           </CopyButton>
           {saveAsExample && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="xs"
               data-testid="save-as-example"
               title="Save this response as an example of the request (written on Save for Commit)"
               disabled={readOnly}
@@ -383,26 +362,25 @@ function ResponseTabs({
                   setSavedExample(example.name);
                 }
               }}
-              className={actionButton}
+              icon={<BookmarkPlus aria-hidden />}
             >
-              <BookmarkPlus size={12} aria-hidden />
-              Save as example
-            </button>
+              <span className="sr-only @3xl:not-sr-only">Save as example</span>
+            </Button>
           )}
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="xs"
             data-testid="response-save"
             title={`Save body as ${suggestFileName(response)}`}
             onClick={save}
-            className={actionButton}
+            icon={<FileDown aria-hidden />}
           >
-            <FileDown size={12} aria-hidden />
-            Save
-          </button>
+            <span className="sr-only @3xl:not-sr-only">Save</span>
+          </Button>
           {onToggleDock && <DockToggle dock={dock} onToggle={onToggleDock} />}
         </div>
       </div>
-      <Tabs.Content
+      <TabsContent
         value="body"
         className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
       >
@@ -412,21 +390,21 @@ function ResponseTabs({
         >
           <BodyView response={response} onSave={save} {...(reveal ? { reveal } : {})} />
         </Suspense>
-      </Tabs.Content>
-      <Tabs.Content
+      </TabsContent>
+      <TabsContent
         value="headers"
         className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
       >
         <HeadersTable headers={response.headers} restricted={response.headersRestricted} />
-      </Tabs.Content>
-      <Tabs.Content
+      </TabsContent>
+      <TabsContent
         value="timeline"
         className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
       >
         <TimelineTab result={result} response={response} />
-      </Tabs.Content>
+      </TabsContent>
       {canCompare && (
-        <Tabs.Content
+        <TabsContent
           value="compare"
           className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
         >
@@ -479,41 +457,41 @@ function ResponseTabs({
               onTab('body');
             }}
           />
-        </Tabs.Content>
+        </TabsContent>
       )}
       {showCookies && (
-        <Tabs.Content
+        <TabsContent
           value="cookies"
           className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
         >
           <CookiesTab response={response} url={result.request.url} />
-        </Tabs.Content>
+        </TabsContent>
       )}
       {result.tests && (
-        <Tabs.Content
+        <TabsContent
           value="tests"
           className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
         >
           <TestsTab run={result.tests} />
-        </Tabs.Content>
+        </TabsContent>
       )}
       {hasProject && (
-        <Tabs.Content
+        <TabsContent
           value="console"
           className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
         >
           <ConsolePanel />
-        </Tabs.Content>
+        </TabsContent>
       )}
       {saveAsExample && (
-        <Tabs.Content
+        <TabsContent
           value="examples"
           className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
         >
           <ExamplesTab requestId={requestId} />
-        </Tabs.Content>
+        </TabsContent>
       )}
-    </Tabs.Root>
+    </Tabs>
   );
 }
 
@@ -522,21 +500,17 @@ function DockToggle({ dock, onToggle }: { dock: ResponseDock; onToggle: () => vo
   const shortcut = os === 'macos' ? '⌘⌥L' : 'Ctrl+Alt+L';
   const label = `Move response to the ${dock === 'bottom' ? 'right' : 'bottom'} (${shortcut})`;
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="xs"
       data-testid="response-dock-toggle"
       data-dock={dock}
       aria-label={label}
       title={label}
       onClick={onToggle}
-      className={actionButton}
     >
-      {dock === 'bottom' ? (
-        <PanelRight size={14} aria-hidden />
-      ) : (
-        <PanelBottom size={14} aria-hidden />
-      )}
-    </button>
+      {dock === 'bottom' ? <PanelRight aria-hidden /> : <PanelBottom aria-hidden />}
+    </Button>
   );
 }
 
@@ -550,12 +524,8 @@ function ResponseTab({
   children: ReactNode;
 }) {
   return (
-    <Tabs.Trigger
-      value={value}
-      data-testid={testId}
-      className="-mb-px inline-flex h-8 items-center gap-1.5 border-b-2 border-transparent px-2 text-sm text-fg-muted hover:text-fg data-[state=active]:border-accent data-[state=active]:text-fg"
-    >
+    <TabsTrigger value={value} data-testid={testId}>
       {children}
-    </Tabs.Trigger>
+    </TabsTrigger>
   );
 }

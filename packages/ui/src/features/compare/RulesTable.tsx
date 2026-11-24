@@ -3,6 +3,8 @@ import { validateRulePath } from '@pigeon/core';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
+import { Button, Checkbox, Input } from '../../components/ui';
+
 const FLAGS = [
   { flag: 'optional', label: 'Optional', title: 'A removed field is a warning, not a failure' },
   {
@@ -31,8 +33,8 @@ export function RulesTable({
   const update = (index: number, rule: ProjectFieldRule) =>
     onChange?.(rules.map((r, i) => (i === index ? rule : r)));
   return (
-    <div data-testid={testId} className="flex flex-col gap-1 text-xs">
-      {rules.length === 0 && <p className="text-fg-muted">No rules.</p>}
+    <div data-testid={testId} className="flex flex-col gap-1.5 text-xs">
+      {rules.length === 0 && <p className="py-1 text-fg-muted">No rules.</p>}
       {rules.map((rule, index) => (
         <RuleRow
           // A rule's identity is its position; the path is being edited.
@@ -64,10 +66,12 @@ function RuleRow({
   return (
     <div
       data-testid="rule-row"
-      className="flex flex-wrap items-start gap-2 rounded border border-border p-1.5"
+      className="flex flex-wrap items-start gap-x-3 gap-y-1.5 rounded-lg border border-border bg-surface-raised p-2"
     >
       <div className="flex min-w-48 flex-1 flex-col">
-        <input
+        <Input
+          size="sm"
+          mono
           aria-label="Rule path"
           data-testid="rule-path"
           value={path}
@@ -78,7 +82,6 @@ function RuleRow({
             setPath(next);
             if (validateRulePath(next) === undefined) onChange({ ...rule, path: next });
           }}
-          className="h-6 rounded border border-border bg-bg px-1.5 font-mono aria-invalid:border-fail"
         />
         {error && (
           <span role="alert" data-testid="rule-path-error" className="pt-0.5 text-fail">
@@ -87,9 +90,8 @@ function RuleRow({
         )}
       </div>
       {FLAGS.map(({ flag, label, title }) => (
-        <label key={flag} title={title} className="flex items-center gap-1 pt-1">
-          <input
-            type="checkbox"
+        <label key={flag} title={title} className="flex h-7 items-center gap-1.5">
+          <Checkbox
             data-testid={`rule-${flag}`}
             checked={rule[flag] === true}
             disabled={readOnly}
@@ -101,28 +103,31 @@ function RuleRow({
           {label}
         </label>
       ))}
-      <input
-        aria-label="Rule note"
-        data-testid="rule-note"
-        placeholder="Note"
-        value={rule.note ?? ''}
-        readOnly={readOnly}
-        onChange={(event) => {
-          const { note: _old, ...rest } = rule;
-          onChange(event.target.value === '' ? rest : { ...rest, note: event.target.value });
-        }}
-        className="h-6 w-40 rounded border border-border bg-bg px-1.5"
-      />
+      <span className="w-40">
+        <Input
+          size="sm"
+          aria-label="Rule note"
+          data-testid="rule-note"
+          placeholder="Note"
+          value={rule.note ?? ''}
+          readOnly={readOnly}
+          onChange={(event) => {
+            const { note: _old, ...rest } = rule;
+            onChange(event.target.value === '' ? rest : { ...rest, note: event.target.value });
+          }}
+        />
+      </span>
       {!readOnly && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           data-testid="rule-delete"
           aria-label={`Delete the rule for ${rule.path}`}
           onClick={onDelete}
-          className="mt-0.5 rounded p-0.5 text-fg-muted hover:bg-hover hover:text-fg"
+          className="mt-0.5"
         >
-          <Trash2 size={12} aria-hidden />
-        </button>
+          <Trash2 aria-hidden />
+        </Button>
       )}
     </div>
   );
@@ -138,8 +143,10 @@ function AddRule({ onAdd }: { onAdd: (rule: ProjectFieldRule) => void }) {
   };
   return (
     <div className="flex flex-col">
-      <div className="flex items-center gap-1">
-        <input
+      <div className="flex items-center gap-1.5">
+        <Input
+          size="sm"
+          mono
           aria-label="New rule path"
           data-testid="rule-new-path"
           placeholder="$.data[*].field"
@@ -149,18 +156,17 @@ function AddRule({ onAdd }: { onAdd: (rule: ProjectFieldRule) => void }) {
           onKeyDown={(event) => {
             if (event.key === 'Enter') add();
           }}
-          className="h-6 flex-1 rounded border border-border bg-bg px-1.5 font-mono aria-invalid:border-fail"
+          className="flex-1"
         />
-        <button
-          type="button"
+        <Button
+          size="sm"
           data-testid="rule-add"
           disabled={path === '' || error !== undefined}
           onClick={add}
-          className="inline-flex h-6 items-center gap-1 rounded border border-border px-1.5 hover:bg-hover disabled:opacity-50"
+          icon={<Plus aria-hidden />}
         >
-          <Plus size={12} aria-hidden />
           Add rule
-        </button>
+        </Button>
       </div>
       {error && (
         <span role="alert" data-testid="rule-new-path-error" className="pt-0.5 text-fail">

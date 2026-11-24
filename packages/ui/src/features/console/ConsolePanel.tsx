@@ -6,6 +6,7 @@
 import type { ConsoleEntry } from '@pigeon/core';
 import { CircleX, Info, Terminal, TriangleAlert } from 'lucide-react';
 
+import { Button, EmptyState } from '../../components/ui';
 import { useAppStore, useProjectState } from '../../stores/AppStoreProvider';
 
 const NO_ENTRIES: readonly ConsoleEntry[] = [];
@@ -28,25 +29,27 @@ export function ConsolePanel({ limit }: { limit?: number }) {
   const entries = limit ? all.slice(-limit) : all;
   return (
     <div data-testid="console-panel" className="flex min-h-0 flex-1 flex-col text-xs">
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1 text-fg-muted">
+      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-border px-3 text-fg-muted">
         <Terminal size={12} aria-hidden />
         <span>Script console</span>
         <span className="flex-1" />
         {all.length > 0 && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="xs"
             data-testid="console-clear"
             onClick={() => project?.store.getState().clearConsole()}
-            className="rounded px-1.5 hover:bg-hover hover:text-fg"
+            className="-mr-1.5"
           >
             Clear
-          </button>
+          </Button>
         )}
       </div>
       {entries.length === 0 ? (
-        <p className="p-3 text-fg-muted">
-          No output yet. Pre-request scripts write here with console.log().
-        </p>
+        <EmptyState
+          icon={<Terminal aria-hidden />}
+          title="No output yet. Pre-request scripts write here with console.log()."
+        />
       ) : (
         <ol className="min-h-0 flex-1 overflow-y-auto font-mono" aria-label="Console output">
           {entries.map((entry, index) => (
@@ -54,7 +57,7 @@ export function ConsolePanel({ limit }: { limit?: number }) {
               key={`${entry.at}-${index}`}
               data-testid="console-entry"
               data-level={entry.level}
-              className={`flex items-start gap-2 border-b border-border/60 px-3 py-0.5 ${
+              className={`flex items-start gap-2 border-b border-border/60 px-3 py-1 ${
                 entry.level === 'error' ? 'bg-fail/5' : entry.level === 'warn' ? 'bg-warn/5' : ''
               }`}
             >

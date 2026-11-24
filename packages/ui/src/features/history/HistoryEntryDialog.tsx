@@ -6,9 +6,17 @@
 
 import type { Body, HistoryEntry, KeyValue, Request } from '@pigeon/core';
 import { createUrl, SECRET_MASK, syncUrlFromRaw } from '@pigeon/core';
-import { Dialog } from 'radix-ui';
 import { useEffect, useState } from 'react';
 
+import {
+  Button,
+  Callout,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+} from '../../components/ui';
 import { useAppStore } from '../../stores/AppStoreProvider';
 import type { OpenProject } from '../../stores/app-store';
 import { newCollection, targetContainerId } from '../explorer/actions';
@@ -79,34 +87,30 @@ export function HistoryEntryDialog({
   }, [entryId, project]);
 
   return (
-    <Dialog.Root open={entryId !== null} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-        <Dialog.Content
-          data-testid="history-entry"
-          aria-describedby={undefined}
-          className="fixed top-1/2 left-1/2 flex max-h-[85vh] w-[min(48rem,94vw)] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
-        >
-          <Dialog.Title className="text-base font-semibold">History entry</Dialog.Title>
-          {entry === undefined ? (
-            <p className="text-fg-muted">Loading…</p>
-          ) : entry === null ? (
-            <p role="alert" className="text-fail">
-              This entry is no longer in the history.
-            </p>
-          ) : (
-            <EntryDetails entry={entry} project={project} onDone={onClose} />
-          )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open={entryId !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent width="xl" data-testid="history-entry" aria-describedby={undefined}>
+        <DialogTitle>History entry</DialogTitle>
+        {entry === undefined ? (
+          <p className="mt-4 text-fg-muted">Loading…</p>
+        ) : entry === null ? (
+          <Callout tone="fail" role="alert" className="mt-4">
+            This entry is no longer in the history.
+          </Callout>
+        ) : (
+          <EntryDetails entry={entry} project={project} onDone={onClose} />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function Headers({ headers, testId }: { headers: Array<[string, string]>; testId: string }) {
   if (headers.length === 0) return <p className="text-xs text-fg-muted">No headers.</p>;
   return (
-    <dl data-testid={testId} className="grid grid-cols-[max-content_1fr] gap-x-3 font-mono text-xs">
+    <dl
+      data-testid={testId}
+      className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-0.5 font-mono text-xs"
+    >
       {headers.map(([name, value], index) => (
         <div key={index} className="contents">
           <dt className="text-fg-muted">{name}</dt>
@@ -174,10 +178,10 @@ function EntryDetails({
   };
 
   const response = entry.response;
-  const section = 'flex min-h-0 flex-col gap-1 rounded border border-border p-2';
+  const section = 'flex min-h-0 flex-col gap-2 rounded-lg border border-border p-3';
   return (
     <>
-      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+      <div className="mt-4 flex min-h-0 flex-col gap-3 overflow-y-auto">
         <p className="flex flex-wrap items-baseline gap-x-3 text-xs text-fg-muted">
           <span>{new Date(entry.at).toLocaleString()}</span>
           {entry.requestName && <span data-testid="history-entry-name">{entry.requestName}</span>}
@@ -199,7 +203,7 @@ function EntryDetails({
           {entry.request.body !== undefined && (
             <pre
               data-testid="history-entry-request-body"
-              className="max-h-40 overflow-auto rounded bg-bg p-2 font-mono text-xs whitespace-pre-wrap"
+              className="max-h-40 overflow-auto rounded bg-sunken p-2.5 font-mono text-xs whitespace-pre-wrap"
             >
               {entry.request.body}
             </pre>
@@ -217,7 +221,7 @@ function EntryDetails({
               <Headers headers={response.headers} testId="history-entry-response-headers" />
               <pre
                 data-testid="history-entry-response-body"
-                className="max-h-64 overflow-auto rounded bg-bg p-2 font-mono text-xs whitespace-pre-wrap"
+                className="max-h-64 overflow-auto rounded bg-sunken p-2.5 font-mono text-xs whitespace-pre-wrap"
               >
                 {response.bodyEncoding === 'text'
                   ? response.body
@@ -230,9 +234,9 @@ function EntryDetails({
               )}
             </>
           ) : (
-            <p data-testid="history-entry-error" role="alert" className="text-fail">
+            <Callout tone="fail" data-testid="history-entry-error" role="alert">
               {entry.errorDetail?.message ?? entry.error ?? 'No response.'}
-            </p>
+            </Callout>
           )}
         </section>
         {entry.warnings.length > 0 && (
@@ -243,34 +247,29 @@ function EntryDetails({
           </ul>
         )}
       </div>
-      <div className="flex flex-wrap justify-end gap-2">
-        <Dialog.Close asChild>
-          <button type="button" className="h-8 rounded border border-border px-3 hover:bg-hover">
-            Close
-          </button>
-        </Dialog.Close>
-        <button
-          type="button"
+      <DialogFooter className="flex-wrap">
+        <DialogClose asChild>
+          <Button>Close</Button>
+        </DialogClose>
+        <Button
           data-testid="history-restore"
           disabled={!target || session.readOnly}
           title={
             target ? `Replace “${target.name}” with this entry` : 'The request no longer exists'
           }
           onClick={restore}
-          className="h-8 rounded border border-border px-3 hover:bg-hover disabled:opacity-50"
         >
           Restore into request
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="primary"
           data-testid="history-open-new"
           disabled={session.readOnly}
           onClick={openAsNew}
-          className="h-8 rounded bg-accent px-3 font-semibold text-accent-fg disabled:opacity-50"
         >
           Open as new request
-        </button>
-      </div>
+        </Button>
+      </DialogFooter>
     </>
   );
 }

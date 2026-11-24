@@ -1,11 +1,19 @@
 import type { Collection, Folder } from '@pigeon/core';
 import { findContainer } from '@pigeon/core';
 import { exportCollection, exportCollectionText } from '@pigeon/formats';
-import { TriangleAlert } from 'lucide-react';
-import { Dialog } from 'radix-ui';
 import { useId, useMemo, useState } from 'react';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import {
+  Button,
+  Callout,
+  Checkbox,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+} from '../../components/ui';
 import { useAppStore } from '../../stores/AppStoreProvider';
 
 /**
@@ -26,18 +34,11 @@ export function ExportDialog({
       ? findContainer(project.session.getWorkingModel(), containerId)
       : undefined;
   return (
-    <Dialog.Root open={container !== undefined} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-        <Dialog.Content
-          data-testid="export-dialog"
-          aria-describedby={undefined}
-          className="fixed top-1/2 left-1/2 w-[min(28rem,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
-        >
-          {container && <ExportForm key={container.id} container={container} onDone={onClose} />}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open={container !== undefined} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent width="md" data-testid="export-dialog" aria-describedby={undefined}>
+        {container && <ExportForm key={container.id} container={container} onDone={onClose} />}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -76,20 +77,17 @@ function ExportForm({ container, onDone }: { container: Collection | Folder; onD
       }}
       className="flex flex-col gap-3"
     >
-      <Dialog.Title className="text-base font-semibold">
-        Export “{container.name}” as a Postman collection
-      </Dialog.Title>
-      <p className="text-fg-muted">
+      <DialogTitle>Export “{container.name}” as a Postman collection</DialogTitle>
+      <p className="-mt-1.5 text-fg-muted">
         Postman Collection v2.1{container.kind === 'folder' ? ' (this folder as a collection)' : ''}{' '}
         ·{' '}
-        <span data-testid="export-file-name" className="font-mono">
+        <span data-testid="export-file-name" className="font-mono text-xs text-fg">
           {result.fileName}
         </span>
       </p>
-      <label htmlFor={`${id}-examples`} className="flex items-center gap-2">
-        <input
+      <label htmlFor={`${id}-examples`} className="mt-1 flex items-center gap-2">
+        <Checkbox
           id={`${id}-examples`}
-          type="checkbox"
           data-testid="export-include-examples"
           checked={includeExamples}
           onChange={(event) => setIncludeExamples(event.target.checked)}
@@ -97,47 +95,37 @@ function ExportForm({ container, onDone }: { container: Collection | Folder; onD
         Include examples (bodies inlined)
       </label>
       <label htmlFor={`${id}-metadata`} className="flex items-center gap-2">
-        <input
+        <Checkbox
           id={`${id}-metadata`}
-          type="checkbox"
           data-testid="export-include-metadata"
           checked={includePigeonMetadata}
           onChange={(event) => setIncludePigeonMetadata(event.target.checked)}
         />
-        Include Pigeon metadata (<code>_pigeon</code> keys; Postman ignores them)
+        Include Pigeon metadata (<code className="font-mono text-xs">_pigeon</code> keys; Postman
+        ignores them)
       </label>
       {result.warnings.length > 0 && (
-        <ul
-          data-testid="export-warnings"
-          className="flex flex-col gap-1 rounded border border-warn/40 bg-warn/10 p-2 text-xs"
-        >
-          {result.warnings.map((warning) => (
-            <li key={warning} className="flex gap-1.5">
-              <TriangleAlert size={12} className="mt-px shrink-0 text-warn" aria-hidden />
-              {warning}
-            </li>
-          ))}
-        </ul>
+        <Callout tone="warn">
+          <ul data-testid="export-warnings" className="flex flex-col gap-1 text-xs">
+            {result.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </Callout>
       )}
       {error && (
-        <p role="alert" className="text-fail">
+        <Callout tone="fail" role="alert">
           {error}
-        </p>
+        </Callout>
       )}
-      <div className="flex justify-end gap-2">
-        <Dialog.Close asChild>
-          <button type="button" className="h-8 rounded border border-border px-3 hover:bg-hover">
-            Cancel
-          </button>
-        </Dialog.Close>
-        <button
-          type="submit"
-          data-testid="export-save"
-          className="h-8 rounded bg-accent px-3 font-semibold text-accent-fg"
-        >
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button>Cancel</Button>
+        </DialogClose>
+        <Button type="submit" variant="primary" data-testid="export-save">
           Export…
-        </button>
-      </div>
+        </Button>
+      </DialogFooter>
     </form>
   );
 }

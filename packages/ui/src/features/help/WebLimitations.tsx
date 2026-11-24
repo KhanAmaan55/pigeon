@@ -5,11 +5,11 @@
  */
 
 import { CircleHelp } from 'lucide-react';
-import { Dialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
 
 import { useAppConfig } from '../../app/AppConfig';
+import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from '../../components/ui';
 import { useAppStore } from '../../stores/AppStoreProvider';
 
 export type HelpSectionId =
@@ -241,7 +241,7 @@ export function HelpLink({
         event.stopPropagation();
         openHelp(section);
       }}
-      className={`inline cursor-pointer text-accent underline-offset-2 hover:underline ${className}`}
+      className={`inline cursor-pointer text-accent-text underline-offset-2 hover:underline ${className}`}
     >
       {children}
     </button>
@@ -266,86 +266,80 @@ export function WebLimitationsDialog() {
   }, [help]);
 
   return (
-    <Dialog.Root open={help !== null} onOpenChange={(open) => !open && closeHelp()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-        <Dialog.Content
-          data-testid="web-limitations"
-          data-section={help ?? undefined}
-          aria-describedby={undefined}
-          className="fixed top-1/2 left-1/2 flex max-h-[85vh] w-[min(40rem,92vw)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-surface-raised text-sm text-fg shadow-xl"
-        >
-          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <CircleHelp size={16} aria-hidden />
-            <Dialog.Title className="flex-1 text-base font-semibold">Web limitations</Dialog.Title>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                data-testid="web-limitations-close"
-                className="h-7 rounded border border-border px-2 hover:bg-hover"
-              >
-                Close
-              </button>
-            </Dialog.Close>
-          </div>
-          <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-            <p className="text-fg-muted">
-              In the browser, Pigeon sends requests with <code>fetch()</code> and keeps its data in
-              the browser's storage, so the browser decides what is possible.
-              {desktopAppUrl ? (
-                <>
-                  {' '}
-                  The{' '}
-                  <a
-                    href={desktopAppUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    data-testid="help-desktop-link"
-                    className="text-accent hover:underline"
-                  >
-                    desktop app
-                  </a>{' '}
-                  has none of these limits.
-                </>
-              ) : (
-                ' The desktop app has none of these limits.'
-              )}
-            </p>
-            <nav aria-label="Sections" className="my-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-              {HELP_SECTIONS.map((section) => (
+    <Dialog open={help !== null} onOpenChange={(open) => !open && closeHelp()}>
+      <DialogContent
+        width="lg"
+        flush
+        data-testid="web-limitations"
+        data-section={help ?? undefined}
+        aria-describedby={undefined}
+      >
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+          <CircleHelp size={16} className="text-fg-muted" aria-hidden />
+          <DialogTitle className="flex-1">Web limitations</DialogTitle>
+          <DialogClose asChild>
+            <Button size="sm" data-testid="web-limitations-close">
+              Close
+            </Button>
+          </DialogClose>
+        </div>
+        <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <p className="text-fg-muted">
+            In the browser, Pigeon sends requests with <code>fetch()</code> and keeps its data in
+            the browser's storage, so the browser decides what is possible.
+            {desktopAppUrl ? (
+              <>
+                {' '}
+                The{' '}
                 <a
-                  key={section.id}
-                  href={`#help-${section.id}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    bodyRef.current
-                      ?.querySelector(`[data-help-section="${section.id}"]`)
-                      ?.scrollIntoView?.({ block: 'start' });
-                  }}
-                  className="text-accent hover:underline"
+                  href={desktopAppUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-testid="help-desktop-link"
+                  className="text-accent-text underline-offset-2 hover:underline"
                 >
-                  {section.title}
-                </a>
-              ))}
-            </nav>
+                  desktop app
+                </a>{' '}
+                has none of these limits.
+              </>
+            ) : (
+              ' The desktop app has none of these limits.'
+            )}
+          </p>
+          <nav aria-label="Sections" className="my-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
             {HELP_SECTIONS.map((section) => (
-              <section
+              <a
                 key={section.id}
-                id={`help-${section.id}`}
-                data-help-section={section.id}
-                data-current={help === section.id || undefined}
-                aria-labelledby={`help-${section.id}-title`}
-                className="flex scroll-mt-2 flex-col gap-1.5 border-t border-border py-3 first-of-type:border-t-0 data-[current]:rounded data-[current]:bg-hover/60 data-[current]:px-2 [&_code]:font-mono [&_code]:text-xs"
+                href={`#help-${section.id}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  bodyRef.current
+                    ?.querySelector(`[data-help-section="${section.id}"]`)
+                    ?.scrollIntoView?.({ block: 'start' });
+                }}
+                className="text-accent-text underline-offset-2 hover:underline"
               >
-                <h3 id={`help-${section.id}-title`} className="font-semibold">
-                  {section.title}
-                </h3>
-                {section.body}
-              </section>
+                {section.title}
+              </a>
             ))}
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          </nav>
+          {HELP_SECTIONS.map((section) => (
+            <section
+              key={section.id}
+              id={`help-${section.id}`}
+              data-help-section={section.id}
+              data-current={help === section.id || undefined}
+              aria-labelledby={`help-${section.id}-title`}
+              className="flex scroll-mt-2 flex-col gap-1.5 border-t border-border py-3 first-of-type:border-t-0 data-[current]:rounded-lg data-[current]:bg-hover/60 data-[current]:px-3 [&_code]:font-mono [&_code]:text-xs"
+            >
+              <h3 id={`help-${section.id}-title`} className="font-semibold">
+                {section.title}
+              </h3>
+              {section.body}
+            </section>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

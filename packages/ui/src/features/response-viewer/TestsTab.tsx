@@ -7,6 +7,9 @@ import type { TestRun } from '@pigeon/core';
 import { testsOutcome } from '@pigeon/core';
 import { CircleCheck, CircleX, OctagonAlert } from 'lucide-react';
 
+import { SectionLabel } from '../../components/ui';
+import { chipClass } from './StatusLine';
+
 const ICON = {
   pass: <CircleCheck size={12} className="text-pass" aria-hidden />,
   fail: <CircleX size={12} className="text-fail" aria-hidden />,
@@ -26,9 +29,7 @@ export function TestsBadge({ run, onOpen }: { run: TestRun; onOpen: () => void }
       data-outcome={outcome}
       title="Test script results: open the Tests tab"
       onClick={onOpen}
-      className={`inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-xs font-semibold hover:bg-hover ${
-        outcome === 'pass' ? 'text-pass' : 'text-fail'
-      }`}
+      className={chipClass(outcome === 'pass' ? 'pass' : 'fail', true)}
     >
       {outcome === 'pass' ? ICON.pass : ICON.fail}
       Tests {run.counts.pass}/{total(run)}
@@ -39,16 +40,16 @@ export function TestsBadge({ run, onOpen }: { run: TestRun; onOpen: () => void }
 export function TestsTab({ run }: { run: TestRun }) {
   const places = [...new Set(run.results.map((r) => r.place ?? ''))];
   return (
-    <div data-testid="tests-tab" className="min-h-0 flex-1 overflow-y-auto p-3 text-sm">
-      <p data-testid="tests-counts" className="mb-2 text-xs text-fg-muted">
+    <div data-testid="tests-tab" className="min-h-0 flex-1 overflow-y-auto p-4 text-sm">
+      <p data-testid="tests-counts" className="mb-3 text-xs text-fg-muted">
         {run.counts.pass} passed · {run.counts.fail} failed · {run.counts.error} errors
       </p>
       {places.map((place) => (
-        <section key={place} aria-label={place} className="mb-3">
-          <h2 className="mb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+        <section key={place} aria-label={place} className="mb-4 last:mb-0">
+          <SectionLabel role="heading" aria-level={2} className="mb-1.5">
             {place}
-          </h2>
-          <ul className="flex flex-col gap-0.5">
+          </SectionLabel>
+          <ul className="flex flex-col gap-1">
             {run.results
               .filter((r) => (r.place ?? '') === place)
               .map((result, index) => (
@@ -56,7 +57,7 @@ export function TestsTab({ run }: { run: TestRun }) {
                   key={`${result.name}-${index}`}
                   data-testid="test-result"
                   data-outcome={result.outcome}
-                  className="flex items-start gap-2"
+                  className="flex items-start gap-2 rounded px-1.5 py-0.5 hover:bg-hover/60"
                 >
                   <span className="mt-1">{ICON[result.outcome]}</span>
                   <span className="min-w-0 flex-1">

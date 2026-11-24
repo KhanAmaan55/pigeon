@@ -1,8 +1,17 @@
 import { isManagedPath } from '@pigeon/formats';
 import type { ProjectFileSystem } from '@pigeon/platform';
 import { FolderTree } from 'lucide-react';
-import { Dialog } from 'radix-ui';
 import { useEffect, useMemo, useState } from 'react';
+
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+  Input,
+} from '../../../components/ui';
 
 /** Folders never offered (VCS data, dependencies) and the most files listed. */
 const SKIPPED_DIRS = new Set(['node_modules', '.git', '.hg', '.svn']);
@@ -59,7 +68,7 @@ export function ProjectFileButton({
   );
 
   return (
-    <Dialog.Root
+    <Dialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
@@ -69,61 +78,48 @@ export function ProjectFileButton({
         }
       }}
     >
-      <Dialog.Trigger asChild>
-        <button
-          type="button"
-          data-testid="project-file-button"
-          className="inline-flex h-7 shrink-0 items-center gap-1 rounded border border-border px-2 text-xs text-fg hover:bg-hover"
-        >
-          <FolderTree size={12} aria-hidden />
+      <DialogTrigger asChild>
+        <Button size="xs" data-testid="project-file-button" icon={<FolderTree aria-hidden />}>
           From project…
-        </button>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40" />
-        <Dialog.Content
-          data-testid="project-file-dialog"
-          className="fixed top-1/2 left-1/2 flex max-h-[70vh] w-[min(32rem,90vw)] -translate-x-1/2 -translate-y-1/2 flex-col gap-2 rounded-lg border border-border bg-surface-raised p-4 text-sm text-fg shadow-xl"
-        >
-          <Dialog.Title className="text-base font-semibold">
-            Pick a file from the project
-          </Dialog.Title>
-          <Dialog.Description className="text-xs text-fg-muted">
-            The path is stored relative to the project folder, so it works for everyone who has the
-            project.
-          </Dialog.Description>
-          <input
-            aria-label="Filter files"
-            data-testid="project-file-filter"
-            autoFocus
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            placeholder="Filter"
-            className="h-8 rounded border border-border bg-bg px-2"
-          />
-          <ul className="min-h-24 flex-1 overflow-y-auto rounded border border-border">
-            {files === null && <li className="p-2 text-fg-muted">Loading…</li>}
-            {files !== null && shown.length === 0 && (
-              <li className="p-2 text-fg-muted">No files outside Pigeon's own folders.</li>
-            )}
-            {shown.map((path) => (
-              <li key={path}>
-                <button
-                  type="button"
-                  data-testid="project-file-option"
-                  onClick={() => {
-                    onPicked(path);
-                    setOpen(false);
-                  }}
-                  className="w-full truncate px-2 py-1 text-left font-mono text-xs hover:bg-hover"
-                >
-                  {path}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </Button>
+      </DialogTrigger>
+      <DialogContent width="md" data-testid="project-file-dialog">
+        <DialogTitle>Pick a file from the project</DialogTitle>
+        <DialogDescription>
+          The path is stored relative to the project folder, so it works for everyone who has the
+          project.
+        </DialogDescription>
+        <Input
+          aria-label="Filter files"
+          data-testid="project-file-filter"
+          autoFocus
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+          placeholder="Filter"
+          className="mt-4"
+        />
+        <ul className="mt-3 min-h-24 flex-1 overflow-y-auto rounded-lg border border-border p-1">
+          {files === null && <li className="px-2 py-1.5 text-fg-muted">Loading…</li>}
+          {files !== null && shown.length === 0 && (
+            <li className="px-2 py-1.5 text-fg-muted">No files outside Pigeon's own folders.</li>
+          )}
+          {shown.map((path) => (
+            <li key={path}>
+              <button
+                type="button"
+                data-testid="project-file-option"
+                onClick={() => {
+                  onPicked(path);
+                  setOpen(false);
+                }}
+                className="block w-full cursor-default truncate rounded px-2 py-1 text-left font-mono text-xs leading-5 hover:bg-hover"
+              >
+                {path}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
   );
 }
