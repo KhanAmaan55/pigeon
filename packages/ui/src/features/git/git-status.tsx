@@ -3,6 +3,9 @@
  * differ from `HEAD`, for the explorer decorations and the status bar. Refreshed when the
  * project opens, when the window gets focus, and shortly after the project changes (Save for
  * Commit, files changed outside Pigeon). Pigeon never runs a Git command that writes.
+ *
+ * It also warns when Git ignores the project folder (PIGN-061), e.g. a project created under a
+ * gitignored `dist/`: its files would never reach teammates and build steps may delete them.
  */
 
 import type { ProjectSession } from '@pigeon/core';
@@ -14,6 +17,7 @@ import { createStore, useStore } from 'zustand';
 import type { StoreApi } from 'zustand';
 
 import { usePlatform } from '../../app/PlatformProvider';
+import { Callout } from '../../components/ui/Callout';
 import { useAppStore } from '../../stores/AppStoreProvider';
 import type { TreeRow } from '../explorer/tree';
 
@@ -192,5 +196,24 @@ export function GitStatusItem() {
       <span data-testid="status-git-branch">{branch}</span>
       {changed > 0 && <span data-testid="status-git-changes">· {changed} changed</span>}
     </button>
+  );
+}
+
+/**
+ * The explorer's warning when Git ignores the project folder (PIGN-061). Non-blocking; hidden
+ * on web, without `git` and outside a repository. Goes away on the next refresh (window focus)
+ * once the folder is no longer ignored.
+ */
+export function GitIgnoredBanner() {
+  const repository = useGitState((s) => (s.status?.available ? s.status.repository : null));
+  if (!repository?.ignored) return null;
+  const folder = repository.path.replace(/\/$/, '') || '.';
+  return (
+    <Callout role="status" data-testid="git-ignored-banner" tone="warn" className="mx-2 mb-2">
+      <p className="text-xs break-words">
+        This folder is ignored by Git (<code data-testid="git-ignored-path">{folder}</code>):
+        changes here won't be committed. Move the project out of it to share it.
+      </p>
+    </Callout>
   );
 }

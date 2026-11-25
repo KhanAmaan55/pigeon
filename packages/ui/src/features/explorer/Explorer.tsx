@@ -43,7 +43,7 @@ import { methodColorClass } from '../request-editor/methods';
 import { curlSnippet, isEmptyComparison } from '@pigeon/formats';
 import { statusClass } from '../examples/ExamplesTab';
 import { useRunner } from '../runner/Runner';
-import { GitDot } from '../git/git-status';
+import { GitDot, GitIgnoredBanner } from '../git/git-status';
 import { ExportDialog } from '../import-export/ExportDialog';
 import { disposeTabEditor } from '../tabs/editor-registry';
 import type { DropPosition } from './actions';
@@ -365,6 +365,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
           </p>
         </Callout>
       )}
+      <GitIgnoredBanner />
       {project.duplicateOf && (
         <Callout data-testid="duplicate-project-banner" tone="warn" className="mx-2 mb-2">
           <div className="flex flex-col gap-1.5 text-xs">

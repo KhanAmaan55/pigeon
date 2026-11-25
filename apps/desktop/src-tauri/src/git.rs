@@ -6,6 +6,9 @@
 //!   repository (and whether there is one).
 //! - `git status --porcelain=v2 -z --branch --untracked-files=all -- .`: branch and changed
 //!   files under the project folder. `-z` keeps unicode and spaces in paths intact.
+//! - `git check-ignore -q -- .` from the project root: whether the project folder is ignored by
+//!   Git (itself or a parent, e.g. a project created under a gitignored `dist/`), so its files
+//!   would never be committed (PIGN-061). Exit 0: ignored; 1: not ignored.
 //!
 //! Every call adds `--no-optional-locks` (status never takes the index lock, so it can't get in
 //! the way of the user's own Git) and `-c core.fsmonitor=false` (a repository's config can't make
@@ -26,10 +29,20 @@ pub enum GitQuery {
     Version,
     ShowPrefix,
     Status,
+    CheckIgnore,
+}
+
+impl GitQuery {
+    pub const ALL: [GitQuery; 4] = [
+        GitQuery::Version,
+        GitQuery::ShowPrefix,
+        GitQuery::Status,
+        GitQuery::CheckIgnore,
+    ];
 }
 
 /// Read-only subcommands; `git_args` never produces anything else (and a test checks it).
-pub const ALLOWED_SUBCOMMANDS: &[&str] = &["--version", "rev-parse", "status"];
+pub const ALLOWED_SUBCOMMANDS: &[&str] = &["--version", "rev-parse", "status", "check-ignore"];
 
 impl GitQuery {
     fn args(self) -> &'static [&'static str] {
@@ -45,6 +58,7 @@ impl GitQuery {
                 "--",
                 ".",
             ],
+            GitQuery::CheckIgnore => &["check-ignore", "-q", "--", "."],
         }
     }
 }
@@ -65,9 +79,7 @@ pub fn is_allowed(args: &[&str]) -> bool {
     match rest.first() {
         Some(subcommand) => {
             ALLOWED_SUBCOMMANDS.contains(subcommand)
-                && [GitQuery::Version, GitQuery::ShowPrefix, GitQuery::Status]
-                    .iter()
-                    .any(|query| query.args() == rest)
+                && GitQuery::ALL.iter().any(|query| query.args() == rest)
         }
         None => false,
     }
@@ -78,6 +90,8 @@ pub enum GitRun {
     Missing,
     Exited {
         ok: bool,
+        /// The exit code (`None` when killed by a signal).
+        code: Option<i32>,
         stdout: Vec<u8>,
     },
 }
@@ -140,6 +154,7 @@ fn run(query: GitQuery, cwd: &Path) -> Result<GitRun, String> {
     match command.output() {
         Ok(output) => Ok(GitRun::Exited {
             ok: output.status.success(),
+            code: output.status.code(),
             stdout: output.stdout,
         }),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(GitRun::Missing),
@@ -166,6 +181,11 @@ pub struct GitRepository {
     /// `None` when HEAD is detached.
     pub branch: Option<String>,
     pub files: Vec<GitFile>,
+    /// The project folder's path inside the repository, `/`-separated and ending in `/` (`""`
+    /// at the repository root).
+    pub path: String,
+    /// The project folder (itself or a parent) is ignored by Git: its files are never committed.
+    pub ignored: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
@@ -266,7 +286,12 @@ pub fn parse_status(output: &[u8], prefix: &str) -> GitRepository {
         }
     }
     files.sort_by(|a, b| a.path.cmp(&b.path));
-    GitRepository { branch, files }
+    GitRepository {
+        branch,
+        files,
+        path: prefix.to_owned(),
+        ignored: false,
+    }
 }
 
 /// The status of the project folder `root` (a granted project root).
@@ -285,13 +310,25 @@ pub fn status(root: &Path) -> Result<GitStatus, String> {
                 repository: None,
             })
         }
-        GitRun::Exited { ok: true, stdout } => String::from_utf8_lossy(&stdout).trim().to_owned(),
+        GitRun::Exited {
+            ok: true, stdout, ..
+        } => String::from_utf8_lossy(&stdout).trim().to_owned(),
     };
     match run(GitQuery::Status, root)? {
-        GitRun::Exited { ok: true, stdout } => Ok(GitStatus {
-            available: true,
-            repository: Some(parse_status(&stdout, &prefix)),
-        }),
+        GitRun::Exited {
+            ok: true, stdout, ..
+        } => {
+            let mut repository = parse_status(&stdout, &prefix);
+            // Exit 0: ignored. 1 (not ignored) or anything else: not reported.
+            repository.ignored = matches!(
+                run(GitQuery::CheckIgnore, root)?,
+                GitRun::Exited { code: Some(0), .. }
+            );
+            Ok(GitStatus {
+                available: true,
+                repository: Some(repository),
+            })
+        }
         GitRun::Missing => Ok(GitStatus {
             available: false,
             repository: None,
@@ -326,9 +363,21 @@ mod tests {
 
     #[test]
     fn only_the_read_only_queries_can_be_built_or_allowed() {
-        for query in [GitQuery::Version, GitQuery::ShowPrefix, GitQuery::Status] {
+        for query in GitQuery::ALL {
             assert!(is_allowed(&git_args(query)), "{query:?}");
         }
+        assert_eq!(
+            git_args(GitQuery::CheckIgnore),
+            [
+                "--no-optional-locks",
+                "-c",
+                "core.fsmonitor=false",
+                "check-ignore",
+                "-q",
+                "--",
+                "."
+            ]
+        );
         let mut with_safety = vec!["--no-optional-locks", "-c", "core.fsmonitor=false"];
         for forbidden in [
             vec!["commit", "-m", "x"],
@@ -350,6 +399,12 @@ mod tests {
                 "rm",
             ],
             vec!["rev-parse", "--show-toplevel"],
+            // check-ignore only for the project folder, quietly, and never reading stdin.
+            vec!["check-ignore", "-q", "--", ".."],
+            vec!["check-ignore", "-q", "--", ".", "/etc/passwd"],
+            vec!["check-ignore", "--stdin"],
+            vec!["check-ignore", "-v", "--", "."],
+            vec!["check-ignore", "-q", "--no-index", "--", "."],
             vec!["-c", "core.hooksPath=/tmp", "status"],
             vec![],
         ] {
@@ -360,7 +415,7 @@ mod tests {
         // The safety options are required.
         assert!(!is_allowed(GitQuery::Status.args()));
         assert!(!is_allowed(&["status"]));
-        for query in [GitQuery::Version, GitQuery::ShowPrefix, GitQuery::Status] {
+        for query in GitQuery::ALL {
             assert!(ALLOWED_SUBCOMMANDS.contains(&query.args()[0]));
         }
     }
@@ -448,6 +503,8 @@ mod tests {
         let clean = status(&project).unwrap().repository.unwrap();
         assert_eq!(clean.branch.as_deref(), Some("main"));
         assert!(clean.files.is_empty());
+        assert_eq!(clean.path, "api project/");
+        assert!(!clean.ignored);
 
         std::fs::write(project.join("pigeon.json"), "{\"x\":1}").unwrap();
         std::fs::write(project.join("collections").join("ü é.json"), "{}").unwrap();
@@ -474,6 +531,22 @@ mod tests {
             .unwrap()
             .files
             .is_empty());
+
+        // A project created under a gitignored folder (PIGN-061): ignored, itself or via a parent.
+        std::fs::write(dir.join(".gitignore"), "/dist\nscratch/\n").unwrap();
+        let in_dist = dir.join("dist").join("Pigeon");
+        std::fs::create_dir_all(&in_dist).unwrap();
+        std::fs::write(in_dist.join("pigeon.json"), "{}").unwrap();
+        let ignored = status(&in_dist).unwrap().repository.unwrap();
+        assert!(ignored.ignored);
+        assert_eq!(ignored.path, "dist/Pigeon/");
+        // Its files never show as changed: Git doesn't see them.
+        assert!(ignored.files.is_empty());
+        let scratch = dir.join("scratch");
+        std::fs::create_dir_all(&scratch).unwrap();
+        assert!(status(&scratch).unwrap().repository.unwrap().ignored);
+        assert!(!status(&project).unwrap().repository.unwrap().ignored);
+        assert!(!status(&dir).unwrap().repository.unwrap().ignored);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

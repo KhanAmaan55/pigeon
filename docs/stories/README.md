@@ -25,7 +25,7 @@ Stories are small, ordered, vertical slices. Implement them **one at a time, in 
 
 ## Story index
 
-Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-060). Future/out-of-scope items are listed in [product.md §6](../product.md#6-scope-tiers).
+Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-061). Future/out-of-scope items are listed in [product.md §6](../product.md#6-scope-tiers).
 
 | ID | Title | Phase | Tier | Depends on | Status |
 |---|---|---|---|---|---|
@@ -89,6 +89,7 @@ Tiers: **MVP** (PIGN-001 → PIGN-042) and **Later** (PIGN-043 → PIGN-060). Fu
 | [PIGN-058](PIGN-058-clean-soft-visual-design.md) | Clean and soft visual design, shared UI components | 9 Later | Later | 042 | Done |
 | [PIGN-059](PIGN-059-brand-round-look.md) | Pigeon brand, round look and type scale | 9 Later | Later | 058 | Done |
 | [PIGN-060](PIGN-060-project-instructions.md) | INSTRUCTIONS.md in new projects | 9 Later | Later | 014, 015 | Done |
+| [PIGN-061](PIGN-061-git-ignored-project-warning.md) | Warn when the project folder is ignored by Git (desktop) | 9 Later | Later | 057 | Done |
 
 ### Parallelism notes
 - PIGN-005, PIGN-012 and PIGN-033 are pure libraries/tools and can be done early or in parallel with UI stories.

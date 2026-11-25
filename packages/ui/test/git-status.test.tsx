@@ -77,6 +77,8 @@ describe('Git status (PIGN-057)', () => {
             deleted: false,
           },
         ],
+        path: '',
+        ignored: false,
       },
     };
     await openWithGit(git);
@@ -91,7 +93,10 @@ describe('Git status (PIGN-057)', () => {
     expect(within(row('Users API')).queryByTestId('explorer-git')).toBeNull();
 
     // Committed outside Pigeon: the next refresh (window focus) clears it.
-    git.result = { available: true, repository: { branch: 'feature/login', files: [] } };
+    git.result = {
+      available: true,
+      repository: { branch: 'feature/login', files: [], path: '', ignored: false },
+    };
     const before = git.calls;
     act(() => {
       fireEvent.focus(window);
@@ -121,6 +126,104 @@ describe('Git status (PIGN-057)', () => {
     await openWithGit(web, false);
     expect(web.calls).toBe(0);
     expect(screen.queryByTestId('status-git')).toBeNull();
+  });
+});
+
+function platformWithGit(git: MemoryGitStatus, gitStatus = true) {
+  const base = createMemoryPlatform({ os: 'macos', capabilities: { gitStatus } });
+  return { base, platform: Object.assign(base, { git }) as Platform };
+}
+
+const ignoredIn = (path: string): MemoryGitStatus['result'] => ({
+  available: true,
+  repository: { branch: 'main', files: [], path, ignored: true },
+});
+
+const IGNORED_TEXT =
+  "This folder is ignored by Git (dist/Pigeon): changes here won't be committed. Move the project out of it to share it.";
+
+describe('Git-ignored project folder (PIGN-061)', () => {
+  it('warns when an opened project is inside an ignored folder, and clears once it is not', async () => {
+    const git = new MemoryGitStatus();
+    git.result = ignoredIn('dist/Pigeon/');
+    await openWithGit(git);
+    const banner = await screen.findByTestId('git-ignored-banner');
+    expect(banner.textContent).toBe(IGNORED_TEXT);
+    expect(banner.getAttribute('role')).toBe('status');
+    // Non-blocking: the explorer still works.
+    expect(screen.getByTestId('new-collection')).toHaveProperty('disabled', false);
+    expect(screen.getAllByTestId('explorer-item').length).toBeGreaterThan(0);
+
+    // The user moves it out (or fixes .gitignore): the next refresh hides the warning.
+    git.result = {
+      available: true,
+      repository: { branch: 'main', files: [], path: 'api/', ignored: false },
+    };
+    act(() => {
+      fireEvent.focus(window);
+    });
+    await waitFor(() => expect(screen.queryByTestId('git-ignored-banner')).toBeNull());
+  });
+
+  it('warns right after creating a project in an ignored folder', async () => {
+    const git = new MemoryGitStatus();
+    git.result = ignoredIn('dist/Pigeon/');
+    const { platform } = platformWithGit(git);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('create-project'));
+    expect(document.activeElement).toBe(screen.getByTestId('create-project-name'));
+    await user.keyboard('Pigeon');
+    await user.click(screen.getByTestId('create-project-submit'));
+    expect((await screen.findByTestId('git-ignored-banner')).textContent).toBe(IGNORED_TEXT);
+  });
+
+  it('warns after initializing an ignored folder as a project', async () => {
+    const git = new MemoryGitStatus();
+    git.result = ignoredIn('build/out/');
+    const { base, platform } = platformWithGit(git);
+    const fs = new MemoryFs();
+    await fs.writeFileAtomic('README.md', '# output');
+    base.projects.pickResult = base.projects.add(fs);
+    render(<PigeonApp platform={platform} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('open-folder'));
+    const dialog = await screen.findByTestId('init-project-dialog');
+    await user.click(within(dialog).getByTestId('init-project-confirm'));
+    expect((await screen.findByTestId('git-ignored-path')).textContent).toBe('build/out');
+  });
+
+  it('stays hidden when not ignored, without git, outside a repository, or on web', async () => {
+    const tracked = new MemoryGitStatus();
+    tracked.result = {
+      available: true,
+      repository: { branch: 'main', files: [], path: 'api/', ignored: false },
+    };
+    await openWithGit(tracked);
+    await waitFor(() => expect(screen.getByTestId('status-git')).toBeTruthy());
+    expect(screen.queryByTestId('git-ignored-banner')).toBeNull();
+    cleanup();
+
+    // `git` missing: the status says so, whatever else it carries.
+    const missing = new MemoryGitStatus();
+    missing.result = { ...ignoredIn('dist/Pigeon/'), available: false };
+    await openWithGit(missing);
+    await waitFor(() => expect(missing.calls).toBeGreaterThan(0));
+    expect(screen.queryByTestId('git-ignored-banner')).toBeNull();
+    cleanup();
+
+    const noRepo = new MemoryGitStatus();
+    await openWithGit(noRepo);
+    await waitFor(() => expect(noRepo.calls).toBeGreaterThan(0));
+    expect(screen.queryByTestId('git-ignored-banner')).toBeNull();
+    cleanup();
+
+    // Web: no Git capability, so no Git call at all.
+    const web = new MemoryGitStatus();
+    web.result = ignoredIn('dist/Pigeon/');
+    await openWithGit(web, false);
+    expect(web.calls).toBe(0);
+    expect(screen.queryByTestId('git-ignored-banner')).toBeNull();
   });
 });
 

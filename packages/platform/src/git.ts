@@ -1,7 +1,7 @@
 /**
  * Read-only Git status of a project folder (PIGN-057, docs/platform.md §5.1). Desktop only:
  * Pigeon never writes to a repository; this reads the branch and which project files differ
- * from `HEAD`, through the user's installed `git`.
+ * from `HEAD`, and whether Git ignores the project folder, through the user's installed `git`.
  */
 
 import type { ProjectLocation } from './fs';
@@ -29,6 +29,13 @@ export interface GitStatus {
     /** `null` when HEAD is detached. */
     branch: string | null;
     files: GitFileStatus[];
+    /** The project folder's path inside the repository, `/`-separated, ending in `/` (`''` at the root). */
+    path: string;
+    /**
+     * The project folder (itself or a parent, e.g. a gitignored `dist/`) is ignored by Git
+     * (`git check-ignore`): its files are never committed (PIGN-061).
+     */
+    ignored: boolean;
   } | null;
 }
 

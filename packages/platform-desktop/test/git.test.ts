@@ -8,12 +8,15 @@ describe('DesktopGitStatus (PIGN-057)', () => {
     const calls: Array<[string, unknown]> = [];
     const invoke: Invoke = async <T>(cmd: string, args?: Record<string, unknown> | Uint8Array) => {
       calls.push([cmd, args]);
-      return { available: true, repository: { branch: 'main', files: [] } } as T;
+      return {
+        available: true,
+        repository: { branch: 'main', files: [], path: '', ignored: false },
+      } as T;
     };
     const git = new DesktopGitStatus({ invoke });
     expect(await git.status({ kind: 'native', absolutePath: '/work/api' })).toEqual({
       available: true,
-      repository: { branch: 'main', files: [] },
+      repository: { branch: 'main', files: [], path: '', ignored: false },
     });
     expect(calls).toEqual([['git_status', { root: '/work/api' }]]);
     expect(await git.status({ kind: 'memory', id: 'x' })).toEqual({
