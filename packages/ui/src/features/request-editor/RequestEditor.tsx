@@ -95,20 +95,20 @@ export function RequestEditor() {
     >
       <form
         aria-label="Request"
-        className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-2"
+        className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-2.5"
         onSubmit={(event) => {
           event.preventDefault();
           void send();
         }}
       >
-        <div className="flex h-8 min-w-0 flex-1 items-center rounded-lg border border-border bg-sunken transition-colors hover:border-border-strong focus-within:border-accent focus-within:bg-bg focus-within:ring-3 focus-within:ring-focus">
+        <div className="flex h-10 min-w-0 flex-1 items-center rounded-full border border-border bg-sunken transition-colors hover:border-border-strong focus-within:border-accent focus-within:bg-bg focus-within:ring-3 focus-within:ring-focus">
           <span className="relative inline-flex h-full shrink-0">
             <select
               aria-label="Method"
               data-testid="method-select"
               value={method}
               onChange={(event) => setMethod(event.target.value)}
-              className={`h-full cursor-default appearance-none rounded-l-lg bg-transparent pr-7 pl-3 font-mono text-sm font-semibold focus:outline-none focus-visible:outline-none ${methodColorClass(method)}`}
+              className={`h-full cursor-default appearance-none rounded-l-full bg-transparent pr-7 pl-4 font-mono text-sm font-semibold focus:outline-none focus-visible:outline-none ${methodColorClass(method)}`}
             >
               {(METHODS.includes(method) ? METHODS : [method, ...METHODS]).map((m) => (
                 <option key={m} value={m}>
@@ -145,7 +145,7 @@ export function RequestEditor() {
             spellCheck={false}
             autoComplete="off"
             autoCapitalize="off"
-            className="h-7.5 min-w-0 px-2.5 font-mono text-base text-fg placeholder:text-fg-muted focus:outline-none focus-visible:outline-none"
+            className="h-9 min-w-0 rounded-r-full px-3 font-mono text-base text-fg placeholder:text-fg-muted focus:outline-none focus-visible:outline-none"
           />
         </div>
         {/*
@@ -155,6 +155,7 @@ export function RequestEditor() {
         {sending ? (
           <Button
             key="cancel"
+            className="h-10 px-5"
             data-testid="cancel-button"
             title="Cancel (Esc)"
             onClick={cancel}
@@ -167,6 +168,7 @@ export function RequestEditor() {
             key="send"
             type="submit"
             variant="primary"
+            className="h-10 px-5"
             data-testid="send-button"
             title={`Send (${shortcut})`}
             icon={<Send aria-hidden />}

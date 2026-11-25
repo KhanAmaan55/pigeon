@@ -3,7 +3,7 @@ import { forwardRef } from 'react';
 
 import { cx } from './cx';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'link';
+export type ButtonVariant = 'primary' | 'tonal' | 'secondary' | 'ghost' | 'danger' | 'link';
 export type ButtonSize = 'xs' | 'sm' | 'md';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -14,21 +14,22 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const base =
-  'inline-flex shrink-0 cursor-default select-none items-center justify-center whitespace-nowrap rounded font-medium transition-colors duration-100 disabled:pointer-events-none disabled:opacity-50';
+  'inline-flex shrink-0 cursor-default select-none items-center justify-center whitespace-nowrap rounded-full font-medium transition-[background-color,color,border-color,box-shadow] duration-150 disabled:pointer-events-none disabled:opacity-50';
 
 const sizes: Record<ButtonSize, string> = {
-  xs: 'h-6 gap-1 px-2 text-xs [&_svg]:size-3',
-  sm: 'h-7 gap-1.5 px-2.5 text-sm [&_svg]:size-3.5',
-  md: 'h-8 gap-1.5 px-3 text-base [&_svg]:size-4',
+  xs: 'h-6 gap-1 px-2.5 text-xs [&_svg]:size-3',
+  sm: 'h-7 gap-1.5 px-3 text-sm [&_svg]:size-3.5',
+  md: 'h-8 gap-2 px-4 text-base [&_svg]:size-4',
 };
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'bg-accent text-accent-fg shadow-sm hover:bg-accent-hover',
-  secondary:
-    'border border-border bg-surface-raised text-fg shadow-sm hover:border-border-strong hover:bg-hover',
+  primary: 'bg-accent text-accent-fg shadow-sm hover:bg-accent-hover hover:shadow-md',
+  /** A softer filled button in the lavender container colour (Material "filled tonal"). */
+  tonal: 'bg-selected text-accent-text hover:bg-selected/70',
+  secondary: 'border border-border-strong bg-surface-raised text-fg hover:bg-hover',
   ghost: 'text-fg-muted hover:bg-hover hover:text-fg',
   danger:
-    'border border-border bg-surface-raised text-fail shadow-sm hover:border-fail/40 hover:bg-fail/10',
+    'border border-border-strong bg-surface-raised text-fail hover:border-fail/40 hover:bg-fail/10',
   link: 'h-auto px-0 text-accent-text underline-offset-2 hover:underline',
 };
 

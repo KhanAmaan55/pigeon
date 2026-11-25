@@ -61,7 +61,7 @@ export function ProjectTabs() {
                   api.getState().switchProject(project.key);
                 }
               }}
-              className={`flex h-7 max-w-56 shrink-0 cursor-default items-center gap-1 rounded-md pr-0.5 pl-2.5 transition-colors ${
+              className={`flex h-8 max-w-56 shrink-0 cursor-default items-center gap-1 rounded-full pr-1 pl-3.5 font-medium transition-colors ${
                 selected
                   ? 'bg-bg text-fg shadow-sm ring-1 ring-border'
                   : 'hover:bg-hover hover:text-fg'
@@ -78,7 +78,7 @@ export function ProjectTabs() {
                   event.stopPropagation();
                   close(project);
                 }}
-                className="flex size-5 cursor-pointer items-center justify-center rounded text-fg-muted hover:bg-hover hover:text-fg"
+                className="flex size-6 cursor-pointer items-center justify-center rounded-full text-fg-muted hover:bg-hover hover:text-fg"
               >
                 <X size={12} />
               </span>

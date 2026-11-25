@@ -305,6 +305,9 @@ export function CodeEditor({
       effects: [
         attributes.reconfigure(
           EditorView.contentAttributes.of({
+            // Explicitly focusable, so a scrolling read-only view (a response body) can be
+            // reached and scrolled with the keyboard (axe scrollable-region-focusable).
+            tabindex: '0',
             'aria-label': ariaLabel,
             ...(testId === undefined ? {} : { 'data-testid': testId }),
           }),

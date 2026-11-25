@@ -106,7 +106,7 @@ export function RequestTabs({ project }: { project: OpenProject }) {
     : undefined;
   return (
     <>
-      <div className="flex h-tabbar shrink-0 items-center border-b border-border bg-bg pl-1.5">
+      <div className="flex h-tabbar shrink-0 items-center border-b border-border bg-bg pl-2">
         <div
           role={tabs.length > 0 ? 'tablist' : 'group'}
           aria-label="Open requests"
@@ -176,8 +176,10 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                 onAuxClick={(event) => {
                   if (event.button === 1) close(tab.id);
                 }}
-                className={`group flex h-7 max-w-56 shrink-0 cursor-default items-center gap-1.5 rounded-md pr-0.5 pl-2.5 text-sm transition-colors ${
-                  active ? 'bg-hover text-fg' : 'text-fg-muted hover:bg-hover/60 hover:text-fg'
+                className={`group flex h-8 max-w-56 shrink-0 cursor-default items-center gap-1.5 rounded-full pr-1 pl-3 text-sm transition-colors ${
+                  active
+                    ? 'bg-selected font-semibold text-fg'
+                    : 'font-medium text-fg-muted hover:bg-hover hover:text-fg'
                 }`}
               >
                 {tab.id === RUNNER_TAB_ID ? (
@@ -217,7 +219,7 @@ export function RequestTabs({ project }: { project: OpenProject }) {
                       event.stopPropagation();
                       close(tab.id);
                     }}
-                    className={`absolute inset-0 items-center justify-center rounded text-fg-muted hover:bg-border hover:text-fg ${
+                    className={`absolute inset-0 items-center justify-center rounded-full text-fg-muted hover:bg-border hover:text-fg ${
                       dirty ? 'hidden group-hover:flex' : 'flex'
                     } ${active || dirty ? '' : 'opacity-0 group-hover:opacity-100'}`}
                   >

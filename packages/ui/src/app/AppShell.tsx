@@ -195,8 +195,8 @@ export function AppShell() {
           )}
           <Panel id="main-pane" minSize="30">
             {/* The work area: a soft panel framed by the app chrome. */}
-            <div className={`h-full pr-1.5 pb-1.5 ${sidebarHidden ? '' : 'pl-0'}`}>
-              <div className="h-full overflow-hidden rounded-lg border border-border bg-bg shadow-sm">
+            <div className={`h-full pr-2 pb-2 ${sidebarHidden ? '' : 'pl-0'}`}>
+              <div className="h-full overflow-hidden rounded-xl border border-border bg-bg shadow-sm">
                 <MainArea />
               </div>
             </div>

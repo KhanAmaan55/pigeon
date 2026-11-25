@@ -2517,7 +2517,7 @@ describe('regression runs (PIGN-038)', () => {
     expect(transport.requests).toHaveLength(4);
 
     // Accept selected as baselines, then the re-run passes.
-    fireEvent.click(screen.getByText('Runner'));
+    fireEvent.click(within(screen.getByTestId('request-tabs')).getByText('Runner'));
     fireEvent.click(await screen.findByTestId('run-row-select'));
     fireEvent.click(screen.getByTestId('run-accept'));
     expect(await screen.findByTestId('run-accepted')).toBeTruthy();

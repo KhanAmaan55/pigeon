@@ -58,13 +58,13 @@ export function MainArea() {
             role="tablist"
             aria-label="Open requests"
             data-testid="request-tabs"
-            className="flex h-tabbar shrink-0 items-center border-b border-border bg-bg px-1.5 text-sm"
+            className="flex h-tabbar shrink-0 items-center border-b border-border bg-bg px-2 text-sm"
           >
             <span
               role="tab"
               aria-selected
               data-testid="scratch-tab"
-              className="flex h-7 items-center rounded-md bg-hover px-2.5 text-fg"
+              className="flex h-8 items-center rounded-full bg-selected px-3.5 text-sm font-semibold text-fg"
             >
               Scratch request
             </span>

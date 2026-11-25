@@ -1,5 +1,6 @@
 import { Moon, Sun } from 'lucide-react';
 
+import pigeonIcon from '../assets/pigeon-icon.png';
 import { IconButton } from '../components/IconButton';
 import { EnvironmentSelector } from '../features/environments/EnvironmentSelector';
 import { ProjectTabs } from './ProjectTabs';
@@ -12,15 +13,10 @@ export function TopBar() {
   return (
     <header
       data-testid="top-bar"
-      className="flex h-topbar shrink-0 items-center gap-3 bg-surface pr-2 pl-3"
+      className="flex h-topbar shrink-0 items-center gap-4 bg-surface pr-3 pl-4"
     >
-      <h1 className="flex items-center gap-2 text-base font-semibold tracking-tight">
-        <span
-          aria-hidden
-          className="flex size-5 items-center justify-center rounded-md bg-accent text-[11px] font-bold text-accent-fg shadow-sm"
-        >
-          P
-        </span>
+      <h1 className="font-round flex shrink-0 items-center gap-2 text-xl font-bold tracking-tight">
+        <img src={pigeonIcon} alt="" aria-hidden width={26} height={26} className="size-[26px]" />
         Pigeon
       </h1>
       <ProjectTabs />

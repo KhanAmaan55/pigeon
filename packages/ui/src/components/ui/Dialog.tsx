@@ -35,9 +35,9 @@ export const DialogContent = forwardRef<HTMLDivElement, ContentProps>(function D
       <DialogPrimitive.Content
         ref={ref}
         className={cx(
-          'fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] -translate-x-1/2 -translate-y-1/2 animate-pop-in flex-col rounded-xl border border-border bg-surface-raised text-sm text-fg shadow-lg focus:outline-none',
+          'fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] -translate-x-1/2 -translate-y-1/2 animate-pop-in flex-col rounded-2xl border border-border bg-surface-raised text-sm text-fg shadow-lg focus:outline-none',
           widths[width],
-          !flush && 'p-5',
+          !flush && 'p-6',
           className,
         )}
         {...props}
@@ -55,7 +55,7 @@ export const DialogTitle = forwardRef<
   return (
     <DialogPrimitive.Title
       ref={ref}
-      className={cx('text-[15px] leading-6 font-semibold text-fg', className)}
+      className={cx('font-round text-xl font-semibold tracking-tight text-fg', className)}
       {...props}
     />
   );
@@ -68,7 +68,7 @@ export const DialogDescription = forwardRef<
   return (
     <DialogPrimitive.Description
       ref={ref}
-      className={cx('mt-1.5 text-fg-muted', className)}
+      className={cx('mt-2 text-base text-fg-muted', className)}
       {...props}
     />
   );
@@ -77,6 +77,6 @@ export const DialogDescription = forwardRef<
 /** The row of actions at the bottom, right-aligned. */
 export function DialogFooter({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <div className={cx('mt-5 flex items-center justify-end gap-2', className)}>{children}</div>
+    <div className={cx('mt-6 flex items-center justify-end gap-2', className)}>{children}</div>
   );
 }

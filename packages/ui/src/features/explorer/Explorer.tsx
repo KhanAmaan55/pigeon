@@ -58,7 +58,7 @@ import {
 import type { TreeRow } from './tree';
 import { flattenTree, methodLabel } from './tree';
 
-const ROW_HEIGHT = 28;
+const ROW_HEIGHT = 30;
 /** Rows sit this far in from the sidebar edges, so their rounded hover reads as a pill. */
 const ROW_INSET = 6;
 const NO_ROWS: TreeRow[] = [];
@@ -354,7 +354,7 @@ function ProjectExplorer({ project }: { project: OpenProject }) {
             if (event.key === 'Escape') store.getState().setFilter('');
           }}
           placeholder="Filter by name or URL"
-          className="pl-7"
+          className="h-8 rounded-full pl-8"
         />
       </label>
       {readOnly && (
@@ -767,11 +767,15 @@ function ExplorerRow({
         left: ROW_INSET,
         right: ROW_INSET,
         height: ROW_HEIGHT,
-        paddingLeft: 6 + row.depth * 14,
+        paddingLeft: 10 + row.depth * 14,
       }}
       className={cx(
-        'flex cursor-default items-center gap-1.5 rounded pr-2 text-sm select-none',
-        drop === 'inside' ? 'text-fg' : selected ? 'bg-selected text-fg' : 'text-fg hover:bg-hover',
+        'flex cursor-default items-center gap-1.5 rounded-full pr-2.5 text-sm select-none',
+        drop === 'inside'
+          ? 'text-fg'
+          : selected
+            ? 'bg-selected font-semibold text-fg'
+            : 'text-fg hover:bg-hover',
         dropClass,
       )}
     >

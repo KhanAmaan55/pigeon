@@ -23,7 +23,7 @@ export const TabsList = forwardRef<
 
 /** Classes of one pill tab, for tab rows that aren't Radix tabs. */
 export const tabTriggerClass =
-  'inline-flex h-7 shrink-0 cursor-default select-none items-center gap-1.5 rounded px-2.5 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg data-[state=active]:bg-hover data-[state=active]:font-medium data-[state=active]:text-fg aria-selected:bg-hover aria-selected:font-medium aria-selected:text-fg';
+  'inline-flex h-7 shrink-0 cursor-default select-none items-center gap-1.5 rounded-full px-3 text-sm font-medium text-fg-muted transition-colors hover:bg-hover hover:text-fg data-[state=active]:bg-selected data-[state=active]:font-semibold data-[state=active]:text-accent-text aria-selected:bg-selected aria-selected:font-semibold aria-selected:text-accent-text';
 
 export const TabsTrigger = forwardRef<
   HTMLButtonElement,

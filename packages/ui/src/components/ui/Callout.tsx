@@ -30,7 +30,7 @@ export function Callout({
   const { box, icon: iconClass, Icon } = tones[tone];
   return (
     <div
-      className={cx('flex gap-2 rounded-lg border px-3 py-2 text-sm text-fg', box, className)}
+      className={cx('flex gap-2.5 rounded-lg border px-3.5 py-2.5 text-sm text-fg', box, className)}
       {...props}
     >
       {icon === undefined ? (

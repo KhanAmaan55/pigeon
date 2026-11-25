@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/google-sans-flex/rond.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/600.css';
 
@@ -18,64 +19,66 @@
   color-scheme: light;
 
   /* Surfaces: the app chrome (surface) frames a white work panel (bg). */
-  --pg-bg: #ffffff;
-  --pg-surface: #f7f7f9;
+  --pg-bg: #fdfcff;
+  --pg-surface: #f3f2fa;
   --pg-surface-raised: #ffffff;
-  --pg-sunken: #f4f4f7;
-  --pg-hover: #ededf1;
-  --pg-selected: #ebebfb;
-  --pg-border: #e6e6eb;
-  --pg-border-strong: #d6d6de;
-  --pg-fg: #1d1d22;
-  --pg-fg-muted: #686874;
-  --pg-accent: #5b57e0;
-  --pg-accent-hover: #4d49d2;
+  --pg-sunken: #efeef7;
+  --pg-hover: #e8e6f4;
+  --pg-selected: #e3e0fc;
+  --pg-border: #e4e2f0;
+  --pg-border-strong: #cfcce2;
+  --pg-fg: #1b1a2c;
+  --pg-fg-muted: #5d5b72;
+  --pg-accent: #4b42e9;
+  --pg-accent-hover: #3f36d4;
   --pg-accent-fg: #ffffff;
-  --pg-accent-text: #4f4bd6;
-  --pg-focus: color-mix(in srgb, #5b57e0 45%, transparent);
+  --pg-accent-text: #4238d8;
+  --pg-focus: color-mix(in srgb, #4b42e9 40%, transparent);
   --pg-overlay: rgb(20 20 28 / 0.28);
 
   --pg-pass: #12733a;
-  --pg-warn: #a55207;
+  --pg-warn: #954a05;
   --pg-fail: #c42323;
-  --pg-info: #2560d8;
+  --pg-info: #2157c6;
 
   --pg-method-get: #12733a;
-  --pg-method-post: #a55207;
-  --pg-method-put: #2560d8;
+  --pg-method-post: #954a05;
+  --pg-method-put: #2157c6;
   --pg-method-patch: #7438d4;
   --pg-method-delete: #c42323;
-  --pg-method-head: #0e7369;
+  --pg-method-head: #0c675e;
   --pg-method-options: #b8246a;
-  --pg-method-gql: #c0287a;
+  --pg-method-gql: #ad2470;
 
   --pg-shadow-sm: 0 1px 2px rgb(16 16 24 / 0.06);
   --pg-shadow-md: 0 1px 2px rgb(16 16 24 / 0.04), 0 4px 16px -4px rgb(16 16 24 / 0.12);
   --pg-shadow-lg: 0 2px 4px rgb(16 16 24 / 0.04), 0 16px 40px -8px rgb(16 16 24 / 0.22);
 
+  /* Google Sans Flex (OFL, bundled, rounded with the ROND axis), then the system UI font. */
   --pg-font-sans:
-    system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
+    'Google Sans Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell,
+    'Noto Sans', sans-serif;
   --pg-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --pg-bg: #18181c;
-  --pg-surface: #111114;
-  --pg-surface-raised: #1f1f24;
-  --pg-sunken: #141417;
-  --pg-hover: #26262c;
-  --pg-selected: #25254a;
-  --pg-border: #27272e;
-  --pg-border-strong: #34343d;
-  --pg-fg: #ececf1;
-  --pg-fg-muted: #9e9eab;
-  --pg-accent: #5f5be8;
-  --pg-accent-hover: #5551de;
+  --pg-bg: #1a1928;
+  --pg-surface: #121120;
+  --pg-surface-raised: #222133;
+  --pg-sunken: #161525;
+  --pg-hover: #29283d;
+  --pg-selected: #302c66;
+  --pg-border: #2c2b42;
+  --pg-border-strong: #3b3a55;
+  --pg-fg: #e9e7f7;
+  --pg-fg-muted: #a3a1ba;
+  --pg-accent: #5a51f0;
+  --pg-accent-hover: #4d44e3;
   --pg-accent-fg: #ffffff;
-  --pg-accent-text: #a3a1ff;
-  --pg-focus: color-mix(in srgb, #8582ff 55%, transparent);
+  --pg-accent-text: #b6b1ff;
+  --pg-focus: color-mix(in srgb, #8d86ff 55%, transparent);
   --pg-overlay: rgb(0 0 0 / 0.5);
 
   --pg-pass: #4ade80;
@@ -101,8 +104,8 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --pg-bg: #18181c;
-    --pg-fg: #ececf1;
+    --pg-bg: #1a1928;
+    --pg-fg: #e9e7f7;
   }
 }
 
@@ -147,26 +150,41 @@
 }
 
 @theme {
-  /* Developer-tool density: 13px UI text, 12px monospace (docs/ui-ux.md §1). */
+  /*
+   * Type scale (PIGN-059): dense 13 px body text with clear steps for labels, titles and the
+   * wordmark, so hierarchy comes from size and weight, not just colour.
+   */
+  --text-2xs: 10px;
+  --text-2xs--line-height: 14px;
   --text-xs: 11px;
   --text-xs--line-height: 16px;
   --text-sm: 12px;
   --text-sm--line-height: 18px;
   --text-base: 13px;
   --text-base--line-height: 20px;
+  --text-lg: 15px;
+  --text-lg--line-height: 22px;
+  --text-xl: 18px;
+  --text-xl--line-height: 26px;
+  --text-2xl: 22px;
+  --text-2xl--line-height: 30px;
+  --text-3xl: 28px;
+  --text-3xl--line-height: 36px;
 
   /* Fixed chrome sizes, usable as h-topbar, w-activitybar, ... */
-  --spacing-topbar: 40px;
-  --spacing-tabbar: 38px;
-  --spacing-statusbar: 26px;
-  --spacing-activitybar: 48px;
+  --spacing-topbar: 48px;
+  --spacing-tabbar: 44px;
+  --spacing-statusbar: 28px;
+  --spacing-activitybar: 72px;
 
-  /* Soft corners: controls 6 px, panels and menus 8 px, dialogs 12 px. */
-  --radius-sm: 4px;
-  --radius: 6px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  /* Round shapes (PIGN-059): fields 10 px, cards 14 px, panels 20 px, dialogs 28 px, buttons
+     and chips fully round. */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
 
   /* Quick, quiet entrances for overlays, menus and dialogs (off with reduced motion). */
   --animate-fade-in: pg-fade-in 120ms ease-out;
@@ -200,6 +218,8 @@
     font-family: var(--pg-font-sans);
     font-size: 13px;
     line-height: 20px;
+    /* A little roundness in all text; titles and the wordmark go fully round (.font-round). */
+    font-variation-settings: 'ROND' 30;
     -webkit-font-smoothing: antialiased;
     overflow: hidden;
   }
@@ -227,4 +247,9 @@
       animation-duration: 0s !important;
     }
   }
+}
+
+/* Fully round letter ends (Google Sans Flex ROND axis) for titles and the wordmark. */
+@utility font-round {
+  font-variation-settings: 'ROND' 100;
 }

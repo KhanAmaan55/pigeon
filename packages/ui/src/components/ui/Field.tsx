@@ -10,8 +10,8 @@ const field =
   'w-full min-w-0 rounded border border-border bg-sunken text-fg transition-colors placeholder:text-fg-muted hover:border-border-strong focus:border-accent focus:bg-bg focus:ring-3 focus:ring-focus focus:outline-none focus-visible:outline-none disabled:opacity-60 aria-[invalid=true]:border-fail';
 
 const heights: Record<FieldSize, string> = {
-  sm: 'h-7 px-2 text-sm',
-  md: 'h-8 px-2.5 text-base',
+  sm: 'h-7 px-2.5 text-sm',
+  md: 'h-8 px-3 text-base',
 };
 
 /** Classes of a text field, for inputs owned by other components (CodeMirror, custom inputs). */
