@@ -25,9 +25,9 @@ export function InitProjectDialog() {
         <DialogTitle>Initialize Pigeon project here?</DialogTitle>
         <DialogDescription>
           {pending ? locationLabel(pending.location) : ''} has no <code>pigeon.json</code>. Pigeon
-          will add <code>pigeon.json</code>, <code>.gitattributes</code> and the{' '}
-          <code>collections</code>, <code>environments</code> and <code>examples</code> folders.
-          Other files are left alone.
+          will add <code>pigeon.json</code>, <code>.gitattributes</code>, an{' '}
+          <code>INSTRUCTIONS.md</code> guide to the file format, and the <code>collections</code>,{' '}
+          <code>environments</code> and <code>examples</code> folders. Other files are left alone.
         </DialogDescription>
         {pending && (
           // Keyed by the folder, so the name starts from its suggestion for each new folder.

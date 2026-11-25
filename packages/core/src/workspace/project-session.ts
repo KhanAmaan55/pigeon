@@ -1223,13 +1223,14 @@ export async function isPigeonProject(fs: ProjectFileSystem): Promise<boolean> {
 }
 
 /**
- * Turns a folder into an empty Pigeon project: `pigeon.json`, `.gitattributes` (only if absent,
- * it is user-owned afterwards) and the `collections/`, `environments/`, `examples/` directories.
+ * Turns a folder into an empty Pigeon project: `pigeon.json`, `.gitattributes` and
+ * `INSTRUCTIONS.md` (each only if absent: they are user-owned afterwards) and the `collections/`,
+ * `environments/`, `examples/` directories.
  */
 export async function initializeProject(fs: ProjectFileSystem, name: string): Promise<void> {
   const { files } = createEmptyProject(name);
   for (const [path, bytes] of files) {
-    if (path === '.gitattributes' && (await fs.exists(path))) continue;
+    if (!isManagedPath(path) && (await fs.exists(path))) continue;
     await fs.writeFileAtomic(path, bytes);
   }
   for (const dir of PROJECT_DIRECTORIES) await fs.mkdirp(dir);

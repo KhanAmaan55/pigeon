@@ -83,7 +83,7 @@ describe('ProjectSession (read-only)', () => {
 });
 
 describe('initializeProject', () => {
-  it('writes the manifest, .gitattributes and the managed directories', async () => {
+  it('writes the manifest, .gitattributes, INSTRUCTIONS.md and the managed directories', async () => {
     const fs = new MemoryFs();
     expect(await isPigeonProject(fs)).toBe(false);
 
@@ -92,6 +92,7 @@ describe('initializeProject', () => {
     expect(await isPigeonProject(fs)).toBe(true);
     expect((await fs.list('')).map((entry) => entry.path)).toEqual([
       '.gitattributes',
+      'INSTRUCTIONS.md',
       'collections',
       'environments',
       'examples',

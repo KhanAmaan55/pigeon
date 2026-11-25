@@ -72,6 +72,7 @@ export {
   urlToPostman,
 } from './postman/item';
 export { createEmptyProject } from './project/create';
+export { INSTRUCTIONS_FILE, projectInstructions } from './project/instructions';
 export { isManagedPath, isProjectFile } from './project/managed';
 export { CURRENT_FORMAT_VERSION, GLOBALS_PATH, readProject } from './project/reader';
 export { READ_CONCURRENCY, readFilesConcurrently, snapshotProject } from './project/snapshot';

@@ -8,6 +8,7 @@ Project files are the **source of truth for shared API definitions**. They must 
 my-api/                                   # the folder the user opens
   pigeon.json                             # project manifest (required; marks the folder as a Pigeon project)
   .gitattributes                          # written once on project creation (optional, user-owned afterwards)
+  INSTRUCTIONS.md                         # guide to this format for people and AI assistants (§11; same rules)
   collections/
     users-api/                            # one directory per collection (fileKey)
       collection.json                     # collection root: info, auth, events, variables, order
@@ -40,7 +41,7 @@ Pigeon reads and writes only:
 - `environments/*.postman_environment.json`, `environments/globals.postman_globals.json`
 - `examples/**/compare.json`, `examples/**/*.example.json`, `examples/**/*.body.*`
 
-Anything else (READMEs, fixtures, `.gitignore`, files users drop into these folders) is ignored, never modified, never deleted. A directory is removed by Save for Commit only if it becomes empty.
+Anything else (READMEs, fixtures, `.gitignore`, `INSTRUCTIONS.md`, files users drop into these folders) is ignored, never modified, never deleted. A directory is removed by Save for Commit only if it becomes empty.
 
 ### 1.2 Source-of-truth summary
 
@@ -334,3 +335,7 @@ environments/** text eol=lf
 examples/** text eol=lf
 examples/**/*.body.bin binary
 ```
+
+## 11. `INSTRUCTIONS.md` (PIGN-060)
+
+Written once at project creation, next to `.gitattributes` and with the same rules: only when the folder has none (initializing a folder keeps an existing one), never updated or read afterwards, user-owned. It explains this format to developers and AI assistants who edit the files by hand: the rules (valid JSON, unique UUID `id`s that never change, slug file names, no registration needed thanks to the alphabetical fallback for `order`, no secrets in files, `pigeon validate`), the layout, and how to add a request, folder, collection, environment and example, with bodies, auth, scripts, variables and comparison. Source: `formats/src/project/instructions.ts` (`projectInstructions(name)`). Its example files are tested: `formats/test/instructions.test.ts` writes them into a new project and reads it back with no problems. It travels with zip export/import (`isProjectFile`) and is not offered as a body file.

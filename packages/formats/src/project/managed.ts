@@ -2,6 +2,8 @@
 
 import type { ProjectPath } from '@pigeon/platform';
 
+import { INSTRUCTIONS_FILE } from './instructions';
+
 const MANAGED: readonly RegExp[] = [
   /^pigeon\.json$/,
   /^collections\/(?:[^/]+\/)+(?:collection|folder)\.json$/,
@@ -18,7 +20,10 @@ export function isManagedPath(path: ProjectPath): boolean {
   return MANAGED.some((pattern) => pattern.test(path));
 }
 
-/** Files that travel with a project (zip export/import): managed files plus `.gitattributes`. */
+/**
+ * Files that travel with a project (zip export/import): managed files plus the two written at
+ * creation, `.gitattributes` and `INSTRUCTIONS.md`.
+ */
 export function isProjectFile(path: ProjectPath): boolean {
-  return path === '.gitattributes' || isManagedPath(path);
+  return path === '.gitattributes' || path === INSTRUCTIONS_FILE || isManagedPath(path);
 }

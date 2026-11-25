@@ -161,6 +161,7 @@ describe('opening a project', () => {
     await waitFor(() => expect(screen.getByTestId('explorer')).toBeTruthy());
     expect((await fs.list('')).map((entry) => entry.path)).toEqual([
       '.gitattributes',
+      'INSTRUCTIONS.md',
       'README.md',
       'collections',
       'environments',

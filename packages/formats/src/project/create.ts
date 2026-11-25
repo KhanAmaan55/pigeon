@@ -1,3 +1,4 @@
+import { INSTRUCTIONS_FILE, projectInstructions } from './instructions';
 import { serializeProject } from './writer';
 import type { EmptyProject, ProjectModel } from './types';
 
@@ -12,7 +13,10 @@ const GIT_ATTRIBUTES = [
   '',
 ].join('\n');
 
-/** Creates an unsaved, empty format-v1 project and all files required at creation time. */
+/**
+ * Creates an unsaved, empty format-v1 project and all files written at creation time, including
+ * `.gitattributes` and `INSTRUCTIONS.md` (both the user's afterwards).
+ */
 export function createEmptyProject(name: string): EmptyProject {
   const model: ProjectModel = {
     id: crypto.randomUUID(),
@@ -25,5 +29,6 @@ export function createEmptyProject(name: string): EmptyProject {
   };
   const files = serializeProject(model);
   files.set('.gitattributes', encoder.encode(GIT_ATTRIBUTES));
+  files.set(INSTRUCTIONS_FILE, encoder.encode(projectInstructions(name)));
   return { model, files };
 }

@@ -1,4 +1,4 @@
-import { isManagedPath } from '@pigeon/formats';
+import { isProjectFile } from '@pigeon/formats';
 import type { ProjectFileSystem } from '@pigeon/platform';
 import { FolderTree } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -26,7 +26,7 @@ export async function listReferenceableFiles(fs: ProjectFileSystem): Promise<str
       const name = entry.path.slice(entry.path.lastIndexOf('/') + 1);
       if (entry.kind === 'dir') {
         if (!SKIPPED_DIRS.has(name)) await walk(entry.path);
-      } else if (!isManagedPath(entry.path) && entry.path !== '.gitattributes') {
+      } else if (!isProjectFile(entry.path)) {
         files.push(entry.path);
       }
     }
